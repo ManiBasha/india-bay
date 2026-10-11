@@ -1,0 +1,35 @@
+// Pop-up shops: two-wheeler dealer, clothing store, furniture store and mobile shop. Wardrobe app.
+window.BBFeatures.push(function (bb) {
+  const P = () => bb.P;
+  const BIKES = [['cycle', 'Cycle', 'No licence, no fuel, good for deliveries', 4000], ['rickshaw', 'Cycle rickshaw', 'Slow and steady, three wheels', 15000], ['bike', 'Motorbike', '100 km/h · two-wheeler licence', 65000], ['sportsbike', 'Sports bike', '115 km/h · two-wheeler licence', 180000]];
+  function bikeSheet(poi) { const p = P(); bb.openSheet(poi.name, `Cash ${bb.inr(p.cash)} · bank money works too`, BIKES.map(([id, nm, sub, pr]) => bb.rowHtml(id, nm, sub, bb.inr(bb.price(pr)))).join('') + bb.rowHtml('helmet', 'ISI helmet', p.helmet ? 'You own one · worn automatically on bikes' : 'Required by law for rider and pillion', p.helmet ? 'Owned' : bb.inr(bb.price(800)), p.helmet ? 'ghost' : ''),
+    s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return; if (id === 'helmet') { if (p.helmet) return; if (bb.spend(bb.price(800))) { p.helmet = true; bb.save(); bb.toast('Helmet bought · safety first', '#3ddc97'); bb.emit('buy', { kind: 'helmet' }); bikeSheet(poi); } return; }
+      const it = BIKES.find(b => b[0] === id); if (bb.buyVehicle(id, bb.price(it[3]), { x: poi.x, z: poi.z })) bb.closeSheet(); }); }
+  bb.poiHandlers.bikes = bikeSheet;
+
+  const COLORS = [['#e8573e', 'Chilli red'], ['#2d6cdf', 'Royal blue'], ['#f4f1ea', 'White'], ['#ffc93c', 'Haldi yellow'], ['#1f8a4c', 'Parrot green'], ['#ff6fa8', 'Rani pink'], ['#1c1c20', 'Black'], ['#7b2a5e', 'Jamun purple'], ['#f08a24', 'Kesariya']];
+  const TOPS = [['shirt', 'Shirt', 600], ['tshirt', 'T-shirt', 400], ['kurta', 'Kurta', 1200], ['saree', 'Saree', 2500]];
+  const EXTRAS = [['sneakers', 'Sneakers', 2500], ['glasses', 'Sunglasses', 800], ['cap', 'Cricket cap', 300], ['bottom', 'Jeans or trousers', 900]];
+  let pickCol = COLORS[0][0];
+  function clothesSheet(poi) { const p = P(); bb.openSheet(poi.name, `Cash ${bb.inr(p.cash)} · tap a colour, then an item`, `<div class="chips">${COLORS.map(([c, n]) => `<button class="chip${c === pickCol ? ' on' : ''}" data-col="${c}" title="${n}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${c};vertical-align:-1px;margin-right:6px"></span>${n}</button>`).join('')}</div>` +
+      TOPS.map(([id, nm, pr]) => bb.rowHtml(id, nm, 'In the colour you picked', bb.inr(bb.price(pr)))).join('') + EXTRAS.map(([id, nm, pr]) => bb.rowHtml(id, nm, id === 'bottom' ? 'In the colour you picked' : p.wardrobe.includes(id) ? 'In your wardrobe' : '', p.wardrobe.includes(id) && id !== 'bottom' ? 'Owned' : bb.inr(bb.price(pr)), p.wardrobe.includes(id) && id !== 'bottom' ? 'ghost' : '')).join('') + '<p class="note">Change outfits any time from Phone → Wardrobe.</p>',
+    s => s.onclick = e => { const c = e.target.closest('[data-col]'); if (c) { pickCol = c.dataset.col; clothesSheet(poi); return; } const id = e.target.dataset.id; if (!id) return; const o = p.outfit;
+      const top = TOPS.find(t => t[0] === id), ex = EXTRAS.find(t => t[0] === id); const pr = (top || ex)[2]; if (ex && id !== 'bottom' && p.wardrobe.includes(id)) return; if (!bb.spend(bb.price(pr))) return;
+      if (top) { o.top = id; o.topCol = pickCol; const key = id + ':' + pickCol; if (!p.wardrobe.includes(key)) p.wardrobe.push(key); } else if (id === 'bottom') o.botCol = pickCol; else { p.wardrobe.push(id); if (id === 'sneakers') o.shoes = 'sneakers'; if (id === 'glasses') o.glasses = true; if (id === 'cap') o.cap = true; }
+      bb.applyOutfit(); bb.save(); bb.emit('buy', { kind: 'clothes', id }); bb.toast('Looking sharp', '#3ddc97'); clothesSheet(poi); }); }
+  bb.poiHandlers.clothes = clothesSheet;
+  function wardrobe() { const p = P(); const o = p.outfit; const tops = p.wardrobe.filter(w => w.includes(':')).concat(['shirt:#e8573e']);
+    bb.openSheet('Wardrobe', 'Clothes you own', [...new Set(tops)].map(w => { const [t, c] = w.split(':'); const nm = (TOPS.find(x => x[0] === t) || ['', 'Shirt'])[1]; return `<div class="row"><div class="nm"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c};margin-right:8px;vertical-align:-2px"></span>${nm}</div><button class="buy ghost" data-w="${w}">${o.top === t && o.topCol === c ? 'Wearing' : 'Wear'}</button></div>`; }).join('') +
+      ['sneakers', 'glasses', 'cap'].filter(x => p.wardrobe.includes(x)).map(x => bb.rowHtml(x, { sneakers: 'Sneakers', glasses: 'Sunglasses', cap: 'Cricket cap' }[x], '', (x === 'sneakers' ? o.shoes === 'sneakers' : o[x]) ? 'Take off' : 'Put on', 'ghost')).join(''),
+    s => s.onclick = e => { const w = e.target.dataset.w, id = e.target.dataset.id; if (w) { const [t, c] = w.split(':'); o.top = t; o.topCol = c; } if (id === 'sneakers') o.shoes = o.shoes === 'sneakers' ? 'chappal' : 'sneakers'; if (id === 'glasses') o.glasses = !o.glasses; if (id === 'cap') o.cap = !o.cap; if (w || id) { bb.applyOutfit(); bb.setDirty(); wardrobe(); } }); }
+  bb.addApp({ id: 'wardrobe', label: 'Wardrobe', icon: '👕', group: 'menu', fn: wardrobe });
+
+  function furnSheet(poi, homeId) { const p = P(); if (!p.homes.length) { bb.toast('Buy a home first · Sapna Homes', '#ff9f1c'); return; } const hid = homeId || p.homes[0]; const owned = p.furniture[hid] || [];
+    bb.openSheet(poi.name, `Decorating: ${bb.homeById(hid).name}`, `<div class="chips">${p.homes.map(h => `<button class="chip${h === hid ? ' on' : ''}" data-h="${h}">${bb.esc(bb.homeById(h).name)}</button>`).join('')}</div>` + Object.entries(bb.FURN).map(([id, f]) => bb.rowHtml(id, f.name, owned.includes(id) ? 'Already in this home' : 'Delivered and set up today', owned.includes(id) ? 'Owned' : bb.inr(bb.price(f.price)), owned.includes(id) ? 'ghost' : '')).join(''),
+    s => s.onclick = e => { const h = e.target.dataset.h; if (h) { furnSheet(poi, h); return; } const id = e.target.dataset.id; if (!id || owned.includes(id)) return; if (!bb.spend(bb.price(bb.FURN[id].price), true)) return; p.furniture[hid] = owned.concat([id]); bb.save(); bb.emit('buy', { kind: 'furniture', id }); bb.toast(`${bb.FURN[id].name} delivered`, '#3ddc97'); furnSheet(poi, hid); }); }
+  bb.poiHandlers.furniture = furnSheet;
+
+  function mobileSheet(poi) { const p = P(); bb.openSheet(poi.name, `You have a ${p.phone === 'smart' ? 'smartphone' : 'keypad phone'}`, bb.rowHtml('smart', 'Bay smartphone', 'Unlocks Radio, BayGame, Camera and clips', p.phone === 'smart' ? 'Owned' : bb.inr(bb.price(15000)), p.phone === 'smart' ? 'ghost' : '') + bb.rowHtml('recharge', 'Data recharge', 'Unlimited for 28 game days', bb.inr(bb.price(299)), 'ghost'),
+    s => s.onclick = e => { const id = e.target.dataset.id; if (id === 'smart' && p.phone !== 'smart' && bb.spend(bb.price(15000), true)) { p.phone = 'smart'; bb.save(); bb.emit('buy', { kind: 'phone' }); bb.toast('New smartphone · more apps unlocked', '#3ddc97'); mobileSheet(poi); } if (id === 'recharge' && bb.spend(bb.price(299))) bb.toast('Recharged · enjoy the reels', '#3ddc97'); }); }
+  bb.poiHandlers.mobile = mobileSheet;
+});

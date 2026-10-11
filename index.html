@@ -1,0 +1,90 @@
+<title>India Bay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Martel+Sans:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/game.css">
+
+<canvas id="c" aria-label="3D open-world game of West India" tabindex="0"></canvas>
+<div id="dim"></div>
+
+<div class="hud" id="top">
+  <div class="lcol">
+    <div class="pill" id="money">₹ 0<small>Bank ₹ 0</small></div>
+    <div id="stars" aria-label="Wanted level"></div>
+    <div class="pill" id="stats">
+      <div class="meter hp" id="mHp" title="Health"><em>❤</em><b><i></i></b></div>
+      <div class="meter" id="mHunger" title="Food"><em>🍛</em><b><i></i></b></div>
+      <div class="meter" id="mBladder" title="Toilet"><em>🚻</em><b><i></i></b></div>
+      <div class="meter" id="mEnergy" title="Sleep"><em>😴</em><b><i></i></b></div>
+    </div>
+    <div class="pill" id="weap">Fists</div>
+    <div class="pill" id="radio" hidden></div>
+  </div>
+</div>
+<div class="hud" id="rcol">
+  <div class="btns">
+    <button class="ibtn ic" id="menuBtn" aria-label="Menu" title="Menu: garage, jobs, wardrobe, business">☰</button>
+    <button class="ibtn ic" id="phoneBtn" aria-label="Phone" title="Phone">📱</button>
+    <button class="ibtn ic" id="setBtn" aria-label="Settings" title="Settings">⚙</button>
+    <button class="ibtn ic" id="camBtn" aria-label="Switch camera" title="Chase camera">🎥</button>
+  </div>
+  <div class="pill" id="nav" hidden></div>
+  <canvas id="mini" width="224" height="224" aria-label="Minimap, tap for the map"></canvas>
+  <div id="area"></div>
+</div>
+<div class="hud" id="topc"><div class="pill" id="mission"><div class="k">India Bay</div><div class="t">Loading West India</div><div class="m">&nbsp;</div></div></div>
+<div class="hud" id="toast"></div>
+<div class="hud" id="big"></div>
+<div class="hud pill" id="prompt" hidden></div>
+<div class="hud" id="cross"></div>
+<div class="hud" id="speed"><b id="kmh">0</b><span id="spdLbl">KM/H</span>
+  <div id="vbars" hidden><div class="meter" id="fuelBar">Fuel<b><i></i></b></div><div class="meter" id="bodyBar">Body<b><i></i></b></div></div></div>
+
+<div class="pad l">
+  <button data-k="left" aria-label="Turn left"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <button data-k="right" aria-label="Turn right"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+</div>
+<div class="pad a">
+  <button data-act="use" aria-label="Enter, exit or use">E</button>
+  <button data-act="fire" class="fire" aria-label="Attack">FIRE</button>
+  <button data-act="gun" aria-label="Switch weapon">GUN</button>
+  <button data-act="horn" aria-label="Horn">HORN</button>
+</div>
+<div class="pad r">
+  <button data-k="down" class="brake" aria-label="Brake or walk back">BACK</button>
+  <button data-k="up" class="gas" aria-label="Accelerate or run">GO</button>
+</div>
+
+<div id="intro">
+  <div class="card">
+    <p class="hi">इंडिया बे · Open-world India</p>
+    <h1 id="gName">India Bay</h1>
+    <p id="gTag">Open-world West India</p>
+    <p id="today"></p>
+    <div class="ann" id="ann" hidden></div>
+    <div class="cities" id="cities"></div>
+    <div class="btnrow"><button class="go" id="go">Start</button><button class="go alt" id="newGame" hidden>New game</button></div>
+    <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>E</kbd> use · <kbd>J</kbd> attack · <kbd>M</kbd> phone · <kbd>I</kbd> menu · <kbd>N</kbd> map · <kbd>R</kbd> radio · <kbd>C</kbd> camera · <kbd>P</kbd> photo</div>
+  </div>
+</div>
+
+<div id="sheetWrap" hidden><div id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="wait" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.BBFeatures=window.BBFeatures||[];</script>
+<script src="js/world-west.js"></script>
+<script src="js/landmarks.js"></script>
+<script src="js/india-states.js"></script>
+<!-- Feature files: one line per file in features/ -->
+<script src="features/jobs.js"></script>
+<script src="features/shops.js"></script>
+<script src="features/life.js"></script>
+<script src="features/travel.js"></script>
+<script src="features/festivals.js"></script>
+<script src="features/radio.js"></script>
+<script src="features/baygame.js"></script>
+<script src="features/media.js"></script>
+<script src="features/story.js"></script>
+<script src="features/economy.js"></script>
+<script src="js/game.js"></script>
