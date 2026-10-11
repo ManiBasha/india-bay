@@ -1,4 +1,4 @@
-# India Bay · West India build 3.0
+# India Bay · West India build 3.3
 
 An open-world India browser game. The live region is **West India**: Maharashtra, Gujarat, Rajasthan,
 Dadra & Nagar Haveli and Daman & Diu, built as one map with the Arabian Sea coast.
@@ -22,6 +22,11 @@ features/               add-on systems, one file each
   media.js              photo mode, photos, 30 and 60 second clips
   story.js              chapter 1, achievements, daily rewards
   economy.js            chai business and renting homes
+  online.js             sign-in, usernames, cloud saves, other players, chat (needs js/online-config.js)
+online/
+  supabase-setup.sql    database tables and rules for Supabase
+  server/               Cloudflare Worker for the live world (npx wrangler deploy)
+  SETUP.md              step-by-step setup
 ```
 
 ## Host it for free
@@ -35,6 +40,10 @@ features/               add-on systems, one file each
 **itch.io:** zip the folder contents (index.html at the top) → New project → Kind: HTML → "played in the browser".
 
 To update, upload only the files you changed.
+
+## Online play
+
+See `online/SETUP.md`: Supabase for accounts and saves, Cloudflare for the live server. Until `js/online-config.js` is filled in, the game runs offline.
 
 ## Admin
 

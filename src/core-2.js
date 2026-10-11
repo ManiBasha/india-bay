@@ -148,7 +148,7 @@ P=Object.assign(newSave(),P);for(const k of ['ammo','lic','outfit','stats','stor
 let dirty=false,lastSave=0;
 function save(){if(!startedOnce){store.set('ib.save.v3',P);return;}if(player.mode==='drive'&&player.veh){P.pos={x:player.veh.pos.x,z:player.veh.pos.z,h:player.veh.h};P.inCar=player.veh.owned?player.veh.ownedIdx:null;}else if(!inside){P.pos={x:player.pos.x,z:player.pos.z,h:player.h};P.inCar=null;}
   for(const v of ownedVeh)if(v&&P.cars[v.ownedIdx]){const c=P.cars[v.ownedIdx];c.fuel=Math.round(v.fuel*10)/10;c.hp=Math.round(v.hp);c.x=Math.round(v.pos.x);c.z=Math.round(v.pos.z);c.h=+v.h.toFixed(2);}
-  store.set('ib.save.v3',P);dirty=false;emit('save');}
+  P.savedAt=Date.now();store.set('ib.save.v3',P);dirty=false;emit('save');}
 
 /* owned vehicles */
 const ownedVeh=[];
