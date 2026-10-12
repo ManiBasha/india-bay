@@ -7,7 +7,7 @@ window.BBFeatures.push(function (bb) {
   const THREE = bb.THREE;
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
-  let sb = null, session = null, profile = null, isAdmin = false, offline = false, passed = false, next = null;
+  let googleOn = true, sb = null, session = null, profile = null, isAdmin = false, offline = false, passed = false, next = null;
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
   const muted = new Set((() => { try { return JSON.parse(localStorage.getItem('ib.muted') || '[]'); } catch (e) { return []; } })());
@@ -61,6 +61,7 @@ window.BBFeatures.push(function (bb) {
       await loadScript();
       sb = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' } });
       const q = new URLSearchParams(location.search);
+      try { const st = await fetch(C.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: C.supabaseKey } }); if (st.ok) { const j = await st.json(); googleOn = !!(j.external && j.external.google); } } catch (e) {}
       const { data } = await sb.auth.getSession(); session = data.session;
       if (q.has('code') || q.has('error')) { if (q.get('error_description')) setTimeout(() => bb.toast(q.get('error_description'), '#ff8b8b'), 800); history.replaceState(null, '', location.pathname + location.hash); }
       sb.auth.onAuthStateChange((ev, s) => { session = s; if (ev === 'SIGNED_OUT') { profile = null; disconnect(true); } });
@@ -93,8 +94,8 @@ window.BBFeatures.push(function (bb) {
   }
 
   function signInSheet() {
-    bb.openSheet('Play online', 'Play West India with everyone', `<div class="stack"><button class="go" data-id="google">Sign in with Google</button><button class="go alt" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
-      <p class="note">Google keeps your progress on every device. A guest account lives in this browser only; you can link Google later from Phone → Online.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
+    bb.openSheet('Play online', 'Play West India with everyone', `<div class="stack">${googleOn ? '<button class="go" data-id="google">Sign in with Google</button>' : ''}<button class="go${googleOn ? ' alt' : ''}" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
+      <p class="note">${googleOn ? 'Google keeps your progress on every device. A guest account lives in this browser only; you can link Google later from Phone → Online.' : 'A guest account keeps your progress in this browser.'}</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
       s.onclick = async e => {
         const id = e.target.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
         const bad = t => { msg.textContent = t; msg.className = 'note bad'; };
@@ -290,7 +291,7 @@ window.BBFeatures.push(function (bb) {
     const st = status === 'on' ? `Connected · ${online} online in West India` : status === 'connecting' || status === 'retry' ? 'Connecting…' : 'Offline';
     bb.openSheet('🌐 Online', st,
       bb.rowHtml('conn', status === 'on' ? 'Connected' : 'Not connected', `Region: West India${C.serverUrl ? '' : ' · server not set up yet'}`, status === 'on' ? 'Go offline' : 'Connect', status === 'on' ? 'ghost' : '') +
-      bb.rowHtml('acct', bb.esc(profile.username), isAnon() ? 'Guest account · progress lives in this browser' : 'Google account · progress saved in the cloud', isAnon() ? 'Link Google' : 'Sign out', 'ghost') +
+      bb.rowHtml('acct', bb.esc(profile.username), isAnon() ? 'Guest account · progress lives in this browser' : 'Google account · progress saved in the cloud', isAnon() ? (googleOn ? 'Link Google' : 'Guest') : 'Sign out', 'ghost') +
       (isAnon() ? bb.rowHtml('out', 'Sign out', 'A guest account cannot be recovered after signing out', 'Sign out', 'ghost') : '') +
       `<h3 class="sub">Players near you (${list.length})</h3>` +
       (list.length ? list.map(({ r, d }) => `<div class="row"><div class="nm">${bb.esc(r.n)}<small>${d < 1000 ? Math.round(d) + ' m' : (d / 1000).toFixed(1) + ' km'} · ${r.m === 'd' ? 'driving' : r.m === 'i' ? 'indoors' : 'on foot'}</small></div><div class="btnrow" style="flex-wrap:nowrap;gap:6px"><button class="buy ghost" data-mute="${bb.esc(r.n)}">${muted.has(r.n.toLowerCase()) ? 'Unmute' : 'Mute'}</button><button class="buy ghost" data-rep="${bb.esc(r.n)}">Report</button></div></div>`).join('') : '<p class="note">Nobody nearby yet. Players within about 700 m show up here and on the road.</p>') +
@@ -298,7 +299,7 @@ window.BBFeatures.push(function (bb) {
       s => s.onclick = async e => {
         const id = e.target.dataset.id, mu = e.target.dataset.mute, rep = e.target.dataset.rep;
         if (id === 'conn') { if (status === 'on') disconnect(); else { offline = false; connect(); } return setTimeout(sheet, 400); }
-        if (id === 'acct') { if (!isAnon()) return signOut(); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
+        if (id === 'acct') { if (!isAnon()) return signOut(); if (!googleOn) return bb.toast('Google sign-in is not set up yet', '#d6c8e4'); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
         if (id === 'out') return signOut();
         if (mu) { const k = mu.toLowerCase(); muted.has(k) ? muted.delete(k) : muted.add(k); try { localStorage.setItem('ib.muted', JSON.stringify([...muted])); } catch (er) {} bb.toast(muted.has(k) ? `${mu} muted` : `${mu} unmuted`, '#d6c8e4'); return sheet(); }
         if (rep) return reportSheet(rep);

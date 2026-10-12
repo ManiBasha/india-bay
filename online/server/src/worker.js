@@ -27,15 +27,50 @@ function refuse(code, msg) {
   return new Response(null, { status: 101, webSocket: c });
 }
 
+// Sign-in check. Newer Supabase projects sign tokens with a public key (JWKS), so the server
+// checks the signature itself. Older projects fall back to asking Supabase who the token belongs to.
+let JWKS = null, jwksAt = 0;
+const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
+const dec = s => JSON.parse(new TextDecoder().decode(b64u(s)));
+async function jwks(env, force) {
+  if (force || !JWKS || Date.now() - jwksAt > 3600_000) {
+    const r = await fetch(env.SUPABASE_URL + '/auth/v1/.well-known/jwks.json');
+    JWKS = r.ok ? ((await r.json()).keys || []) : []; jwksAt = Date.now();
+  }
+  return JWKS;
+}
+async function verifyLocal(env, token) {
+  const [h, p, sig] = String(token).split('.');
+  if (!sig) return { bad: 'not a sign-in token' };
+  const head = dec(h), body = dec(p);
+  if (head.alg !== 'ES256' && head.alg !== 'RS256') return null;           // older project: use fallback
+  let jwk = (await jwks(env)).find(k => k.kid === head.kid);
+  if (!jwk) jwk = (await jwks(env, true)).find(k => k.kid === head.kid);
+  if (!jwk) return null;
+  const imp = head.alg === 'ES256' ? { name: 'ECDSA', namedCurve: 'P-256' } : { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
+  const ver = head.alg === 'ES256' ? { name: 'ECDSA', hash: 'SHA-256' } : { name: 'RSASSA-PKCS1-v1_5' };
+  const key = await crypto.subtle.importKey('jwk', { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, n: jwk.n, e: jwk.e, alg: jwk.alg, ext: true }, imp, false, ['verify']);
+  const ok = await crypto.subtle.verify(ver, key, b64u(sig), new TextEncoder().encode(h + '.' + p));
+  if (!ok) return { bad: 'signature did not match' };
+  if (body.exp && body.exp * 1000 < Date.now() - 30_000) return { bad: 'expired' };
+  if (!body.sub) return { bad: 'no user in token' };
+  return { uid: body.sub };
+}
 async function whoIs(env, token) {
-  const h = { apikey: env.SUPABASE_KEY, authorization: 'Bearer ' + token };
-  const u = await fetch(env.SUPABASE_URL + '/auth/v1/user', { headers: h });
-  if (!u.ok) return null;
-  const user = await u.json();
-  if (!user || !user.id) return null;
-  const p = await fetch(env.SUPABASE_URL + '/rest/v1/profiles?select=username&id=eq.' + encodeURIComponent(user.id), { headers: h });
-  const rows = p.ok ? await p.json() : [];
-  return { uid: user.id, name: rows[0] ? rows[0].username : null };
+  let v = await verifyLocal(env, token);
+  if (!v) {
+    const u = await fetch(env.SUPABASE_URL + '/auth/v1/user', { headers: { apikey: env.SUPABASE_KEY, authorization: 'Bearer ' + token } });
+    if (!u.ok) return { bad: 'Supabase said ' + u.status + ' ' + (await u.text()).slice(0, 80) };
+    const user = await u.json();
+    v = user && user.id ? { uid: user.id } : { bad: 'no user' };
+  }
+  if (v.bad) return v;
+  const url = env.SUPABASE_URL + '/rest/v1/profiles?select=username&id=eq.' + encodeURIComponent(v.uid);
+  let p = await fetch(url, { headers: { apikey: env.SUPABASE_KEY, authorization: 'Bearer ' + token } });
+  if (!p.ok) p = await fetch(url, { headers: { apikey: env.SUPABASE_KEY } });
+  if (!p.ok) return { uid: v.uid, dbErr: p.status + ' ' + (await p.text()).slice(0, 80) };
+  const rows = await p.json();
+  return { uid: v.uid, name: rows[0] ? rows[0].username : null };
 }
 
 export default {
@@ -58,8 +93,9 @@ export default {
       const token = url.searchParams.get('token');
       if (!token) return refuse('auth', 'Please sign in first.');
       let who = null;
-      try { who = await whoIs(env, token); } catch (e) { return refuse('auth', 'Could not check your sign-in. Try again in a moment.'); }
-      if (!who) return refuse('auth', 'Your sign-in has expired. Please sign in again.');
+      try { who = await whoIs(env, token); } catch (e) { return refuse('auth', 'Could not check your sign-in (' + String(e && e.message || e).slice(0, 60) + '). Try again in a moment.'); }
+      if (who.bad) return refuse('auth', 'Sign-in not accepted: ' + who.bad + '. Sign out and play as guest again.');
+      if (who.dbErr) return refuse('db', 'Server could not read usernames (' + who.dbErr + '). Check SUPABASE_KEY in wrangler.toml.');
       if (!who.name) return refuse('name', 'Pick a username first.');
       const h = new Headers(req.headers); h.set('x-uid', who.uid); h.set('x-name', who.name);
       return env.REGION.get(env.REGION.idFromName(region)).fetch(new Request('https://region/ws', { headers: h }));
