@@ -53,7 +53,7 @@ window.WORLD = {
   zones: [
     { id: 'mumbai', name: 'Mumbai', st: 'MH', x0: 2540, z0: 8100, nx: 6, nz: 10, style: 'metro', size: 'big', food: 'MH',
       specials: { '4,0': 'localStation:Andheri', '4,1': 'rail', '4,2': 'localStation:Bandra', '4,3': 'rail', '4,4': 'rail', '4,5': 'localStation:Dadar', '4,6': 'rail', '4,7': 'rail', '4,8': 'rail', '4,9': 'localStation:Churchgate',
-        '5,8': 'csmt', '5,9': 'gateway', '3,8': 'maidan', '2,7': 'wankhede', '1,5': 'siddhivinayak', '2,4': 'policeHQ', '3,1': 'hospitalBlock', '3,2': 'biz', '5,2': 'biz', '3,3': 'biz', '5,3': 'biz', '0,0': 'beachBlock', '0,1': 'beachBlock', '2,0': 'footballStadium:mum' } },
+        '5,8': 'csmt', '5,9': 'gateway', '3,8': 'maidan', '2,7': 'wankhede', '1,5': 'siddhivinayak', '2,4': 'policeHQ', '3,1': 'hospitalBlock', '3,2': 'biz', '5,2': 'biz', '3,3': 'biz', '5,3': 'biz', '0,0': 'beachBlock', '0,1': 'beachBlock' } },
     { id: 'pune', name: 'Pune', st: 'MH', x0: 4400, z0: 9100, nx: 5, nz: 5, style: 'mid', size: 'big', food: 'MH', specials: { '2,2': 'shaniwarWada', '1,3': 'dagdusheth' } },
     { id: 'lonavala', name: 'Lonavala', st: 'MH', x0: 3780, z0: 8920, nx: 3, nz: 2, style: 'hill', size: 'small', food: 'MH', station: true, specials: {} },
     { id: 'mahabaleshwar', name: 'Mahabaleshwar', st: 'MH', x0: 4170, z0: 10020, nx: 2, nz: 2, style: 'hill', size: 'small', food: 'MH', specials: {} },
@@ -120,17 +120,18 @@ window.WORLD = {
     { name: 'Mehrangarh Road', pts: [[2840,1400],[2820,1340]] },
     { name: 'Ellora Road', pts: [[6200,7740],[6170,7660]] },
     { name: 'Ajanta Road', pts: [[6460,7760],[6520,7440]] },
-    { name: 'Trimbak Road', pts: [[4340,7880],[4230,7960]] },
+    { name: 'Trimbak Road', pts: [[4340,7880],[4248,7948]] },
     { name: 'Pushkar Road', pts: [[4280,1860],[4250,1860]] },
     { name: 'GIFT City Road', pts: [[2890,4660],[2950,4520]] },
     { name: 'Stadium Road', pts: [[3130,4660],[3150,4600]] },
-    { name: 'Adalaj Road', pts: [[2970,4660],[2990,4600]] },
+    { name: 'Adalaj Road', pts: [[2970,4660],[2988,4616]] },
     { name: 'Marine Drive', kind: 'coast', pts: [[2540,8690],[2610,8742],[2712,8780],[2775,8840],[2840,8905]] },
     { name: 'Bandra–Worli Sea Link', kind: 'bridge', pts: [[2540,8500],[2470,8460],[2450,8400],[2460,8330],[2540,8290]] },
     { name: 'Haji Ali causeway', kind: 'bridge', w: 6, pts: [[2540,8600],[2478,8600]] },
     { name: 'Tiger Point Road', pts: [[3900,8920],[3870,8850]] },
     { name: 'Arthur Seat Road', pts: [[4170,10100],[4080,10140]] },
-    { name: 'Guru Shikhar Road', pts: [[2980,3620],[3050,3560]] }
+    { name: 'Mumbai Football Arena Road', pts: [[3020,8200],[3040,8200]] },
+    { name: 'Guru Shikhar Road', pts: [[2980,3620],[3036,3574]] }
   ],
 
   airports: [
@@ -162,13 +163,13 @@ window.WORLD = {
     { kind: 'tentCity', x: 1100, z: 3440 }, { kind: 'kalaDungar', x: 1350, z: 3260 },
     { kind: 'guruShikhar', x: 3055, z: 3552 }, { kind: 'lakePalace', x: 3560, z: 3250 },
     { kind: 'pushkarGhats', x: 4200, z: 1880 }, { kind: 'jalMahal', x: 5130, z: 650 }, { kind: 'amberFort', x: 5250, z: 500 },
-    { kind: 'ranthamboreFort', x: 6000, z: 2100 }, { kind: 'mehrangarh', x: 2800, z: 1300 }, { kind: 'samCamp', x: 1000, z: 1320 },
-    { kind: 'dumasBeach', x: 2880, z: 6560 }, { kind: 'juhuBeach', x: 2505, z: 8180 }
+    { kind: 'ranthamboreFort', x: 5945, z: 2120 }, { kind: 'mehrangarh', x: 2800, z: 1300 }, { kind: 'samCamp', x: 1000, z: 1320 },
+    { kind: 'dumasBeach', x: 2880, z: 6560 }, { kind: 'stadiumMFA:mum', x: 3076, z: 8200 }, { kind: 'juhuBeach', x: 2505, z: 8180 }
   ],
 
   // Discoverable places. The first visit gives a reward.
   places: [
-    ['Gateway of India', 2980, 8860], ['CSMT Station', 2980, 8780], ['Marine Drive', 2712, 8780], ['Haji Ali Dargah', 2462, 8600], ['Bandra–Worli Sea Link', 2455, 8400],
+    ['Gateway of India', 2980, 8860], ['Mumbai Football Arena', 3076, 8200], ['CSMT Station', 2980, 8780], ['Marine Drive', 2712, 8780], ['Haji Ali Dargah', 2462, 8600], ['Bandra–Worli Sea Link', 2455, 8400],
     ['Juhu Beach', 2505, 8180], ['Siddhivinayak Temple', 2660, 8540], ['Wankhede Stadium', 2740, 8700], ['Shaniwar Wada', 4600, 9300], ['Dagdusheth Temple', 4520, 9380],
     ['Tiger Point', 3870, 8840], ["Arthur's Seat", 4070, 10145], ['Kolaba Fort', 2830, 9520], ['Ganpatipule Beach Temple', 3100, 10352], ['Ramkund Ghats', 4450, 7880],
     ['Trimbakeshwar Temple', 4215, 7975], ['Sai Temple, Shirdi', 5210, 7810], ['Ellora Caves', 6170, 7640], ['Ajanta Caves', 6525, 7420], ['Bibi Ka Maqbara', 6340, 7940],

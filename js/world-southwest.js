@@ -113,7 +113,7 @@
     { id: 'oldgoa', name: 'Old Goa', st: 'GA', x0: 3780, z0: 11540, nx: 1, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: { '0,0': 'bomJesus' } },
     { id: 'ponda', name: 'Ponda', st: 'GA', x0: 3940, z0: 11590, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: {} },
     { id: 'vasco', name: 'Vasco da Gama', st: 'GA', x0: 3440, z0: 11780, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', station: true, specials: {} },
-    { id: 'margao', name: 'Margao', st: 'GA', x0: 3640, z0: 12020, nx: 3, nz: 1, style: 'goa', size: 'mid', food: 'GA', specials: { '1,0': 'goaChurch:Holy Spirit Church', '2,0': 'footballStadium:goa' } },
+    { id: 'margao', name: 'Margao', st: 'GA', x0: 3640, z0: 12020, nx: 3, nz: 1, style: 'goa', size: 'mid', food: 'GA', specials: { '1,0': 'goaChurch:Holy Spirit Church', '2,0': 'maidan' } },
     { id: 'mollem', name: 'Mollem', st: 'GA', x0: 4200, z0: 11700, nx: 1, nz: 1, style: 'hill', size: 'small', food: 'GA', station: true, specials: {} },
     { id: 'palolem', name: 'Palolem', st: 'GA', x0: 3620, z0: 12170, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: { '0,0': 'beachBlock' } },
     // Southern Maharashtra, on the way to Karnataka
@@ -131,7 +131,7 @@
     { id: 'tumakuru', name: 'Tumakuru', st: 'KA', x0: 6180, z0: 13600, nx: 2, nz: 2, style: 'town', size: 'mid', food: 'KA', specials: {} },
     // Karnataka: Bengaluru and the south
     { id: 'bengaluru', name: 'Bengaluru', st: 'KA', x0: 6440, z0: 13880, nx: 7, nz: 6, style: 'metro', size: 'big', food: 'KA', tall: true,
-      specials: { '3,0': 'bangalorePalace', '3,1': 'vidhanaSoudha', '2,1': 'footballStadium:blr', '3,2': 'maidan', '4,1': 'wankhede', '5,1': 'lakePark', '4,2': 'biz', '4,3': 'biz', '5,2': 'biz',
+      specials: { '3,0': 'bangalorePalace', '3,1': 'vidhanaSoudha', '3,2': 'maidan', '4,1': 'wankhede', '5,1': 'lakePark', '4,2': 'biz', '4,3': 'biz', '5,2': 'biz',
         '2,4': 'lalbagh', '2,2': 'policeHQ', '1,1': 'hospitalBlock', '0,3': 'marketBlock:KR Market', '6,2': 'techPark:Whitefield Tech Park', '5,5': 'techPark:Electronic City', '6,0': 'techPark:Manyata Tech Park' } },
     { id: 'shivamogga', name: 'Shivamogga', st: 'KA', x0: 4880, z0: 13020, nx: 3, nz: 2, style: 'town', size: 'mid', food: 'KA', specials: {} },
     { id: 'chikkamagaluru', name: 'Chikkamagaluru', st: 'KA', x0: 5060, z0: 13640, nx: 2, nz: 1, style: 'hill', size: 'small', food: 'KA', specials: {} },
@@ -157,7 +157,7 @@
     { id: 'guruvayur', name: 'Guruvayur', st: 'KL', x0: 5330, z0: 16330, nx: 1, nz: 1, style: 'kerala', size: 'small', food: 'KL', station: true, specials: { '0,0': 'keralaTemple:Guruvayur Temple' } },
     { id: 'thrissur', name: 'Thrissur', st: 'KL', x0: 5440, z0: 16440, nx: 3, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: { '1,0': 'keralaTemple:Vadakkunnathan Temple' } },
     { id: 'kochi', name: 'Kochi', st: 'KL', x0: 5510, z0: 16980, nx: 4, nz: 3, style: 'metro', size: 'big', food: 'KL', tall: true,
-      specials: { '0,0': 'fontainhas:Fort Kochi', '1,0': 'footballStadium:ker', '1,1': 'biz', '2,1': 'biz', '3,2': 'hospitalBlock', '2,2': 'marketBlock:Lulu-style Mall', '3,0': 'techPark:Infopark' } },
+      specials: { '0,0': 'fontainhas:Fort Kochi', '1,1': 'biz', '2,1': 'biz', '3,2': 'hospitalBlock', '2,2': 'marketBlock:Lulu-style Mall', '3,0': 'techPark:Infopark' } },
     { id: 'munnar', name: 'Munnar', st: 'KL', x0: 6160, z0: 16880, nx: 2, nz: 1, style: 'hill', size: 'small', food: 'KL', specials: {} },
     { id: 'thekkady', name: 'Thekkady', st: 'KL', x0: 6250, z0: 17360, nx: 1, nz: 1, style: 'hill', size: 'small', food: 'KL', specials: {} },
     { id: 'kottayam', name: 'Kottayam', st: 'KL', x0: 5850, z0: 17380, nx: 2, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: {} },
@@ -252,6 +252,9 @@
     { name: 'Wayanad–Kannur Road', pts: [[5330,15400],[5200,15330],[5100,15250],[5070,15240]] },
     { name: 'Kasaragod–Bekal Road', pts: [[4520,14540],[4490,14590]] },
     { name: 'Palakkad–Coimbatore Road', pts: [[5960,16260],[6200,16280],[6500,16300]] },
+    { name: 'Fatorda Stadium Road', pts: [[3880,12100],[3896,12150],[3908,12150]] },
+    { name: 'Kanteerava Stadium Road', pts: [[7000,14080],[7034,14080]] },
+    { name: 'Kaloor Stadium Road', pts: [[5830,17110],[5859,17110]] },
     { name: 'Mangaluru–Kasaragod Coastal Link', pts: [[4640,14190],[4800,14300],[4900,14450]] }
   ]);
 
@@ -272,23 +275,24 @@
 
   add('landmarks', [
     // Goa
-    { kind: 'aguadaFort', x: 3378, z: 11468 }, { kind: 'chaporaFort', x: 3345, z: 11372 }, { kind: 'seCathedral', x: 3820, z: 11668 },
+    { kind: 'aguadaFort', x: 3362, z: 11452 }, { kind: 'chaporaFort', x: 3334, z: 11368 }, { kind: 'seCathedral', x: 3820, z: 11668 },
     { kind: 'mangueshi', x: 3990, z: 11540 }, { kind: 'dudhsagar', x: 4400, z: 11800 }, { kind: 'beachShacks', x: 3530, z: 11990 },
-    { kind: 'beachShacks', x: 3365, z: 11345 }, { kind: 'casinoBoats', x: 3540, z: 11510 },
+    { kind: 'beachShacks', x: 3366, z: 11365 }, { kind: 'casinoBoats', x: 3540, z: 11510 },
     // Karnataka
     { kind: 'hampi', x: 5800, z: 11680 }, { kind: 'jogFalls', x: 4310, z: 12812 }, { kind: 'murudeshwar', x: 3998, z: 12930 },
     { kind: 'nandiHills', x: 6490, z: 13560 }, { kind: 'kempegowda', x: 6960, z: 13652 }, { kind: 'chitradurgaFort', x: 5700, z: 12680 },
     { kind: 'belurTemple', x: 5280, z: 13860 }, { kind: 'gommateshwara', x: 5700, z: 14200 }, { kind: 'chamundiHill', x: 6230, z: 14980 },
     { kind: 'krsDam', x: 5785, z: 14472 }, { kind: 'srirangapatna', x: 5960, z: 14495 }, { kind: 'goldenTemple', x: 5300, z: 14800 },
-    { kind: 'parkGate:BANDIPUR TIGER RESERVE', x: 5875, z: 15150 }, { kind: 'beachShacks', x: 3880, z: 12600 }, { kind: 'lighthouse:Kaup', x: 4228, z: 13860 },
+    { kind: 'parkGate:BANDIPUR TIGER RESERVE', x: 5875, z: 15150 }, { kind: 'lighthouse:Kaup', x: 4228, z: 13860 },
     { kind: 'omBeach', x: 3922, z: 12690 },
     // Kerala
     { kind: 'bekalFort', x: 4470, z: 14612 }, { kind: 'stAngeloFort', x: 4778, z: 15150 }, { kind: 'chineseNets', x: 5466, z: 17040 },
     { kind: 'houseboats', x: 5770, z: 17380 }, { kind: 'houseboats', x: 5765, z: 17560 }, { kind: 'athirappilly', x: 5800, z: 16720 },
     { kind: 'sabarimala', x: 6220, z: 17585 }, { kind: 'jatayu', x: 6130, z: 17830 }, { kind: 'varkalaCliff', x: 5874, z: 18300 },
     { kind: 'lighthouse:Kovalam', x: 6130, z: 18598 }, { kind: 'lighthouse:Alappuzha', x: 5528, z: 17532 }, { kind: 'idukkiDam', x: 6350, z: 17160 },
-    { kind: 'teaFactory', x: 6260, z: 16960 }, { kind: 'beachShacks', x: 6150, z: 18560 }, { kind: 'parkGate:PERIYAR TIGER RESERVE', x: 6330, z: 17450 },
-    { kind: 'kanyakumari', x: 6600, z: 18910 }
+    { kind: 'teaFactory', x: 6195, z: 17012 }, { kind: 'beachShacks', x: 6125, z: 18565 }, { kind: 'parkGate:PERIYAR TIGER RESERVE', x: 6330, z: 17450 },
+    { kind: 'kanyakumari', x: 6600, z: 18910 },
+    { kind: 'stadiumOval:goa', x: 3962, z: 12150 }, { kind: 'stadiumOval:blr', x: 7092, z: 14080 }, { kind: 'stadiumOval:ker', x: 5922, z: 17110 }
   ]);
 
   add('places', [
@@ -310,7 +314,7 @@
     ['Edakkal Caves', 5480, 15330], ['Guruvayur Temple', 5370, 16370], ['Vadakkunnathan Temple', 5560, 16480], ['Athirappilly Falls', 5800, 16720], ['Malampuzha Dam', 5900, 16110],
     ['Chinese Fishing Nets', 5466, 17040], ['Fort Kochi', 5550, 17020], ['Munnar Tea Gardens', 6230, 16950], ['Idukki Arch Dam', 6350, 17160], ['Periyar Tiger Reserve', 6330, 17450],
     ['Sabarimala', 6220, 17585], ['Kumarakom Backwaters', 5810, 17400], ['Alappuzha Houseboats', 5770, 17560], ['Alappuzha Beach', 5530, 17500], ['Jatayu Earth\'s Center', 6130, 17830],
-    ['Ashtamudi Lake', 5920, 17945], ['Varkala Cliff', 5874, 18300], ['Padmanabhaswamy Temple', 6290, 18410], ['Kovalam Beach', 6130, 18598], ['Kanyakumari', 6600, 18910]
+    ['Ashtamudi Lake', 5920, 17945], ['Varkala Cliff', 5874, 18300], ['Padmanabhaswamy Temple', 6290, 18410], ['Kovalam Beach', 6130, 18598], ['Kanyakumari', 6600, 18910], ['Fatorda Stadium', 3962, 12150], ['Sree Kanteerava Stadium', 7092, 14080], ['Jawaharlal Nehru Stadium, Kochi', 5922, 17110]
   ]);
 
   add('tolls', [[6250, 14405, 'Kaniminike Toll'], [5980, 14505, 'Srirangapatna Toll'], [6960, 14480, 'Electronic City Toll'], [4320, 11320, 'Hattargi Toll'], [5510, 16700, 'Paliyekkara Toll'], [5990, 13200, 'Chitradurga Toll']]);

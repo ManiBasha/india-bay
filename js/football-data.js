@@ -1,11 +1,10 @@
 // Football league data: teams, stadiums, the fixture list and match results.
 // Everything is worked out from the shared Bay clock, so every player sees the same fixtures,
 // the same live scores and the same league table.
-// Team and league names are made up. To use real club names you need permission from the clubs
-// and the league organisers; change the names here and nothing else needs to change.
+// Teams of the Indian Super League (club line-up as of mid 2026; change it here if the league changes).
 window.FOOTBALL = (function () {
   const league = {
-    name: 'Bay Super League', short: 'BSL',
+    name: 'Indian Super League', short: 'ISL',
     seasonDays: 24,   // one season lasts 24 Bay days: 22 match rounds, then 2 days of champions' celebrations
     rounds: 22,       // double round robin for 12 teams
     kick: 19.5,       // kick-off at 7:30 pm Bay time
@@ -13,19 +12,19 @@ window.FOOTBALL = (function () {
   };
   const teams = [
     // Home teams: their stadiums are on the map.
-    { id: 'mum', name: 'Mumbai Islanders FC', short: 'MUM', zone: 'mumbai', stadium: 'Andheri Football Arena', col: '#6cb4ee', col2: '#0b2a5b', fans: 'Island Roar', chant: 'Aamchi Mumbai, aamchi team!' },
-    { id: 'goa', name: 'Goa Sea Hawks FC', short: 'GOA', zone: 'margao', stadium: 'Fatorda Stadium', col: '#ff7a1a', col2: '#1d3f9a', fans: 'Orange Wave', chant: 'Forca Goa! Forca Goa!' },
-    { id: 'blr', name: 'Bengaluru Blue Tuskers FC', short: 'BLR', zone: 'bengaluru', stadium: 'Kanteerava Stadium', col: '#1f4fbf', col2: '#ffffff', fans: 'Blue Wall', chant: 'Blue Wall, stand tall!' },
-    { id: 'ker', name: 'Kerala Monsoon FC', short: 'KER', zone: 'kochi', stadium: 'Kaloor Stadium', col: '#ffd23a', col2: '#1d3f9a', fans: 'Yellow Tide', chant: 'Kerala, Kerala, manjappada!' },
+    { id: 'mum', name: 'Mumbai City FC', short: 'MCFC', zone: 'mumbai', stadium: 'Mumbai Football Arena', col: '#6cb4ee', col2: '#0b2a5b', fans: 'Mumbai City fan club', chant: 'Mumbai City! Mumbai City!' },
+    { id: 'goa', name: 'FC Goa', short: 'FCG', zone: 'margao', stadium: 'Fatorda Stadium', col: '#ff7a1a', col2: '#1d3f9a', fans: 'FC Goa fan club', chant: 'Forca Goa! Forca Goa!' },
+    { id: 'blr', name: 'Bengaluru FC', short: 'BFC', zone: 'bengaluru', stadium: 'Sree Kanteerava Stadium', col: '#1f4fbf', col2: '#ffffff', fans: 'West Block Blues', chant: 'West Block Blues! Bengaluru!' },
+    { id: 'ker', name: 'Kerala Blasters FC', short: 'KBFC', zone: 'kochi', stadium: 'Jawaharlal Nehru Stadium, Kochi', col: '#ffd23a', col2: '#1d3f9a', fans: 'Manjappada', chant: 'Manjappada! Kerala Blasters!' },
     // Visiting teams: their cities join the map in later regions.
-    { id: 'kgm', name: 'Kolkata Green Mariners', short: 'KGM', col: '#1e8a4c', col2: '#8b1e2d' },
-    { id: 'krt', name: 'Kolkata Red Torches', short: 'KRT', col: '#d6262f', col2: '#f2c14e' },
-    { id: 'che', name: 'Chennai Coast FC', short: 'CHE', col: '#2a62c9', col2: '#f2c14e' },
-    { id: 'ghy', name: 'Guwahati Highlanders', short: 'GHY', col: '#c8102e', col2: '#1a1a1a' },
-    { id: 'jsr', name: 'Jamshedpur Steelmen', short: 'JSR', col: '#e9a21c', col2: '#2a2a2a' },
-    { id: 'odi', name: 'Odisha Kalinga FC', short: 'ODI', col: '#6b2fa0', col2: '#f4f1ea' },
-    { id: 'pun', name: 'Punjab Lions FC', short: 'PUN', col: '#e8573e', col2: '#ffffff' },
-    { id: 'hyd', name: 'Hyderabad Pearls FC', short: 'HYD', col: '#ececec', col2: '#c9a227' }
+    { id: 'mbsg', name: 'Mohun Bagan Super Giant', short: 'MBSG', col: '#1e8a4c', col2: '#8b1e2d' },
+    { id: 'ebfc', name: 'East Bengal FC', short: 'EBFC', col: '#d6262f', col2: '#f2c14e' },
+    { id: 'msc', name: 'Mohammedan SC', short: 'MSC', col: '#1a1a1a', col2: '#ffffff' },
+    { id: 'cfc', name: 'Chennaiyin FC', short: 'CFC', col: '#2a62c9', col2: '#f2c14e' },
+    { id: 'neu', name: 'NorthEast United FC', short: 'NEUFC', col: '#c8102e', col2: '#1a1a1a' },
+    { id: 'jfc', name: 'Jamshedpur FC', short: 'JFC', col: '#e03c31', col2: '#ffffff' },
+    { id: 'ofc', name: 'Odisha FC', short: 'OFC', col: '#6b2fa0', col2: '#f2c14e' },
+    { id: 'pfc', name: 'Punjab FC', short: 'PFC', col: '#e8573e', col2: '#ffffff' }
   ];
   const byId = id => teams.find(t => t.id === id);
   const homeTeams = teams.filter(t => t.stadium);

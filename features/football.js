@@ -13,8 +13,10 @@ window.BBFeatures.push(function (bb) {
   const stadiums = () => bb.pois.filter(p => p.type === 'stadium' && F.byId(p.extra));
   function stadiumOf(teamId) { return stadiums().find(p => p.extra === teamId); }
   // The stadium POI sits on the south edge of its block, so the block is the one just north of it.
-  function blockOf(poi) { if (poi._b) return poi._b; let best = null, bd = 1e9; for (const b of bb.blocks) { const dz = poi.z - b.z; if (Math.abs(poi.x - b.x) > 34 || dz < 18 || dz > 42) continue; const d = Math.abs(dz - 30) + Math.abs(poi.x - b.x) * .1; if (d < bd) { bd = d; best = b; } }
-    if (!best) for (const b of bb.blocks) { const d = Math.hypot(b.x - poi.x, b.z - poi.z); if (d < bd) { bd = d; best = b; } } poi._b = best; return best; }
+  // The stadium site registered by its 3D model (centre, size and the gate in front of it).
+  function siteOf(poi) { const S = window.STADIA || {}; return S[poi.extra] || { x: poi.x + 40, z: poi.z, rx: 40, rz: 30, gx: poi.x - 2, gz: poi.z, dx: -1, dz: 0 }; }
+  function crowdSpot(st, i, n) { if (i % 5 < 3) { const along = (Math.random() - .5) * 34, out = 2 + Math.random() * 22; return { gate: true, x: st.gx + st.dx * out - st.dz * along, z: st.gz + st.dz * out + st.dx * along, a: 0 }; }
+    const a = Math.random() * 6.283, k = 1.12 + Math.random() * .1; return { gate: false, a, k, x: st.x + Math.cos(a) * st.rx * k, z: st.z + Math.sin(a) * st.rz * k }; }
   function status(f) { if (!f) return null; const { h, mc } = now(); const res = F.result(f); return { res, mc, h, text: mc.state === 'pre' ? `Kick-off at 7:30 pm${mc.toKick < 120 ? ' · in ' + Math.ceil(mc.toKick) + ' min' : ''}` : mc.state === 'ft' ? `Full time · ${scoreTxt(f, res, 90)}` : mc.state === 'ht' ? `Half-time · ${scoreTxt(f, res, 45)}` : `LIVE ${mc.min}' · ${scoreTxt(f, res, mc.min)}` }; }
   function champion(season) { return F.table(season, L.rounds)[0].team; }
 
@@ -31,19 +33,18 @@ window.BBFeatures.push(function (bb) {
   let crowd = null;
   function flagMesh(col) { const g = new T.Group(); const pole = new T.Mesh(new T.BoxGeometry(.05, 2, .05), mat('#3b3a40')); pole.position.y = 1; g.add(pole);
     const cl = new T.Mesh(new T.PlaneGeometry(1.1, .7), new T.MeshLambertMaterial({ color: col, side: T.DoubleSide })); cl.position.set(.58, 1.65, 0); g.add(cl); g.userData.cloth = cl; return g; }
-  function buildCrowd(poi, team, away, mood) { clearCrowd(); const b = blockOf(poi); if (!b) return; const g = new T.Group(); bb.scene.add(g);
+  function buildCrowd(poi, team, away, mood) { clearCrowd(); const st = siteOf(poi); const g = new T.Group(); bb.scene.add(g);
     const n = mood === 'win' || mood === 'champ' ? 48 : mood === 'pre' ? 42 : mood === 'calm' ? 16 : 10; const people = [];
     for (let i = 0; i < n; i++) { const awayFan = away && mood === 'pre' && i % 6 === 5; const col = awayFan ? away.col : i % 4 === 3 ? team.col2 : team.col;
-      const p = bb.buildPerson(mat(col)); const side = i % 3 ? 1 : Math.floor(Math.random() * 4); const t = (Math.random() - .5) * 56; const off = 29 + Math.random() * 1.6;
-      const x = side < 2 ? b.x + t : b.x + (side === 2 ? -off : off), z = side < 2 ? b.z + (side ? off : -off) : b.z + t;
-      p.position.set(x, .3, z); p.rotation.y = Math.atan2(b.x - x, b.z - z) + (Math.random() - .5); if (i % 3 === 0) { const fl = flagMesh(i % 2 ? team.col : team.col2); fl.position.set(.3, .9, 0); p.add(fl); p.userData.flag = fl; }
-      g.add(p); people.push({ p, ph: Math.random() * 6.3, x, z, side, t, off, b }); }
+      const p = bb.buildPerson(mat(col)); const sp = crowdSpot(st, i, n); const x = sp.x, z = sp.z;
+      p.position.set(x, .3, z); p.rotation.y = Math.atan2(st.x - x, st.z - z) + (Math.random() - .5); if (i % 3 === 0) { const fl = flagMesh(i % 2 ? team.col : team.col2); fl.position.set(.3, .9, 0); p.add(fl); p.userData.flag = fl; }
+      g.add(p); people.push({ p, ph: Math.random() * 6.3, x, z, sp, st }); }
     // flares: glowing tips with rising smoke
     const flares = []; if (mood === 'win' || mood === 'champ' || mood === 'pre') for (let i = 0; i < 5; i++) { const q = people[Math.floor(Math.random() * people.length)]; const tip = new T.Mesh(new T.SphereGeometry(.12, 6, 4), new T.MeshBasicMaterial({ color: i % 2 ? 0xff3b1f : new T.Color(team.col) }));
       tip.position.set(.3, 2.1, 0); q.p.add(tip); flares.push({ q, tip, puffs: [] }); }
     // fan zone banner on the stadium side of the street
     const banner = new T.Mesh(new T.PlaneGeometry(14, 2.2), new T.MeshBasicMaterial({ map: bannerTex(`${team.fans || team.short} · ${mood === 'champ' ? 'CHAMPIONS' : mood === 'win' ? 'WE WON!' : 'FAN ZONE'}`, team), side: T.DoubleSide }));
-    banner.position.set(poi.x, 4.2, poi.z); banner.rotation.y = poi.rot || 0; g.add(banner);
+    banner.position.set(st.gx + st.dx * 4, 4.2, st.gz + st.dz * 4); banner.rotation.y = Math.atan2(st.dx, st.dz); g.add(banner);
     crowd = { poi, team, mood, g, people, flares, smoke: [], drumT: 0 }; }
   function bannerTex(text, team) { const c = document.createElement('canvas'); c.width = 512; c.height = 80; const x = c.getContext('2d'); x.fillStyle = team.col; x.fillRect(0, 0, 512, 80); x.fillStyle = team.col2 === '#ffffff' ? '#ffffff' : team.col2; x.fillRect(0, 64, 512, 16);
     x.font = '800 40px "Baloo 2", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = team.col2 === '#ffffff' || team.col === '#ffd23a' || team.col === '#ececec' ? '#1a1430' : '#ffffff'; x.fillText(text.toUpperCase(), 256, 34, 490); return new T.CanvasTexture(c); }
@@ -51,7 +52,7 @@ window.BBFeatures.push(function (bb) {
   const smokeGeo = new T.SphereGeometry(.5, 6, 4);
   function updCrowd(dt, t) { if (!crowd) return; const happy = crowd.mood === 'win' || crowd.mood === 'champ', pre = crowd.mood === 'pre';
     for (const q of crowd.people) { const U = q.p.userData; if (happy) { q.p.position.y = .3 + Math.abs(Math.sin(t * 6 + q.ph)) * .45; if (U.arms) { U.arms[0].rotation.x = -2.6 + Math.sin(t * 8 + q.ph) * .3; U.arms[1].rotation.x = -2.8; } }
-      else if (pre) { q.t += Math.sin(q.ph) * dt * .8; if (Math.abs(q.t) > 28) q.ph += Math.PI; const b = q.b; const x = q.side < 2 ? b.x + q.t : b.x + (q.side === 2 ? -q.off : q.off), z = q.side < 2 ? b.z + (q.side ? q.off : -q.off) : b.z + q.t; q.p.position.set(x, .3 + Math.abs(Math.sin(t * 7 + q.ph)) * .06, z);
+      else if (pre) { const sp = q.sp; if (sp.gate) { q.p.position.set(q.x + Math.sin(t * .4 + q.ph) * .8, .3 + Math.abs(Math.sin(t * 7 + q.ph)) * .06, q.z + Math.cos(t * .3 + q.ph) * .8); } else { sp.a += dt * .012 * (q.ph > 3 ? 1 : -1); const x = q.st.x + Math.cos(sp.a) * q.st.rx * sp.k, z = q.st.z + Math.sin(sp.a) * q.st.rz * sp.k; q.p.rotation.y = Math.atan2(x - q.p.position.x, z - q.p.position.z) || q.p.rotation.y; q.p.position.set(x, .3 + Math.abs(Math.sin(t * 7 + q.ph)) * .06, z); }
         if (U.legs) { const a = Math.sin(t * 7 + q.ph) * .45; U.legs[0].rotation.x = a; U.legs[1].rotation.x = -a; } if (U.arms) U.arms[1].rotation.x = Math.sin(t * 2 + q.ph) > .6 ? -2.7 : 0; }
       else if (crowd.mood === 'sad' && U.arms) { U.arms[0].rotation.x = 0; U.arms[1].rotation.x = 0; }
       if (U.flag) U.flag.userData.cloth.rotation.y = Math.sin(t * 5 + q.ph) * .5; }
@@ -64,7 +65,7 @@ window.BBFeatures.push(function (bb) {
   function burst(x, y, z, col) { const n = 70, pos = new Float32Array(n * 3), vel = []; for (let i = 0; i < n; i++) { pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z; const a = Math.random() * 6.283, e = Math.acos(Math.random() * 2 - 1), s = 9 + Math.random() * 6; vel.push([Math.sin(e) * Math.cos(a) * s, Math.cos(e) * s, Math.sin(e) * Math.sin(a) * s]); }
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); const m = new T.PointsMaterial({ color: col, size: 1.6, transparent: true, opacity: 1, depthWrite: false, blending: T.AdditiveBlending });
     const pt = new T.Points(g, m); bb.scene.add(pt); fw.push({ pt, vel, life: 1.8 }); }
-  function updFireworks(dt, poi, team) { if (poi) { fwT -= dt; if (fwT <= 0) { fwT = .35 + Math.random() * .5; const b = blockOf(poi); burst(b.x + (Math.random() - .5) * 60, 55 + Math.random() * 30, b.z + (Math.random() - .5) * 60, [team.col, team.col2, '#ffd36a', '#ffffff'][Math.floor(Math.random() * 4)]);
+  function updFireworks(dt, poi, team) { if (poi) { fwT -= dt; if (fwT <= 0) { fwT = .35 + Math.random() * .5; const b = siteOf(poi); burst(b.x + (Math.random() - .5) * b.rx * 1.4, 60 + Math.random() * 35, b.z + (Math.random() - .5) * 60, [team.col, team.col2, '#ffd36a', '#ffffff'][Math.floor(Math.random() * 4)]);
         const pp = bb.ppos(); const d = Math.hypot(pp.x - poi.x, pp.z - poi.z); if (d < 600 && Math.random() < .5) setTimeout(() => drum(.12 * (1 - d / 600)), 300); } }
     for (let i = fw.length - 1; i >= 0; i--) { const f = fw[i]; f.life -= dt; const a = f.pt.geometry.attributes.position; for (let k = 0; k < f.vel.length; k++) { const v = f.vel[k]; v[1] -= 6 * dt; v[0] *= .985; v[2] *= .985; a.array[k * 3] += v[0] * dt; a.array[k * 3 + 1] += v[1] * dt; a.array[k * 3 + 2] += v[2] * dt; } a.needsUpdate = true; f.pt.material.opacity = Math.max(0, f.life / 1.8);
       if (f.life <= 0) { bb.scene.remove(f.pt); f.pt.geometry.dispose(); f.pt.material.dispose(); fw.splice(i, 1); } } }
@@ -77,7 +78,7 @@ window.BBFeatures.push(function (bb) {
     const res = F.result(f); let shownGoals = 0, lineT = 0, over = false, ended = false; const fb = ex(); const mine = fb.club === team.id || P().outfit.topCol === team.col;
     if (bb.player.mode === 'drive') bb.exitVehicle(true);
     bb.openWait({ kind: (vip ? 'VIP box · ' : 'Stands · ') + poi.name, title: `${f.home.name} v ${f.away.name}`, sub: 'Finding your seat…', total: secs, cancel: 'Leave the stadium',
-      buttons: [{ id: 'chant', label: '📣 Chant', fn: () => { bb.toast(`${team.chant || 'Come on!'} · the stands join in`, team.col); roar(.18, 1.6); } }, { id: 'snack', label: '🍿 Snack ' + bb.inr(bb.price(80)), fn: () => { if (bb.spend(bb.price(80))) { P().hunger = Math.min(100, P().hunger + 18); bb.toast('Samosa and chai in the stands', '#ffc93c'); } } }],
+      buttons: [{ id: 'chant', label: '📣 Chant', fn: () => { bb.toast(`${team.chant || 'Come on!'} · the stands join in`, team.col); roar(.18, 1.6); } }, { id: 'snack', label: '🍿 Snack ' + bb.inr(bb.cost('fb.snack', 80)), fn: () => { if (bb.spend(bb.cost('fb.snack', 80))) { P().hunger = Math.min(100, P().hunger + 18); bb.toast('Samosa and chai in the stands', '#ffc93c'); } } }],
       timeText: () => { const c = F.clock(bb.clock); const [h, a] = F.scoreAt(res, f, c.state === 'pre' ? 0 : c.min); return c.state === 'pre' ? `Kick-off in ${Math.ceil(c.toKick)} min · ${bayClock()}` : c.state === 'ht' ? `Half-time · ${f.home.short} ${h}–${a} ${f.away.short}` : `${c.min}' · ${f.home.short} ${h}–${a} ${f.away.short}`; },
       onTick: (dt) => { const c = F.clock(bb.clock); if (c.state === 'ft' && !over) { over = true; setTimeout(() => { bb.closeWait(); fullTime(); }, 1500); } const min = c.state === 'pre' ? 0 : c.min; const el = document.querySelector('#wsub');
         while (shownGoals < res.goals.length && res.goals[shownGoals].m <= min) { const g = res.goals[shownGoals++]; const t = F.byId(g.team); const home = g.team === f.home.id;
@@ -100,19 +101,19 @@ window.BBFeatures.push(function (bb) {
     if (f && st.mc.state !== 'ft') {
       const gates = st.mc.state !== 'pre' || st.mc.toKick <= 30;
       if (has) rows += bb.rowHtml('enter', gates ? 'Go in and watch' : 'You have a ticket', gates ? `${has === 'vip' ? 'VIP box' : 'Stands'} · ${st.text}` : `Gates open at 7:00 pm · ${st.text}`, gates ? 'Enter' : 'Wait', gates ? '' : 'ghost');
-      else { const disc = fb.club === team.id ? .5 : 1; rows += bb.rowHtml('stands', 'Ticket · stands', `${st.text}${disc < 1 ? ' · fan club half price' : ''}`, bb.inr(bb.price(300 * disc))) + bb.rowHtml('vip', 'Ticket · VIP box', 'Padded seats, snacks included', bb.inr(bb.price(1500 * disc)), 'ghost'); }
+      else { const disc = fb.club === team.id ? .5 : 1; rows += bb.rowHtml('stands', 'Ticket · stands', `${st.text}${disc < 1 ? ' · fan club half price' : ''}`, bb.inr(bb.cost('fb.stands', 300) * disc)) + bb.rowHtml('vip', 'Ticket · VIP box', 'Padded seats, snacks included', bb.inr(bb.cost('fb.vip', 1500) * disc), 'ghost'); }
     } else if (champ && champ.id === team.id) rows += `<p class="note">🏆 ${bb.esc(team.name)} are the champions! The trophy celebration starts at 7:30 pm outside the stadium.</p>`;
     else rows += `<p class="note">${f ? `Today: ${bb.esc(st.text)}. ` : ''}${nx ? `Next home match: ${bb.esc(nx.f.away.name)} in ${nx.inDays} Bay day${nx.inDays > 1 ? 's' : ''}, 7:30 pm.` : 'No more home matches this season.'}</p>`;
     const jersey = p.outfit.topCol === team.col;
-    rows += bb.rowHtml('jersey', `${team.short} home jersey`, jersey ? 'You are wearing it' : 'Wear your team colours · fans notice', jersey ? 'Worn' : bb.inr(bb.price(999)), jersey ? 'ghost' : '');
-    rows += bb.rowHtml('club', `${team.fans} fan club`, fb.club === team.id ? 'Member · half-price tickets, fan marches, match alerts' : fb.club ? `You support ${F.byId(fb.club).name} · switching costs the fee again` : 'Half-price tickets, fan marches and match alerts', fb.club === team.id ? 'Member' : bb.inr(bb.price(500)), fb.club === team.id ? 'ghost' : '');
+    rows += bb.rowHtml('jersey', `${team.short} home jersey`, jersey ? 'You are wearing it' : 'Wear your team colours · fans notice', jersey ? 'Worn' : bb.inr(bb.cost('fb.jersey', 999)), jersey ? 'ghost' : '');
+    rows += bb.rowHtml('club', `${team.fans} fan club`, fb.club === team.id ? 'Member · half-price tickets, fan marches, match alerts' : fb.club ? `You support ${F.byId(fb.club).name} · switching costs the fee again` : 'Half-price tickets, fan marches and match alerts', fb.club === team.id ? 'Member' : bb.inr(bb.cost('fb.club', 500)), fb.club === team.id ? 'ghost' : '');
     rows += bb.rowHtml('table', 'League table and fixtures', `${L.name} · season ${d.season % 100 + 1}`, 'Open', 'ghost');
     bb.openSheet(`⚽ ${bb.esc(poi.name)}`, `${bb.esc(team.name)} · ${f ? `${bb.esc(f.home.short)} v ${bb.esc(f.away.short)} today` : champDays ? 'Season over · champions\' celebrations' : 'No match today'}`, rows, s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return;
       if (id === 'table') return leagueSheet();
-      if (id === 'stands' || id === 'vip') { const disc = fb.club === team.id ? .5 : 1; if (!bb.spend(bb.price((id === 'vip' ? 1500 : 300) * disc), true)) return; fb.tickets = { [key]: id === 'vip' ? 'vip' : 'stand' }; bb.setDirty(); bb.toast(`Ticket booked · ${f.home.short} v ${f.away.short}`, '#3ddc97'); bb.emit('football', { kind: 'ticket' }); return stadiumSheet(poi); }
+      if (id === 'stands' || id === 'vip') { const disc = fb.club === team.id ? .5 : 1; if (!bb.spend((id === 'vip' ? bb.cost('fb.vip', 1500) : bb.cost('fb.stands', 300)) * disc, true)) return; fb.tickets = { [key]: id === 'vip' ? 'vip' : 'stand' }; bb.setDirty(); bb.toast(`Ticket booked · ${f.home.short} v ${f.away.short}`, '#3ddc97'); bb.emit('football', { kind: 'ticket' }); return stadiumSheet(poi); }
       if (id === 'enter') { const s2 = status(f); if (s2.mc.state === 'pre' && s2.mc.toKick > 30) return bb.toast('Gates open at 7:00 pm', '#ff9f1c'); bb.closeSheet(); return watch(poi, f, fb.tickets[key] === 'vip'); }
-      if (id === 'jersey' && !jersey) { if (!bb.spend(bb.price(999), true)) return; p.outfit.topCol = team.col; bb.applyOutfit(); bb.setDirty(); bb.toast(`You're in ${team.short} colours`, team.col); bb.emit('football', { kind: 'jersey' }); return stadiumSheet(poi); }
-      if (id === 'club' && fb.club !== team.id) { if (!bb.spend(bb.price(500), true)) return; fb.club = team.id; bb.setDirty(); bb.toast(`Welcome to the ${team.fans}! Match alerts are on`, team.col); bb.emit('football', { kind: 'club', team: team.id }); return stadiumSheet(poi); } }); }
+      if (id === 'jersey' && !jersey) { if (!bb.spend(bb.cost('fb.jersey', 999), true)) return; p.outfit.topCol = team.col; bb.applyOutfit(); bb.setDirty(); bb.toast(`You're in ${team.short} colours`, team.col); bb.emit('football', { kind: 'jersey' }); return stadiumSheet(poi); }
+      if (id === 'club' && fb.club !== team.id) { if (!bb.spend(bb.cost('fb.club', 500), true)) return; fb.club = team.id; bb.setDirty(); bb.toast(`Welcome to the ${team.fans}! Match alerts are on`, team.col); bb.emit('football', { kind: 'club', team: team.id }); return stadiumSheet(poi); } }); }
   bb.poiHandlers.stadium = stadiumSheet;
 
   /* ---------- league app ---------- */
@@ -131,12 +132,12 @@ window.BBFeatures.push(function (bb) {
 
   /* ---------- fan march before home matches ---------- */
   let march = null;
-  function startMarch(poi, team, f) { const b = blockOf(poi); if (!b) return; const pp = bb.ppos(); const g = new T.Group(); bb.scene.add(g); const people = [];
+  function startMarch(poi, team, f) { const st = siteOf(poi); const g = new T.Group(); bb.scene.add(g); const people = [];
     for (let i = 0; i < 18; i++) { const p = bb.buildPerson(mat(i % 3 === 2 ? team.col2 : team.col)); if (i % 2 === 0) { const fl = flagMesh(i % 4 ? team.col : team.col2); fl.position.set(.3, .9, 0); p.add(fl); p.userData.flag = fl; } g.add(p); people.push({ p, ph: Math.random() * 6, o: i }); }
-    // walk two blocks along the sidewalk toward the gate
-    const dir = Math.sign(pp.x - b.x) || 1; const start = { x: b.x + dir * 150, z: b.z + 30.5 }; march = { poi, team, f, g, people, b, x: start.x, z: start.z, dir: -dir, with: 0, done: false }; }
-  function updMarch(dt, t) { if (!march) return; const m = march; if (!m.done) { m.x += m.dir * 1.6 * dt; if ((m.dir < 0 && m.x <= m.b.x) || (m.dir > 0 && m.x >= m.b.x)) { m.done = true; finishMarch(); return; } }
-    m.people.forEach((q, i) => { const row = Math.floor(i / 3), col = i % 3; q.p.position.set(m.x - m.dir * row * 1.4, .3 + Math.abs(Math.sin(t * 7 + q.ph)) * .08, m.z - 1.4 + col * 1.1); q.p.rotation.y = m.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    // the march walks in from 120 m out, straight to the stadium gate
+    march = { poi, team, f, g, people, st, d: 120, with: 0, done: false, x: st.gx + st.dx * 120, z: st.gz + st.dz * 120 }; }
+  function updMarch(dt, t) { if (!march) return; const m = march, st = m.st; if (!m.done) { m.d -= 1.6 * dt; if (m.d <= 2) { m.done = true; finishMarch(); return; } } m.x = st.gx + st.dx * m.d; m.z = st.gz + st.dz * m.d; const ry = Math.atan2(-st.dx, -st.dz);
+    m.people.forEach((q, i) => { const row = Math.floor(i / 3), col = i % 3; const back = row * 1.4, side = (col - 1) * 1.1; q.p.position.set(m.x + st.dx * back - st.dz * side, .3 + Math.abs(Math.sin(t * 7 + q.ph)) * .08, m.z + st.dz * back + st.dx * side); q.p.rotation.y = ry;
       const U = q.p.userData; if (U.legs) { const a = Math.sin(t * 7 + q.ph) * .5; U.legs[0].rotation.x = a; U.legs[1].rotation.x = -a; } if (U.arms) U.arms[1].rotation.x = -2.6 + Math.sin(t * 4 + q.ph) * .3; if (U.flag) U.flag.userData.cloth.rotation.y = Math.sin(t * 5 + q.ph) * .5; });
     const pp = bb.ppos(); if (Math.hypot(pp.x - m.x, pp.z - m.z) < 14 && bb.player.mode === 'foot') m.with += dt; m.drumT = (m.drumT || 0) - dt; if (m.drumT <= 0) { m.drumT = .5; const d = Math.hypot(pp.x - m.x, pp.z - m.z); if (d < 120) drum(.25 * (1 - d / 120)); } }
   function finishMarch() { const m = march; const fb = ex(); const ok = m.with > 25; if (ok) { fb.marches++; bb.earn(bb.price(200), 'football'); bb.toast(`Fan march done · ${m.team.fans} reach the gate · +${bb.inr(bb.price(200))}`, m.team.col); roar(.3, 2.5); bb.emit('football', { kind: 'march' }); bb.setDirty(); }

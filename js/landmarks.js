@@ -153,10 +153,35 @@ window.LANDMARKS = (function () {
     for (let i = 0; i < tiers; i++) { const t = 1 - i / tiers * .55; c.box(w * t, th, d * (1 - i / tiers * .35), x, yy + th / 2, z, m); c.box(w * t + .6, .3, d * (1 - i / tiers * .35) + .6, x, yy + th, z, c.M.cream); yy += th; }
     c.box(w * .42, h * .08, d * .5, x, yy + h * .04, z, m); for (let i = -2; i <= 2; i++) c.cone(.45, 1.8, x + i * w * .08, yy + h * .08 + .9, z, c.M.gold, 6); return yy + h * .1; }
   function lighthouse(c, x, z, h, a, b) { const n = 6; for (let i = 0; i < n; i++) c.cyl(2.6 - i * .18, 2.8 - i * .18, h / n, x, h / n * (i + .5), z, i % 2 ? a : b, 12); c.cyl(2, 2, 2.4, x, h + 1.2, z, c.M.glassBox, 10); c.cone(2.4, 1.8, x, h + 3.3, z, a, 10); c.col(x, z, 3, 3); }
-  function falls(c, x, z, w, h, ry, n) { const wm = mat(c, '#eef6fb', { transparent: true, opacity: .82 }); n = n || 3;
-    for (let i = 0; i < n; i++) { const t = n === 1 ? 0 : i / (n - 1) - .5; const g = new c.THREE.BoxGeometry(w / n * .7, h, .8); g.translate(t * w, h / 2, 0); g.rotateY(ry || 0); g.translate(x, 0, z); c.add(g, wm, false, false); }
-    const p = new c.THREE.CylinderGeometry(w * .7, w * .7, .2, 16); p.scale(1, 1, .6); p.rotateY(ry || 0); p.translate(x, .25, z); c.add(p, c.M.waterBox, false, true);
-    const mist = new c.THREE.SphereGeometry(w * .45, 10, 6); mist.scale(1, .35, .6); mist.translate(x, 2, z); c.add(mist, mat(c, '#ffffff', { transparent: true, opacity: .35, depthWrite: false }), false, false); }
+  // Waterfalls: strands of falling water with a scrolling streak texture (animated by the game each frame),
+  // a curved lip where the river pours over, white foam and spray at the bottom and a plunge pool.
+  let flowTex = null, foamTex = null;
+  function waterTex(c) { if (flowTex) return flowTex; const cv = document.createElement('canvas'); cv.width = 64; cv.height = 256; const x = cv.getContext('2d'); x.fillStyle = 'rgba(210,232,245,.85)'; x.fillRect(0, 0, 64, 256);
+    for (let i = 0; i < 90; i++) { const sx = Math.random() * 64, sy = Math.random() * 256, l = 20 + Math.random() * 70; const g = x.createLinearGradient(0, sy, 0, sy + l); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.95)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(sx, sy, 1 + Math.random() * 3, l); x.fillRect(sx, sy - 256, 1 + Math.random() * 3, l); }
+    flowTex = new c.THREE.CanvasTexture(cv); flowTex.wrapS = flowTex.wrapT = c.THREE.RepeatWrapping; flowTex.repeat.set(2, 3); (window.FLOW_TEX = window.FLOW_TEX || []).push({ t: flowTex, speed: 1.3 }); return flowTex; }
+  function foam(c) { if (foamTex) return foamTex; const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); x.fillStyle = 'rgba(80,140,170,.0)'; x.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 260; i++) { const r = 2 + Math.random() * 7; x.fillStyle = `rgba(255,255,255,${.25 + Math.random() * .6})`; x.beginPath(); x.arc(Math.random() * 128, Math.random() * 128, r, 0, 6.29); x.fill(); }
+    foamTex = new c.THREE.CanvasTexture(cv); foamTex.wrapS = foamTex.wrapT = c.THREE.RepeatWrapping; (window.FLOW_TEX = window.FLOW_TEX || []).push({ t: foamTex, speed: .08, x: .05 }); return foamTex; }
+  // A waterfall that faces west (towards -x): fx is the cliff face, zc the middle, w the width and h the height.
+  function falls(c, fx, zc, w, h, n) { const T = c.THREE, rnd = c.rnd; n = n || 3;
+    const wm = new T.MeshBasicMaterial({ map: waterTex(c), transparent: true, opacity: .93, depthWrite: false, side: T.DoubleSide });
+    const fm = new T.MeshBasicMaterial({ map: foam(c), transparent: true, opacity: .95, depthWrite: false });
+    for (let i = 0; i < n; i++) { const t = n === 1 ? 0 : i / (n - 1) - .5, sw = w / n * (.6 + rnd() * .3), sh = h * (.9 + rnd() * .1), z0 = zc + t * w * .9;
+      const N = 14, pos = [], uv = [], idx = [];
+      for (let k = 0; k <= N; k++) { const f = k / N, y = f * sh, lip = Math.pow(Math.max(0, f - .8) * 5, 2) * 3 + f * 1.2; pos.push(fx - .6 - lip, y, z0 - sw / 2, fx - .6 - lip, y, z0 + sw / 2); uv.push(0, f * 3, 1, f * 3); if (k) { const b = (k - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); } }
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); c.add(g, wm, false, false);
+      const fg = new T.CircleGeometry(sw * .7, 14); fg.rotateX(-Math.PI / 2); fg.scale(1.3, 1, 1); fg.translate(fx - 3, .45, z0); c.add(fg, fm, false, false); }
+    const p = new T.CircleGeometry(1, 28); p.rotateX(-Math.PI / 2); p.scale(w * .35, 1, w * .62); p.translate(fx - w * .28, .3, zc); c.add(p, c.M.waterBox, false, true);
+    const mist = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .2, depthWrite: false });
+    for (let i = 0; i < 7; i++) { const sg = new T.SphereGeometry(w * (.08 + rnd() * .07), 8, 6); sg.scale(1, .6, 1.6); sg.translate(fx - 4 - rnd() * 6, 1 + rnd() * 3, zc + (rnd() - .5) * w * .9); c.add(sg, mist, false, false); }
+    // the river running over the top of the cliff
+    c.box(18, .5, w * .95, fx + 9, h + .1, zc, c.M.waterBox, false, true); }
+  // A rock cliff of overlapping boulders behind a west-facing face at fx, so it never looks like a flat wall.
+  function cliff(c, fx, zc, w, h, d, col) { const T = c.THREE, rnd = c.rnd, m = mat(c, col || '#77705e'), m2 = mat(c, '#625c4d'), moss = mat(c, '#4f7a36');
+    const cols = Math.max(3, Math.round(w / 14)), rows = Math.max(2, Math.round(h / 16)), r = Math.max(w / cols, h / rows) * .72;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) { const g = new T.IcosahedronGeometry(r, 1); const P2 = g.attributes.position; for (let k = 0; k < P2.count; k++) P2.setXYZ(k, P2.getX(k) * (1 + (rnd() - .5) * .3), P2.getY(k) * (1 + (rnd() - .5) * .3), P2.getZ(k) * (1 + (rnd() - .5) * .3)); g.computeVertexNormals();
+      g.scale(Math.max(1, d / r / 2), 1, 1); g.translate(fx + Math.max(r, d / 2) + rnd() * 2, (j + .5) * h / rows, zc - w / 2 + (i + .5) * w / cols + (rnd() - .5) * 3); c.add(g, (i + j) % 3 ? m : m2); }
+    for (let i = 0; i < cols; i++) { const g = new T.SphereGeometry(r * .9, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(Math.max(1, d / r / 2), .35, 1); g.translate(fx + Math.max(r, d / 2) + 2, h - r * .1, zc - w / 2 + (i + .5) * w / cols); c.add(g, moss); } }
   function hut(c, x, z, ry, wall) { tbox(c, 5, 2.6, 4, x, 1.3, z, 0, ry, 0, mat(c, wall || '#c8a46a')); pitch(c, 5.4, 4.4, x, 2.6, z, 1.6, mat(c, THATCH), ry); }
 
   L.goaChurch = (c, x, z, o) => { const M = c.M, wh = M.white; c.box(64, .1, 64, x, Y + .02, z, M.plaza, false, true);
@@ -233,9 +258,11 @@ window.LANDMARKS = (function () {
   L.mangueshi = (c, x, z) => { const M = c.M, wh = M.white; c.box(40, .3, 36, x, .15, z, M.stone, false, true); c.box(16, 9, 22, x + 4, 4.5, z, wh); c.cyl(5, 5, 4, x + 4, 11, z + 4, wh, 8); c.dome(5, x + 4, 13, z + 4, mat(c, '#d9483b'));
     let y = 0; for (let i = 0; i < 7; i++) { c.cyl(2.2 - i * .2, 2.4 - i * .2, 2.4, x - 12, y + 1.2, z - 8, wh, 8); c.cyl(2.8 - i * .2, 2.8 - i * .2, .3, x - 12, y + 2.4, z - 8, M.cream, 8); y += 2.4; } c.cone(1, 2, x - 12, y + 1, z - 8, M.gold, 8);
     c.box(12, .2, 10, x - 6, .3, z + 12, M.waterBox); c.col(x + 4, z, 8, 11); c.col(x - 12, z - 8, 2.4, 2.4); c.far(); return {}; };
-  L.dudhsagar = (c, x, z) => { const M = c.M, rk = mat(c, '#5d5a4c'); c.box(40, 70, 90, x + 26, 35, z, rk); c.box(30, 40, 50, x + 6, 20, z - 50, rk); c.box(30, 46, 50, x + 6, 23, z + 50, rk);
-    falls(c, x + 5, z, 34, 66, Math.PI / 2, 4); for (let i = -2; i <= 2; i++) c.box(2.2, 28, 2.2, x - 4, 14, z + i * 16, M.concrete); c.box(4, 1.4, 80, x - 4, 28.6, z, M.concrete); c.box(3, 2, 26, x - 4, 30.3, z - 10, M.red);
-    trees(c, x - 20, z, 14, 30); c.col(x + 26, z, 20, 45); c.far(); return {}; };
+  L.dudhsagar = (c, x, z) => { const M = c.M; // tall four-tier fall on the Goa–Karnataka ghats, with the Konkan railway bridge across its face
+    cliff(c, x + 6, z, 90, 70, 40); cliff(c, x - 6, z - 58, 30, 44, 26); cliff(c, x - 6, z + 58, 30, 46, 26); falls(c, x + 6, z, 36, 70, 4);
+    for (let i = -3; i <= 3; i++) c.box(2.4, 30, 2.4, x - 20, 15, z + i * 13, M.stone); for (let i = -3; i < 3; i++) c.torus(6.5, .8, x - 20, 24, z + i * 13 + 6.5, M.stone);
+    c.box(4.4, 1.6, 92, x - 20, 30.8, z, M.stone); c.box(3, 2.4, 22, x - 20, 32.8, z - 14, mat(c, '#8a1c1c')); c.box(3, 2.4, 14, x - 20, 32.8, z + 6, mat(c, '#8a1c1c'));
+    trees(c, x - 40, z, 16, 30, 1.2); c.col(x + 30, z, 24, 45); c.far(); return {}; };
   L.beachShacks = (c, x, z, o) => { const M = c.M; for (let i = 0; i < 4; i++) hut(c, x + (i % 2) * 7, z - 15 + i * 10, Math.PI / 2, i % 2 ? '#7fb7d9' : '#c8a46a');
     for (let i = 0; i < 6; i++) { const ux = x - 14 + c.rnd() * 8, uz = z - 18 + i * 7; c.box(1, .3, 2.2, ux, .4, uz, M.white); c.cyl(.06, .06, 2.4, ux + 1, 1.2, uz, M.pole, 4); c.cone(1.5, .7, ux + 1, 2.6, uz, c.pick(M.awn), 8); }
     for (let i = 0; i < 5; i++) c.palm(x + 10 + c.rnd() * 8, z - 22 + i * 11); c.col(x + 3, z, 6, 20); return { poi: [{ type: 'food', name: 'Beach shack', x: x - 6, z: z, rot: -Math.PI / 2, extra: 'BEACH' }] }; };
@@ -248,9 +275,10 @@ window.LANDMARKS = (function () {
     c.box(6, 2.4, 6, x + 26, 1.2, z, gr); let y = 2.4; for (let i = 0; i < 3; i++) { c.box(5 - i, 1.6, 5 - i, x + 26, y + .8, z, gr); y += 1.6; } c.cone(2, 3, x + 26, y + 1.5, z, gr, 8);
     for (const s of [-1, 1]) { const g = new c.THREE.CylinderGeometry(1.6, 1.6, .7, 14); g.rotateX(Math.PI / 2); g.translate(x + 26, 1.6, z + s * 3.4); c.add(g, gr); }
     gopuram(c, x - 50, 0, z - 30, 18, 12, 40, gr, 8); c.col(x, z, 18, 12); c.col(x + 26, z, 3, 3); c.col(x - 50, z - 30, 9, 6); c.far(); return {}; };
-  L.jogFalls = (c, x, z) => { const M = c.M, rk = mat(c, '#57544a'); c.box(26, 52, 48, x + 24, 26, z, rk); c.box(40, 38, 36, x + 4, 19, z - 44, rk); c.box(40, 38, 30, x + 4, 19, z + 46, rk);
-    falls(c, x + 10, z, 30, 50, Math.PI / 2, 4); c.box(14, .6, 8, x - 30, .3, z + 30, M.stone); for (let i = 0; i < 6; i++) c.box(.15, 1, 8, x - 37 + i * 2.6, .9, z + 26, M.pole);
-    c.col(x + 24, z, 13, 24); c.far(); return {}; };
+  L.jogFalls = (c, x, z) => { const M = c.M; // Raja, Rani, Rover and Rocket drop into the Sharavathi gorge
+    cliff(c, x + 8, z, 64, 54, 36); cliff(c, x - 4, z - 44, 28, 40, 26); cliff(c, x - 4, z + 44, 28, 40, 26); falls(c, x + 8, z, 40, 54, 4);
+    c.box(14, .6, 8, x - 30, .3, z + 30, M.stone); for (let i = 0; i < 6; i++) c.box(.15, 1, 8, x - 37 + i * 2.6, .9, z + 26, M.pole); c.sign('JOG FALLS VIEWPOINT', x - 30, 3, z + 34, Math.PI, 9, 1.4, '#ffffff', '#1f6f4a');
+    c.col(x + 26, z, 18, 32); c.far(); return {}; };
   L.murudeshwar = (c, x, z) => { const M = c.M, sv = mat(c, '#6f8fa8'), rk = M.rock; c.cyl(18, 22, 8, x, 4, z, rk, 12); c.box(16, 6, 12, x, 11, z, sv); c.cone(9, 20, x, 24, z, sv, 10); c.box(10, 12, 7, x, 30, z, sv);
     for (const s of [-1, 1]) c.box(2.6, 12, 2.6, x + s * 6.2, 28, z - 1, sv); c.cyl(1.8, 2.2, 3, x, 37, z, sv, 8); c.sph(3.4, x, 41, z, sv); c.box(1.6, 5, 1.6, x, 45.6, z, mat(c, '#2a2a3a')); c.box(.3, 12, .3, x + 8, 30, z - 2, M.gold);
     gopuram(c, x + 2, 0, z - 55, 16, 12, 70, mat(c, '#e8d6b0'), 9); c.col(x, z, 16, 16); c.col(x + 2, z - 55, 8, 6); c.far(); return {}; };
@@ -294,7 +322,8 @@ window.LANDMARKS = (function () {
   function houseboat(c, x, z, ry) { const wd = mat(c, '#5a3a24'), th = mat(c, THATCH); tbox(c, 4.4, 1.2, 22, x, .6, z, 0, ry, 0, wd); for (const s of [-1, 1]) tbox(c, 3, 1, 4, x + Math.sin(ry) * s * 11.5, 1.1, z + Math.cos(ry) * s * 11.5, s * .25, ry, 0, wd);
     const g = new c.THREE.CylinderGeometry(2.2, 2.2, 14, 10, 1, true, 0, Math.PI); g.rotateZ(Math.PI / 2); g.rotateY(Math.PI / 2); g.scale(1, .8, 1); g.rotateY(ry); g.translate(x, 1.2, z); c.add(g, th); }
   L.houseboats = (c, x, z) => { for (let i = 0; i < 3; i++) houseboat(c, x - 12 + i * 12, z - 30 + i * 30, .3 + i * .5); c.far(); return {}; };
-  L.athirappilly = (c, x, z) => { const M = c.M, rk = mat(c, '#4f4a40'); c.box(30, 26, 80, x + 20, 13, z, rk); falls(c, x + 4, z, 60, 24, Math.PI / 2, 5); trees(c, x - 10, z, 16, 40, 1.2); c.col(x + 20, z, 15, 40); c.far(); return {}; };
+  L.athirappilly = (c, x, z) => { const M = c.M; // wide curtain of water over a forest cliff, the 'Niagara of India'
+    cliff(c, x + 6, z, 92, 26, 30, '#5a5546'); falls(c, x + 6, z, 74, 26, 7); trees(c, x - 14, z, 18, 44, 1.2); c.col(x + 22, z, 15, 44); c.far(); return {}; };
   L.sabarimala = (c, x, z) => { const M = c.M; c.cone(60, 48, x, 24, z, mat(c, '#4f7a36'), 10); c.box(14, 1, 14, x, 48.5, z, M.stone); c.box(8, 5, 8, x, 51.5, z, M.white); kroof(c, 8, 8, x, 54, z, M.gold);
     for (let i = 0; i < 18; i++) c.box(5, .4, 1, x, 46.5 + i * .12, z - 9 + i * .3, M.gold); c.col(x, z, 38, 38); c.far(); return {}; };
   L.jatayu = (c, x, z) => { const M = c.M, rk = M.rock, st = mat(c, '#cfc8bb'); c.cone(46, 26, x, 13, z, rk, 9);
@@ -311,22 +340,59 @@ window.LANDMARKS = (function () {
     const tx = 6618, tz = 19022, st = mat(c, '#9a8f80'); c.box(8, 10, 8, tx, 5, tz, st); c.box(4, 18, 3, tx, 19, tz, st); c.sph(2.2, tx, 30, tz, st); c.box(.5, 10, .5, tx + 2.6, 22, tz, st);
     c.col(x, z, 4, 3); c.far(); return { poi: [{ type: 'food', name: 'Sunrise point stall', x: x + 10, z: z - 10, rot: Math.PI, extra: 'KL' }] }; };
 
-  /* Football stadium (block special 'footballStadium:<team id>'), colours from js/football-data.js */
-  L.footballStadium = (c, x, z, o) => { const M = c.M, F = window.FOOTBALL, t = (F && F.byId(o && o.arg)) || { col: '#3a6fd8', col2: '#ffffff', stadium: 'Football stadium' };
-    const c1 = mat(c, t.col), c2 = mat(c, t.col2), grey = mat(c, '#8d8a84'), glow = new c.THREE.MeshBasicMaterial({ color: 0xfff6d8 });
-    c.box(64, .1, 64, x, Y + .02, z, M.concrete, false, true); c.box(26, .12, 40, x, Y + .08, z, mat(c, '#3f9a45'), false, true);
-    for (let i = 0; i < 8; i++) c.box(26, .02, 2.5, x, Y + .15, z - 17.5 + i * 5, mat(c, '#48a84d'), false, true);
-    const ln = M.white; c.box(24, .03, .25, x, Y + .17, z - 19, ln, false, true); c.box(24, .03, .25, x, Y + .17, z + 19, ln, false, true); c.box(.25, .03, 38, x - 12, Y + .17, z, ln, false, true); c.box(.25, .03, 38, x + 12, Y + .17, z, ln, false, true);
-    c.box(24, .03, .25, x, Y + .17, z, ln, false, true); for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283; c.boxRot(1.1, .03, .22, x + Math.cos(a) * 3.4, Y + .17, z + Math.sin(a) * 3.4, -a + Math.PI / 2, ln, false, true); }
-    for (const s of [-1, 1]) { c.box(10, .03, .25, x, Y + .17, z + s * 14.5, ln, false, true); c.box(.25, .03, 4.5, x - 5, Y + .17, z + s * 16.75, ln, false, true); c.box(.25, .03, 4.5, x + 5, Y + .17, z + s * 16.75, ln, false, true);
-      c.box(4.6, 1.6, .15, x, Y + .8, z + s * 19.6, ln); }
-    // stands: three tiers on each side, seats in the home colours
-    for (let i = 0; i < 3; i++) { const h = 2 + i * 1.8, m = i % 2 ? c2 : c1;
-      for (const s of [-1, 1]) { c.box(3, h, 44, x + s * (15.5 + i * 3), Y + h / 2, z, m); c.box(32 + i * 6, h, 3, x, Y + h / 2, z + s * (21.5 + i * 3), i === 1 ? grey : m); } }
-    for (const s of [-1, 1]) { c.box(11, .5, 48, x + s * 23, Y + 10.5, z, mat(c, '#e9e6df')); for (const dz of [-22, 0, 22]) c.box(.6, 10, .6, x + s * 28, Y + 5, z + dz, M.steel); }
-    // floodlights
-    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.box(.9, 26, .9, x + dx * 29, Y + 13, z + dz * 29, M.steel); c.box(4.4, 2.6, .5, x + dx * 28.4, Y + 26.5, z + dz * 28.4, glow); }
-    c.sign(t.stadium.toUpperCase(), x, Y + 8, z + 30.4, 0, 22, 2.6, '#ffffff', t.col2 === '#ffffff' ? '#1d3f9a' : t.col2);
-    c.col(x, z, 30, 30); return { poi: [{ type: 'stadium', name: t.stadium, side: 's', t: -12, extra: (o && o.arg) || '' }] }; };
+  /* Football stadiums (free-standing, LOD 200), team colours from js/football-data.js.
+     Each one registers its site in window.STADIA so the football feature can place crowds around it. */
+  const STAD = { goa: { rx: 50, rz: 40, track: false, tiers: 3, roof: [Math.PI * .8, Math.PI * 1.2], seats: ['#ff7a1a', '#1d3f9a', '#f2f2ee'], gate: 'w', canopy: 'curved' },
+    blr: { rx: 55, rz: 40, track: true, tiers: 3, roof: [Math.PI * .85, Math.PI * 1.15], seats: ['#8d8a84', '#1f4fbf', '#8d8a84'], gate: 'w', canopy: 'flat' },
+    ker: { rx: 60, rz: 48, track: true, tiers: 4, roof: [Math.PI * .75, Math.PI * 1.25], seats: ['#ffd23a', '#ffd23a', '#1d3f9a', '#ffd23a'], gate: 'w', canopy: 'ring' } };
+  function pitch(c, x, z, w, d, y) { const M = c.M; c.box(w, .1, d, x, y, z, mat(c, '#3f9a45'), false, true); for (let i = 0; i < 8; i++) c.box(w, .02, d / 8 * .5, x, y + .06, z - d / 2 + d / 16 + i * d / 8, mat(c, '#48a84d'), false, true);
+    const ln = M.white, Y2 = y + .08; c.box(w - 1, .02, .22, x, Y2, z - d / 2 + .5, ln, false, true); c.box(w - 1, .02, .22, x, Y2, z + d / 2 - .5, ln, false, true); c.box(.22, .02, d - 1, x - w / 2 + .5, Y2, z, ln, false, true); c.box(.22, .02, d - 1, x + w / 2 - .5, Y2, z, ln, false, true);
+    c.box(w - 1, .02, .22, x, Y2, z, ln, false, true); for (let i = 0; i < 18; i++) { const a = i / 18 * 6.283; c.boxRot(1, .02, .2, x + Math.cos(a) * 4, Y2, z + Math.sin(a) * 4, -a + Math.PI / 2, ln, false, true); }
+    for (const s of [-1, 1]) { c.box(w * .42, .02, .22, x, Y2, z + s * (d / 2 - 7), ln, false, true); c.box(.22, .02, 6.5, x - w * .21, Y2, z + s * (d / 2 - 3.75), ln, false, true); c.box(.22, .02, 6.5, x + w * .21, Y2, z + s * (d / 2 - 3.75), ln, false, true);
+      c.box(5, 1.8, .12, x, y + .9, z + s * (d / 2 - .2), ln); c.box(5, .12, 1.4, x, y + 1.8, z + s * (d / 2 + .5), ln); } }
+  function floodlight(c, x, z, h, face) { const M = c.M; c.cyl(.6, .9, h, x, h / 2, z, M.steel, 8); const g = new c.THREE.BoxGeometry(5.5, 3.2, .6); g.rotateX(-.35); g.rotateY(face); g.translate(x, h + 1.4, z); c.add(g, new c.THREE.MeshBasicMaterial({ color: 0xfff6d8 }), false, false); }
+  function registerStadium(team, info) { window.STADIA = window.STADIA || {}; window.STADIA[team] = info; }
+  // Oval bowl: Fatorda (Goa), Kanteerava (Bengaluru, with a running track), Jawaharlal Nehru Stadium (Kochi, two tiers and a roof ring).
+  L.stadiumOval = (c, x, z, o) => { const M = c.M, F = window.FOOTBALL, id = o && o.arg, t = (F && F.byId(id)) || { col: '#3a6fd8', col2: '#fff', stadium: 'Stadium' }, S = STAD[id] || STAD.goa;
+    const conc = mat(c, '#b7b0a4'), roofM = mat(c, '#eeeae2'), N = 40;
+    // plaza and outer apron
+    const ap = new c.THREE.CircleGeometry(1, 40); ap.rotateX(-Math.PI / 2); ap.scale(S.rx + 14, 1, S.rz + 14); ap.translate(x, .03, z); c.add(ap, M.plaza, false, true);
+    const inRx = S.rx * .62, inRz = S.rz * .62;
+    if (S.track) { const tr = new c.THREE.CircleGeometry(1, 40); tr.rotateX(-Math.PI / 2); tr.scale(inRx, 1, inRz); tr.translate(x, .08, z); c.add(tr, mat(c, '#b3472f'), false, true); for (const k of [.82, .9]) { const r = new c.THREE.RingGeometry(k - .004, k + .004, 48); r.rotateX(-Math.PI / 2); r.scale(inRx, 1, inRz); r.translate(x, .1, z); c.add(r, M.white, false, true); } pitch(c, x, z, inRz * 1.05, inRx * 1.3, .12); }
+    else pitch(c, x, z, inRz * 1.2, inRx * 1.55, .1);
+    // stepped stands around the bowl
+    for (let k = 0; k < S.tiers; k++) { const f0 = .64 + k * (.34 / S.tiers), f1 = f0 + .34 / S.tiers, h0 = 1 + k * 3.2, m = mat(c, S.seats[k % S.seats.length]);
+      for (let i = 0; i < N; i++) { const a0 = i / N * 6.283, a1 = (i + 1) / N * 6.283, am = (a0 + a1) / 2; const px = x + Math.cos(am) * S.rx * (f0 + f1) / 2, pz = z + Math.sin(am) * S.rz * (f0 + f1) / 2;
+        const seg = Math.hypot(Math.cos(a1) * S.rx - Math.cos(a0) * S.rx, Math.sin(a1) * S.rz - Math.sin(a0) * S.rz) * (f0 + f1) / 2 + .6, dep = Math.hypot(Math.cos(am) * S.rx, Math.sin(am) * S.rz) * (f1 - f0);
+        const ry = -Math.atan2(Math.sin(am) * S.rz, Math.cos(am) * S.rx) + Math.PI / 2;
+        if (S.gate === 'w' && k === 0 && Math.abs(Math.cos(am) + 1) < .02) continue;
+        c.boxRot(seg, h0 + 1.6, dep, px, (h0 + 1.6) / 2, pz, ry, i % 2 && k % 2 ? conc : m); } }
+    // outer wall and roof canopy over the main stand
+    const out = 1.0; for (let i = 0; i < N; i++) { const am = (i + .5) / N * 6.283; const px = x + Math.cos(am) * S.rx * out, pz = z + Math.sin(am) * S.rz * out; const ry = -Math.atan2(Math.sin(am) * S.rz, Math.cos(am) * S.rx) + Math.PI / 2;
+      const seg = 2 * Math.PI * Math.sqrt((S.rx * S.rx + S.rz * S.rz) / 2) / N + .5; const H = 1 + S.tiers * 3.2 + 2; c.boxRot(seg, H, 1, px, H / 2, pz, ry, conc);
+      const inRoof = S.canopy === 'ring' ? Math.sin(am) > -.2 || true : am > S.roof[0] && am < S.roof[1];
+      if (inRoof && (S.canopy === 'ring' || (am > S.roof[0] && am < S.roof[1]))) { const rd = S.canopy === 'ring' ? (am > S.roof[0] && am < S.roof[1] ? 18 : 9) : 18, rx2 = x + Math.cos(am) * (S.rx - rd / 2), rz2 = z + Math.sin(am) * (S.rz - rd / 2 * S.rz / S.rx);
+        const g = new c.THREE.BoxGeometry(seg + .3, .45, rd); g.rotateX(S.canopy === 'curved' ? -.12 : 0); g.rotateY(ry); g.translate(rx2, H + 1.5, rz2); c.add(g, roofM); if (i % 3 === 0) c.cyl(.35, .35, 3, px, H + .2, pz, M.steel, 6); } }
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) floodlight(c, x + dx * S.rx * .78, z + dz * S.rz * .78, S.tiers * 3.2 + 22, Math.atan2(-dx, -dz));
+    // entrance on the west side
+    const gx = x - S.rx - 2, gz = z; c.box(4, 7, 14, gx + 2, 3.5, gz, conc); c.box(4.4, 5, 6, gx + 2, 2.5, gz, M.dark);
+    c.sign(t.stadium.toUpperCase(), gx - .3, 9, gz, -Math.PI / 2, 22, 2.4, '#ffffff', t.col2 === '#ffffff' ? '#1d3f9a' : t.col2);
+    for (const s of [-1, 1]) { c.flag(gx - 2, 6, gz + s * 9, true); }
+    c.col(x, z, S.rx * .97, S.rz * .97);
+    registerStadium(id, { x, z, rx: S.rx, rz: S.rz, gx: gx - 6, gz, dx: -1, dz: 0 });
+    c.far(); return { poi: [{ type: 'stadium', name: t.stadium, x: gx - 4, z: gz, rot: -Math.PI / 2, extra: id }] }; };
+  // Mumbai Football Arena (Andheri): a compact rectangular football ground with a roofed main stand.
+  L.stadiumMFA = (c, x, z, o) => { const M = c.M, F = window.FOOTBALL, id = (o && o.arg) || 'mum', t = (F && F.byId(id)) || { col: '#6cb4ee', col2: '#0b2a5b', stadium: 'Mumbai Football Arena' };
+    const blue = mat(c, '#2f6fc0'), sky = mat(c, t.col), conc = mat(c, '#b7b0a4'), W2 = 70, D2 = 56;
+    c.box(W2 + 16, .1, D2 + 16, x, .03, z, M.plaza, false, true); pitch(c, x, z, 30, 44, .1);
+    for (let k = 0; k < 3; k++) { const h = 1.6 + k * 1.8, m = k === 1 ? sky : blue;
+      for (const s of [-1, 1]) { c.box(4, h, 50, x + s * (19.5 + k * 4), h / 2, z, m); c.box(36 + k * 8, h, 4, x, h / 2, z + s * (26 + k * 2.2) * .98, k === 2 ? conc : m); } }
+    c.box(W2 - 2, 10, 1, x, 5, z - D2 / 2 - 1, conc); c.box(W2 - 2, 10, 1, x, 5, z + D2 / 2 + 1, conc); c.box(1, 10, D2, x - W2 / 2 + 1, 5, z, conc); c.box(1, 10, D2, x + W2 / 2 - 1, 5, z, conc);
+    // main stand roof on the west side, with a white truss
+    c.box(14, .5, 54, x - 27, 13, z, mat(c, '#eeeae2')); for (const dz of [-24, -8, 8, 24]) c.box(.6, 13, .6, x - 33.5, 6.5, z + dz, M.steel);
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) floodlight(c, x + dx * 33, z + dz * 27, 24, Math.atan2(-dx, -dz));
+    const gx = x - W2 / 2 - 1, gz = z; c.box(3, 6, 12, gx, 3, gz, conc); c.box(3.2, 4.4, 6, gx, 2.2, gz, M.dark); c.sign(t.stadium.toUpperCase(), gx - 1.7, 8, gz, -Math.PI / 2, 20, 2.2, '#ffffff', '#0b2a5b');
+    c.col(x, z, W2 / 2, D2 / 2); registerStadium(id, { x, z, rx: W2 / 2 + 3, rz: D2 / 2 + 3, gx: gx - 6, gz, dx: -1, dz: 0 });
+    c.far(); return { poi: [{ type: 'stadium', name: t.stadium, x: gx - 4, z: gz, rot: -Math.PI / 2, extra: id }] }; };
   return L;
 })();

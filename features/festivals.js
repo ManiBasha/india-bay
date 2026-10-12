@@ -40,4 +40,11 @@ window.BBFeatures.push(function (bb) {
   // Diwali sweet shops: an extra menu at food stalls while Diwali is on.
   bb.WORLD.menus.SWEETS = [['kajukatli', 'Kaju katli box', 'Silver-leaf cashew fudge', 120, { hunger: 14, energy: 6 }, 'snack'], ['ladoo', 'Besan ladoo', 'Two pieces', 60, { hunger: 12 }, 'snack'], ['jalebi', 'Hot jalebi', 'Straight from the kadhai', 40, { hunger: 10, energy: 4 }, 'snack']];
   bb.on('zone', z => { if (!active.some(f => f.type === 'diwali')) return; if (bb.pois.some(p => p.extra === 'SWEETS' && p.zone === z)) return; const blk = bb.pois.find(p => p.type === 'food' && p.zone === z); if (blk) bb.addPoi({ type: 'food', name: 'Diwali mithai shop', x: blk.x + Math.cos(blk.rot) * 6, z: blk.z - Math.sin(blk.rot) * 6, rot: blk.rot, extra: 'SWEETS', color: '#ff6fa8' }); });
+
+  /* gifts: money the admin gives every player on festivals and special days (paid once per player) */
+  function gifts() { const p = bb.P; if (!p) return; p.extra = p.extra || {}; const got = p.extra.gifts = p.extra.gifts || {}; const iso = bb.istISO(); const C = bb.CFG;
+    const list = (C.festivals || []).filter(f => +f.gift > 0).map(f => ({ name: f.name, start: f.start, end: f.end, gift: +f.gift, message: `Happy ${f.name} from India Bay!` })).concat((C.gifts || []).filter(g => +g.gift > 0));
+    for (const g of list) { if (!g.start || !g.end || g.start > iso || g.end < iso) continue; const key = g.name + ':' + g.start; if (got[key]) continue; got[key] = iso;
+      bb.earn(Math.round(+g.gift), 'gift'); bb.big('🎁 ' + bb.inr(Math.round(+g.gift)), '#ffc93c'); bb.toast(`🎁 ${bb.esc(g.name)} · +${bb.inr(Math.round(+g.gift))}${g.message ? '<br><span style="font-size:15px;font-weight:600">' + bb.esc(g.message) + '</span>' : ''}`, '#ffc93c'); bb.emit('gift', g); bb.save(); } }
+  bb.onStart(() => setTimeout(gifts, 3500)); setInterval(() => { if (bb.started) gifts(); }, 60000);
 });

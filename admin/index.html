@@ -59,6 +59,8 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
 <script src="../js/online-config.js"></script>
 <script src="../js/config.js"></script>
 <script src="../js/world-west.js"></script>
+<script src="../js/world-southwest.js"></script>
+<script src="../js/prices.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <script>
 (function () {
@@ -99,12 +101,12 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
   }
 
   /* ---------- tabs ---------- */
-  const TABS = [['settings', 'Game settings'], ['ads', 'Billboards and ads'], ['fest', 'Festivals and events'], ['reports', 'Reports'], ['support', 'Support'], ['sugg', 'Suggestions'], ['players', 'Players']];
+  const TABS = [['settings', 'Game settings'], ['prices', 'Time and prices'], ['ads', 'Billboards and ads'], ['fest', 'Festivals, events and gifts'], ['reports', 'Reports'], ['support', 'Support'], ['sugg', 'Suggestions'], ['players', 'Players']];
   let cur = 'settings';
   function tabs() {
     $('#tabs').innerHTML = TABS.map(([id, l]) => `<button role="tab" data-t="${id}" aria-selected="${id === cur}">${l}</button>`).join('');
     $('#tabs').onclick = e => { const t = e.target.dataset.t; if (t) { cur = t; tabs(); } };
-    ({ settings: settingsTab, ads: () => listTab('billboards'), fest: () => listTab('festivals', 'events'), reports: reportsTab, support: supportTab, sugg: suggTab, players: playersTab })[cur]();
+    ({ settings: settingsTab, prices: pricesTab, ads: () => listTab('billboards'), fest: () => listTab('festivals', 'events', 'gifts'), reports: reportsTab, support: supportTab, sugg: suggTab, players: playersTab })[cur]();
   }
   async function loadCfg() { if (cfg) return cfg; const { data, error } = await sb.from('game_config').select('data').eq('id', 1).maybeSingle(); if (error) throw error; cfg = K.mergeCfg(K.DEFAULTS, data && data.data); return cfg; }
   async function saveCfg(msgEl) {
@@ -131,12 +133,11 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
     const S = [
       ['Game', txt('name', 'Game name', 40) + txt('tagline', 'Tagline', 90) + `<label style="grid-column:1/-1">Announcement on the start screen<textarea data-p="announce" maxlength="240" placeholder="Diwali update: double fares this week"></textarea></label>`],
       ['Look', sel('theme', 'Colour theme', Object.entries(K.THEMES).map(([k, t]) => [k, t.label])) + `<label>Accent colour<input type="color" data-p="accent"></label>`],
-      ['Bay clock and weather', num('timeSpeed', 'Time speed (game minutes per real second)', 0, 10, .5) + num('timeOffset', 'Clock shift (game minutes)', -1440, 1440, 10) + sel('weather', 'Weather', [['auto', 'Follows the season'], ['clear', 'Always clear'], ['cloudy', 'Cloudy'], ['rain', 'Rain'], ['monsoon', 'Monsoon storm'], ['fog', 'Fog']])],
+      ['Weather', sel('weather', 'Weather', [['auto', 'Follows the season'], ['clear', 'Always clear'], ['cloudy', 'Cloudy'], ['rain', 'Rain'], ['monsoon', 'Monsoon storm'], ['fog', 'Fog']])],
       ['Needs and activity times', ck('needs', 'Hunger, toilet and sleep needs') + num('foodHrs', 'Food lasts (game hours)', 2, 48) + num('wcHrs', 'Bladder lasts (game hours)', 2, 48) + num('awakeHrs', 'Awake before exhausted (game hours)', 4, 48) + Object.keys(ACT).map(k => num('act.' + k, ACT[k] + ' (game minutes)', 1, 720)).join('')],
       ['Queues (real seconds per person)', Object.keys(QUE).map(k => num('queue.' + k, QUE[k], 1, 300)).join('')],
       ['Travel tickets and times', Object.keys(TRV).map(k => num('travel.' + k + '.0', TRV[k] + ' ticket (₹)', 0, 100000, 10) + num('travel.' + k + '.1', TRV[k] + ' longest trip (s)', 5, 1800, 5)).join('')],
       ['Streets and police', num('traffic', 'Traffic vehicles near the player', 0, 60) + num('peds', 'Pedestrians near the player', 0, 80) + sel('police', 'Police', [['off', 'Off'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']]) + ck('weapons', 'Weapons and bank robbery')],
-      ['Economy', num('priceMul', 'Prices ×', .5, 3, .1) + num('fareMul', 'Job pay ×', .5, 3, .1) + num('startCash', 'Starting cash (₹)', 0, 10000000, 100) + num('fuel.petrol', 'Petrol ₹/L', 10, 500) + num('fuel.diesel', 'Diesel ₹/L', 10, 500) + num('fuel.cng', 'CNG ₹/L', 10, 500) + num('toll', 'Toll (₹)', 0, 5000, 10)],
       ['Regions', K.REGIONS.map(r => `<label class="ck"><input type="checkbox" data-p="regions.${r.id}" data-b="1"${r.map ? '' : ' disabled'}> ${esc(r.name)}${r.map ? '' : ' (map not built yet)'}</label>`).join('')]
     ];
     $('#pane').innerHTML = `<div class="card"><h2>Game settings</h2><p class="note">These apply to every player.</p><form id="f" novalidate>${S.map(([t, h], i) => `<details${i === 0 ? ' open' : ''}><summary>${t}</summary><div class="grid" style="margin-top:10px">${h}</div></details>`).join('')}
@@ -149,21 +150,43 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
     $('#save').onclick = () => saveCfg($('#msg'));
     $('#reset').onclick = () => { if (!confirm('Reset every setting to the defaults? You still need to press Save.')) return; cfg = JSON.parse(JSON.stringify(K.DEFAULTS)); settingsTab(); };
   }
+  /* ---------- time and prices ---------- */
+  async function pricesTab() {
+    const c = await loadCfg(); c.prices = c.prices || {}; const PR = window.PRICES || { groups: [] };
+    const top = [
+      ['Bay clock', num('timeSpeed', 'Time speed (game minutes per real second)', 0, 10, .5) + num('timeOffset', 'Clock shift (game minutes)', -1440, 1440, 10) + '<p class="note" style="grid-column:1/-1;margin:0">1 means one game minute passes every real second, so a game day lasts 24 real minutes. 0 stops the clock.</p>'],
+      ['Money', num('priceMul', 'All prices × (multiplies every price below)', .5, 3, .1) + num('fareMul', 'Job pay ×', .5, 3, .1) + num('startCash', 'Starting cash (₹)', 0, 10000000, 100) + num('fuel.petrol', 'Petrol ₹/L', 10, 500) + num('fuel.diesel', 'Diesel ₹/L', 10, 500) + num('fuel.cng', 'CNG ₹/kg', 10, 500) + num('toll', 'Toll (₹)', 0, 5000, 10)],
+      ['Travel tickets and times', Object.keys(TRV).map(k => num('travel.' + k + '.0', TRV[k] + ' ticket (₹)', 0, 100000, 10) + num('travel.' + k + '.1', TRV[k] + ' longest trip (s)', 5, 1800, 5)).join('')]];
+    const changed = g => g[1].filter(([k]) => c.prices[k] != null && c.prices[k] !== '').length;
+    $('#pane').innerHTML = `<div class="card"><h2>Time and prices</h2><p class="note">Change the game clock and what everything costs. Leave a price empty to use the default shown in grey.</p><form id="f" novalidate>` +
+      top.map(([t, h], i) => `<details${i < 2 ? ' open' : ''}><summary>${t}</summary><div class="grid" style="margin-top:10px">${h}</div></details>`).join('') +
+      `<h3 style="margin:18px 0 6px">Item prices (₹)</h3><input type="search" id="pq" placeholder="Search items, e.g. dosa, helmet, SUV" style="width:100%;margin:0 0 8px">` +
+      PR.groups.map(g => `<details class="pg"><summary>${esc(g[0])} <span class="note" style="margin:0">· ${g[1].length} items${changed(g) ? ' · ' + changed(g) + ' changed' : ''}</span></summary><div class="grid" style="margin-top:10px">${g[1].map(([k, l, d]) => `<label data-n="${esc((g[0] + ' ' + l).toLowerCase())}">${esc(l)}<input type="number" min="0" step="1" data-pk="${esc(k)}" placeholder="${d}" value="${c.prices[k] != null ? esc(c.prices[k]) : ''}"></label>`).join('')}</div></details>`).join('') +
+      `</form><div class="bar"><button class="pri" id="save">Save for all players</button><button id="preset" class="danger">Clear changed prices</button><span class="note" id="msg" style="margin:0"></span></div></div>`;
+    const f = $('#f');
+    f.querySelectorAll('[data-p]').forEach(el => { const v = get(c, el.dataset.p); if (v != null) el.value = v; });
+    f.addEventListener('input', e => { const el = e.target;
+      if (el.dataset.pk) { const v = el.value.trim(); if (v === '') delete c.prices[el.dataset.pk]; else c.prices[el.dataset.pk] = Math.max(0, Math.round(+v || 0)); return; }
+      if (el.id === 'pq') { const q = el.value.trim().toLowerCase(); f.querySelectorAll('.pg').forEach(d => { let any = false; d.querySelectorAll('label[data-n]').forEach(lb => { const ok = !q || lb.dataset.n.includes(q); lb.hidden = !ok; any = any || ok; }); d.hidden = !any; if (q) d.open = any; }); return; }
+      if (!el.dataset.p) return; set(c, el.dataset.p, Math.min(+el.max || 1e9, Math.max(+el.min || -1e9, +el.value || 0))); });
+    $('#save').onclick = () => saveCfg($('#msg'));
+    $('#preset').onclick = () => { if (!confirm('Put every item back to its default price? You still need to press Save.')) return; c.prices = {}; pricesTab(); };
+  }
   function listEditor(box, name) {
     const cols = K.lists(W.zones.map(z => z.id))[name];
     const draw = () => {
-      box.innerHTML = `<div class="list">${(cfg[name] || []).map((row, i) => `<div class="lrow">${cols.map(([k, l, t]) => Array.isArray(t) ? `<label>${esc(l)}<select data-i="${i}" data-k="${k}">${t.map(o => `<option${o === (row[k] || (k === 'ages' ? 'all' : '')) ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>` : `<label>${esc(l)}<input type="${t}" data-i="${i}" data-k="${k}" value="${esc(row[k])}"${t === 'number' ? ' step="0.1" min="0.5" max="3"' : ''}></label>`).join('')}<button type="button" class="del danger" data-del="${i}">Remove</button></div>`).join('') || '<p class="note">None yet.</p>'}</div><button type="button" data-add="1">+ Add</button>`;
+      box.innerHTML = `<div class="list">${(cfg[name] || []).map((row, i) => `<div class="lrow">${cols.map(([k, l, t, o]) => Array.isArray(t) ? `<label>${esc(l)}<select data-i="${i}" data-k="${k}">${t.map(o => `<option${o === (row[k] || (k === 'ages' ? 'all' : '')) ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>` : `<label>${esc(l)}<input type="${t}" data-i="${i}" data-k="${k}" value="${esc(row[k] == null ? '' : row[k])}"${t === 'number' ? ` step="${(o || {}).step || 0.1}" min="${(o || {}).min != null ? o.min : 0.5}" max="${(o || {}).max || 3}"` : ''}></label>`).join('')}<button type="button" class="del danger" data-del="${i}">Remove</button></div>`).join('') || '<p class="note">None yet.</p>'}</div><button type="button" data-add="1">+ Add</button>`;
     };
     draw();
     box.oninput = box.onchange = e => { const el = e.target; if (el.dataset.k == null) return; const i = +el.dataset.i; cfg[name] = cfg[name].slice(); cfg[name][i] = Object.assign({}, cfg[name][i], { [el.dataset.k]: el.type === 'number' ? +el.value : el.value }); };
     box.onclick = e => {
       if (e.target.dataset.del != null) { cfg[name] = cfg[name].filter((_, i) => i !== +e.target.dataset.del); draw(); }
-      if (e.target.dataset.add) { const row = {}; for (const [k, , t] of cols) row[k] = Array.isArray(t) ? t[0] : t === 'number' ? 1 : t === 'color' ? '#ffffff' : t === 'date' ? new Date().toISOString().slice(0, 10) : ''; if (name === 'billboards') { row.fg = '#1d1433'; row.start = ''; row.end = ''; } cfg[name] = (cfg[name] || []).concat([row]); draw(); }
+      if (e.target.dataset.add) { const row = {}; for (const [k, , t] of cols) row[k] = Array.isArray(t) ? t[0] : t === 'number' ? (k === 'gift' ? 0 : 1) : t === 'color' ? '#ffffff' : t === 'date' ? new Date().toISOString().slice(0, 10) : ''; if (name === 'billboards') { row.fg = '#1d1433'; row.start = ''; row.end = ''; } cfg[name] = (cfg[name] || []).concat([row]); draw(); }
     };
   }
   async function listTab(...names) {
     await loadCfg();
-    const T = { billboards: ['Collaborator ads', 'Paid ads for brands. An ad shows only when it has an Advertiser name, is inside its dates, and fits the player: players under 18 see only child-safe categories (food, education, sports, games, public service); adults see ads for their chosen age group. Each ad appears on at most 3 billboards per player per session. Tapping it opens the Click link. When no collaborator ad fits a billboard, the game fills it with India Bay ads for real places nearby (homes for sale, vehicles, food, jobs and more) that give directions when tapped. Use | for a second line, like FOOD IN 10 MIN|Order now.'], festivals: ['Festivals', 'Real dates in India time. Check them each year: they follow the Hindu calendar.'], events: ['Happening now events', 'City events that raise taxi fares while they run.'] };
+    const T = { billboards: ['Collaborator ads', 'Paid ads for brands. An ad shows only when it has an Advertiser name, is inside its dates, and fits the player: players under 18 see only child-safe categories (food, education, sports, games, public service); adults see ads for their chosen age group. Each ad appears on at most 3 billboards per player per session. Tapping it opens the Click link. When no collaborator ad fits a billboard, the game fills it with India Bay ads for real places nearby (homes for sale, vehicles, food, jobs and more) that give directions when tapped. Use | for a second line, like FOOD IN 10 MIN|Order now.'], festivals: ['Festivals', 'Real dates in India time. Check them each year: they follow the Hindu calendar.'], events: ['Happening now events', 'City events that raise taxi fares while they run.'], gifts: ['Gifts and special days', 'Money every player gets once when they play between these dates, with your message. Festivals above can carry a gift too. Gifts are paid in full: Prices × does not change them.'] };
     $('#pane').innerHTML = names.map(n => `<div class="card"><h2>${T[n][0]}</h2><p class="note">${T[n][1]}</p><div id="l_${n}"></div></div>`).join('') + `<div class="bar"><button class="pri" id="save">Save for all players</button><span class="note" id="msg" style="margin:0"></span></div>`;
     names.forEach(n => listEditor($('#l_' + n), n));
     $('#save').onclick = () => saveCfg($('#msg'));
