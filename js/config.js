@@ -7,7 +7,7 @@ const REGIONS=[
   {id:'central',name:'Central',states:'Uttar Pradesh, Madhya Pradesh, Chhattisgarh'},
   {id:'east',name:'East',states:'West Bengal, Bihar, Jharkhand, Odisha'},
   {id:'northeast',name:'Northeast',states:'Assam, Arunachal Pradesh, Meghalaya, Manipur, Mizoram, Nagaland, Tripura, Sikkim'},
-  {id:'southwest',name:'South-West',states:'Karnataka, Kerala, Goa, Lakshadweep'},
+  {id:'southwest',name:'South-West',states:'Karnataka, Kerala, Goa',map:true},
   {id:'southeast',name:'South-East',states:'Tamil Nadu, Andhra Pradesh, Telangana, Puducherry, Andaman & Nicobar'}];
 const FEST_DEFAULT=[
   {name:'Navratri',type:'navratri',where:'GJ,MH,RJ,DD,DN',start:'2026-10-11',end:'2026-10-20',mult:1.2},
@@ -17,14 +17,14 @@ const FEST_DEFAULT=[
   {name:'Ganpati',type:'ganpati',where:'MH',start:'2027-09-04',end:'2027-09-14',mult:1.3}];
 const EVENT_DEFAULT=[{name:'Rann Utsav',zone:'bhuj',start:'2026-11-01',end:'2027-02-28',mult:1.2},{name:'Juhu beach party',zone:'mumbai',start:'2026-10-10',end:'2026-10-18',mult:1.5}];
 const BILL_DEFAULT=[];   // collaborator ads are added in /admin; with none running, the game shows its own ads
-const DEFAULTS={name:'India Bay',tagline:'Open-world West India: Maharashtra, Gujarat, Rajasthan and the coast',announce:'',theme:'kesar',accent:'#ffc93c',
+const DEFAULTS={name:'India Bay',tagline:'Open-world India: drive from Rajasthan to Kerala',announce:'',theme:'kesar',accent:'#ffc93c',
   timeSpeed:1,timeOffset:0,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
   foodHrs:30,wcHrs:24,awakeHrs:16,
   act:{sleep:480,meal:30,snack:10,drink:5,cook:30,tv:60,toilet:5},
   queue:{petrol:20,cng:40,atm:15,toilet:5,ticket:20,hospital:30,checkin:30},
   travel:{sleeper:[400,360],ac:[1200,300],flight:[4500,120],bus:[250,420],bottaxi:[2500,240],ferry:[300,90],local:[10,40]},
   fuel:{petrol:100,diesel:90,cng:80},challan:{licence:5000,helmet:1000,puc:10000,insurance:2000,speeding:2000,queue:500,signal:1000},toll:150,
-  priceMul:1,fareMul:1,startCash:500,regions:{west:true},festivals:FEST_DEFAULT,events:EVENT_DEFAULT,billboards:BILL_DEFAULT,changelog:[]};
+  priceMul:1,fareMul:1,startCash:500,regions:{west:true,southwest:true},festivals:FEST_DEFAULT,events:EVENT_DEFAULT,billboards:BILL_DEFAULT,changelog:[]};
 const THEMES={kesar:{label:'Sunset kesar',accent:'#ffc93c',panel:'rgba(20,15,38,.66)',edge:'rgba(255,214,150,.22)',sheet:'#211a3a',sheet2:'#2c2350'},neon:{label:'Bollywood neon',accent:'#ff4fa3',panel:'rgba(14,6,32,.72)',edge:'rgba(255,79,163,.38)',sheet:'#1c0f33',sheet2:'#2b1648'},monsoon:{label:'Monsoon teal',accent:'#3fd0c9',panel:'rgba(8,26,32,.7)',edge:'rgba(63,208,201,.32)',sheet:'#0f2a30',sheet2:'#173b42'},chalk:{label:'Chalk and ink',accent:'#f4f1ea',panel:'rgba(16,16,20,.74)',edge:'rgba(244,241,234,.26)',sheet:'#1b1b20',sheet2:'#2a2a31'}};
 function mergeCfg(base,over){const o=Object.assign({},base,over||{});for(const k of ['act','queue','travel','fuel','challan','regions'])o[k]=Object.assign({},base[k],(over&&over[k])||{});for(const k of ['festivals','events','billboards','changelog'])o[k]=Array.isArray(over&&over[k])?over[k]:base[k];return o;}
 // Ad categories (spec: billboard ads). kids:true = shown to players under 18 and guests without a date of birth.

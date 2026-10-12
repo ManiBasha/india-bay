@@ -112,7 +112,9 @@ function clean(t) {
   for (const w of BAD) t = t.replace(new RegExp('\\b' + w + '\\b', 'gi'), m => m[0] + '*'.repeat(m.length - 1));
   return t;
 }
-const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph }); return o; };
+const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph });
+  if (p.m === 'r' && p.r) Object.assign(o, { r: p.r, rs: p.rs }); if (p.m === 'd' && p.o) o.o = p.o; return o; };
+const VACT = new Set(['ride', 'seat', 'full', 'slow', 'no', 'leave', 'drop', 'take']);
 const near = (a, b, r) => Math.abs(a.x - b.x) < r && Math.abs(a.z - b.z) < r;
 
 export class Region extends DurableObject {
@@ -164,7 +166,9 @@ export class Region extends DurableObject {
     p.seen = now;
     if (d.t === 'p') {
       p.x = num(d.x, -1e5, 1e5); p.z = num(d.z, -1e5, 1e5); p.y = num(d.y, -50, 500); p.h = num(d.h, -100, 100); p.s = num(d.s, -100, 100);
-      p.m = d.m === 'd' ? 'd' : d.m === 'i' ? 'i' : 'f';
+      p.m = d.m === 'd' ? 'd' : d.m === 'i' ? 'i' : d.m === 'r' ? 'r' : 'f';
+      // Riding along in another player's vehicle: who drives, and which seat.
+      p.r = p.m === 'r' && /^[0-9a-f]{8}$/.test(d.r) ? d.r : ''; p.rs = num(d.rs, 0, 40) | 0; p.o = p.m === 'd' ? num(d.o, 0, 40) | 0 : 0;
       p.v = p.m === 'd' && VEH.has(d.v) ? d.v : '';
       p.c = /^#[0-9a-fA-F]{6}$/.test(d.c) ? d.c : '';
       // The vehicle this player last got out of, so others see it parked where they left it.
@@ -187,6 +191,12 @@ export class Region extends DurableObject {
       p.chatAt = now;
       const out = JSON.stringify({ t: 'chat', id: p.id, n: p.name, text });
       for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, CHAT_NEAR))) this.send(w, out);
+    } else if (d.t === 'v') {
+      // Vehicle sharing (ride requests, seat replies, getting off, taking a parked vehicle): sent only to the named player nearby.
+      if (!VACT.has(d.a) || typeof d.to !== 'string') return;
+      if (now - (p.vAt || 0) < 150) return; p.vAt = now;
+      const out = JSON.stringify({ t: 'v', a: d.a, id: p.id, n: p.name, s: num(d.s, 0, 40) | 0 });
+      for (const [w, q] of this.players) if (q.id === d.to) { if (near(p, q, 150)) this.send(w, out); break; }
     } else if (d.t === 'ping') {
       this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size }));
     }

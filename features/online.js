@@ -98,7 +98,7 @@ window.BBFeatures.push(function (bb) {
   }
 
   function signInSheet() {
-    bb.openSheet('Play online', 'Play West India with everyone', `<div class="stack">${googleOn ? '<button class="go" data-id="google">Sign in with Google</button>' : ''}<button class="go${googleOn ? ' alt' : ''}" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
+    bb.openSheet('Play online', 'Play India with everyone', `<div class="stack">${googleOn ? '<button class="go" data-id="google">Sign in with Google</button>' : ''}<button class="go${googleOn ? ' alt' : ''}" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
       <p class="note">${googleOn ? 'Google keeps your progress on every device. A guest account lives in this browser only; you can link Google later from Phone → Online.' : 'A guest account keeps your progress in this browser.'}</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
       s.onclick = async e => {
         const id = e.target.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
@@ -183,13 +183,14 @@ window.BBFeatures.push(function (bb) {
   function later() { retry = Math.min(retry + 1, 6); setTimeout(() => { if (!ws && !kicked && !offline && bb.started) connect(); }, 1000 * Math.pow(2, retry)); }
   function disconnect(silent) { kicked = true; if (ws) { const w = ws; ws = null; try { w.close(); } catch (e) {} } myId = null; clearRemotes(); status = 'off'; renderChip(); if (!silent) bb.toast('Offline', '#d6c8e4'); }
   async function handle(d) {
-    if (d.t === 'hello') { authRetry = false; myId = d.id; online = d.online; status = 'on'; retry = 0; lastSent = null; renderChip(); bb.toast(`🌐 Online in West India as ${d.name}`, '#3ddc97'); }
+    if (d.t === 'hello') { authRetry = false; myId = d.id; online = d.online; status = 'on'; retry = 0; lastSent = null; renderChip(); bb.toast(`🌐 Online in India as ${d.name}`, '#3ddc97'); }
     else if (d.t === 'snap') { online = d.online; for (const p of d.list) upsert(p); renderChip(); }
     else if (d.t === 'p') { upsert(d); }
     else if (d.t === 'leave') { drop(d.id); renderChip(); }
     else if (d.t === 'pong') { online = d.online; renderChip(); }
     else if (d.t === 'slow') bb.toast('Wait a moment before sending again', '#ffc93c');
     else if (d.t === 'chat') chat(d);
+    else if (d.t === 'v') onV(d);
     else if (d.t === 'kick') { kicked = true; if (/idle/i.test(d.msg)) idleOff = true; bb.toast(d.msg + (idleOff ? ' · press any key to rejoin' : ''), '#ffc93c'); }
     else if (d.t === 'err') {
       if (d.code === 'auth' && !authRetry) { authRetry = true; try { const r = await sb.auth.refreshSession(); if (r.data && r.data.session) { session = r.data.session; return; } } catch (e) {} kicked = true; bb.toast(d.msg, '#ff8b8b'); }
@@ -224,19 +225,21 @@ window.BBFeatures.push(function (bb) {
       r.body = bb.buildVeh(d.v); const sp = bb.SPEC[d.v] || {};
       if (sp.two || sp.pedal) { const rider = bb.buildPerson(mat(d.c || '#e8573e')); rider.position.set(0, .35, -.15); const U = rider.userData; U.legs.forEach(l => l.rotation.x = -1.3); r.body.add(rider); }
       r.tagY = TALL[d.v] || 2.9;
-    } else { r.body = bb.buildPerson(mat(d.c || '#e8573e')); r.tagY = 2.45; }
+    } else if (d.m === 'r') { r.body = new THREE.Group(); const sit = bb.buildPerson(mat(d.c || '#e8573e')); const U = sit.userData; U.legs.forEach(l => l.rotation.x = -1.4); sit.position.y = -.5; r.body.add(sit); r.tagY = 2.1; }
+    else { r.body = bb.buildPerson(mat(d.c || '#e8573e')); r.tagY = 2.45; }
     r.g.add(r.body); r.tag.position.y = r.tagY; if (r.bub) r.bub.position.y = r.tagY + 1.1;
   }
   function upsert(d) {
     if (d.id === myId) return;
     let r = remotes.get(d.id);
-    const kind = d.m === 'd' ? 'd:' + d.v : d.m === 'i' ? 'i' : 'f:' + (d.c || '');
+    const kind = d.m === 'd' ? 'd:' + d.v : d.m === 'i' ? 'i' : d.m === 'r' ? 'r:' + (d.c || '') : 'f:' + (d.c || '');
     if (!r) { r = { id: d.id, n: d.n, g: new THREE.Group(), body: null, kind: '', x: d.x, z: d.z, y: d.y || 0, h: d.h, walk: 0, tagY: 2.4 }; r.tag = tag(d.n, false); r.g.add(r.tag); bb.scene.add(r.g); remotes.set(d.id, r); renderChip(); }
     if (r.kind !== kind && kind !== 'i') rebuild(r, d, kind); else if (kind === 'i') r.kind = 'i';
-    r.tx = d.x; r.tz = d.z; r.ty = d.y || 0; r.th = d.h; r.s = d.s || 0; r.seen = performance.now(); r.n = d.n; r.m = d.m;
+    r.tx = d.x; r.tz = d.z; r.ty = d.y || 0; r.th = d.h; r.s = d.s || 0; r.seen = performance.now(); r.n = d.n; r.m = d.m; r.v = d.v || ''; r.rid = d.r || ''; r.rs = d.rs || 0; r.o = d.o || 0;
     if (Math.hypot(r.tx - r.x, r.tz - r.z) > 60) { r.x = r.tx; r.z = r.tz; r.h = r.th; }
     // Their parked vehicle
-    const pk = d.m !== 'd' && d.pv ? d.pv : '';
+    let pk = d.m !== 'd' && d.pv ? d.pv : '';
+    if (r.parkTaken) { if (pk !== r.parkTaken) r.parkTaken = null; else pk = ''; }
     if (r.pkType !== pk) { if (r.park) { bb.scene.remove(r.park); r.park = null; } if (pk) { r.park = bb.buildVeh(pk); bb.scene.add(r.park); } r.pkType = pk; }
     if (r.park) { r.park.position.set(d.px, d.py || 0, d.pz); r.park.rotation.y = d.ph; }
   }
@@ -250,7 +253,8 @@ window.BBFeatures.push(function (bb) {
     if (drive) lastVeh = pl.veh;
     const lv = !drive && lastVeh && !lastVeh.dead && bb.vehicles.includes(lastVeh) && Math.hypot(lastVeh.pos.x - p.x, lastVeh.pos.z - p.z) < 600 ? lastVeh : null;
     const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
-    return { ...park, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '' };
+    if (ride) return { t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', r: ride.id, rs: ride.s };
+    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '' };
   }
   bb.onUpdate(dt => {
     const now = performance.now(), k = 1 - Math.exp(-8 * Math.min(dt, .2)), hide = bb.inside;
@@ -266,10 +270,78 @@ window.BBFeatures.push(function (bb) {
     if (selfBub && now > selfBubT) { freeSprite(selfBub); selfBub = null; }
     if (ws && ws.readyState === 1 && myId && bb.started) {
       const st = state(), t = Date.now(), L = lastSent;
-      const moved = !L || Math.hypot(st.x - L.x, st.z - L.z) > .4 || Math.abs(st.h - L.h) > .05 || st.m !== L.m || st.v !== L.v || st.c !== L.c || st.pv !== L.pv || (st.pv && Math.hypot(st.px - L.px, st.pz - L.pz) > .5);
+      const moved = ride ? (!L || L.m !== 'r' || L.r !== st.r) : !L || L.o !== st.o || Math.hypot(st.x - L.x, st.z - L.z) > .4 || Math.abs(st.h - L.h) > .05 || st.m !== L.m || st.v !== L.v || st.c !== L.c || st.pv !== L.pv || (st.pv && Math.hypot(st.px - L.px, st.pz - L.pz) > .5);
       const gap = L ? t - L.at : 1e9;
-      if ((moved && gap > 300) || gap > 4000) { ws.send(JSON.stringify(st)); st.at = t; lastSent = st; }
+      if ((moved && gap > (riders.size ? 120 : 300)) || gap > (ride ? 2500 : 4000)) { ws.send(JSON.stringify(st)); st.at = t; lastSent = st; }
     }
+  });
+
+
+  /* ---------- sharing vehicles: ride along with a driver, or take a parked vehicle ---------- */
+  const CAP = { cycle: 1, rickshaw: 3, bike: 2, sportsbike: 2, auto: 4, taxi: 5, car: 5, sedan: 5, suv: 7, sports: 2, police: 5, bus: 30, truck: 3 };
+  function seatOff(type, i) { const sp = bb.SPEC[type] || {};
+    if (type === 'bike' || type === 'sportsbike') return [0, .95, -.62];
+    if (type === 'rickshaw') return [i ? .36 : -.36, 1, -.45];
+    if (type === 'auto') return [(i - 1) * .45, .65, -.55];
+    if (type === 'bus') { const row = Math.floor(i / 2); return [(i % 2 ? .7 : -.7) + (row > 13 ? 0 : 0), 1.35, 3.6 - row * .55]; }
+    if (type === 'truck') return [.6 - i * .5, 1.4, (sp.fp || [0, 0, 2.9])[2]];
+    const fz = (sp.fp || [0, 0, .15])[2]; const seats = [[.4, .55, fz], [-.4, .55, fz - 1], [.4, .55, fz - 1], [0, .55, fz - 1], [-.4, .7, fz - 1.75], [.4, .7, fz - 1.75]]; return seats[i] || seats[0]; }
+  const riders = new Map(); // when I drive: rider id -> { s, at }
+  let ride = null, asked = null; // when I ride: { id, s, n, type }
+  let allowRiders = (() => { try { return localStorage.getItem('ib.riders') !== '0'; } catch (e) { return true; } })();
+  function vsend(a, to, s) { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'v', a, to, s: s || 0 })); }
+  function freeSeat(type) { const cap = (CAP[type] || 2) - 1; const used = new Set([...riders.values()].map(q => q.s)); for (let i = 0; i < cap; i++) if (!used.has(i)) return i; return -1; }
+  function seatWorld(x, z, h, type, i) { const o = seatOff(type, i); const c = Math.cos(h), s = Math.sin(h); return [x + o[0] * c + o[2] * s, o[1], z - o[0] * s + o[2] * c]; }
+  function startRide(r, s, n) { if (bb.player.mode !== 'foot' || bb.inside) return; ride = { id: r.id, s, n: n || r.n, type: r.v }; bb.avatar.visible = false; lastSent = null; bb.toast(`Riding with ${bb.esc(ride.n)} · press E to get off`, '#3ddc97'); }
+  function endRide(msg) { if (!ride) return; const r = remotes.get(ride.id); const pl = bb.player;
+    if (r) { const sp = bb.SPEC[r.v || ride.type] || { wid: 2 }; const sx = Math.cos(r.h), sz = -Math.sin(r.h); let px = r.x + sx * (sp.wid / 2 + 1), pz = r.z + sz * (sp.wid / 2 + 1); if (!bb.drivable(px, pz)) { px = r.x - sx * (sp.wid / 2 + 1); pz = r.z - sz * (sp.wid / 2 + 1); } pl.pos.set(px, 0, pz); }
+    ride = null; bb.avatar.visible = true; lastSent = null; if (msg) bb.toast(msg, '#d6c8e4'); }
+  function takeParked(r) { const pk = r.park; if (!pk) return; const type = r.pkType; const v = bb.makeVeh(type, pk.position.x, pk.position.z, pk.rotation.y, 'parked'); bb.scene.remove(pk); r.park = null; r.parkTaken = type;
+    vsend('take', r.id); bb.enterVehicle(v); bb.toast(`You took ${bb.esc(r.n)}'s ${(bb.SPEC[type] || {}).label || 'vehicle'}`, '#ffc93c'); }
+  function onV(d) { const r = remotes.get(d.id), pl = bb.player; const nm = bb.esc(d.n || 'A player');
+    if (d.a === 'ride') {
+      if (!(pl.mode === 'drive' && pl.veh) || !allowRiders) return vsend('no', d.id); if (Math.abs(pl.veh.v) > 3) return vsend('slow', d.id);
+      if (riders.has(d.id)) return vsend('seat', d.id, riders.get(d.id).s);
+      const s = freeSeat(pl.veh.type); if (s < 0) return vsend('full', d.id); riders.set(d.id, { s, at: performance.now() }); vsend('seat', d.id, s); lastSent = null;
+      bb.toast(`${nm} hopped in · ${riders.size} rider${riders.size > 1 ? 's' : ''} on board`, '#3ddc97'); }
+    else if (d.a === 'seat') { if (!asked || asked.id !== d.id || !r) return; asked = null; startRide(r, d.s | 0, d.n); }
+    else if (d.a === 'full') { asked = null; bb.toast(`${nm}'s vehicle is full`, '#ff9f1c'); }
+    else if (d.a === 'slow') { asked = null; bb.toast(`${nm} has to stop first`, '#ff9f1c'); }
+    else if (d.a === 'no') { asked = null; bb.toast(`${nm} isn't taking riders right now`, '#ff9f1c'); }
+    else if (d.a === 'leave') { if (riders.delete(d.id)) { lastSent = null; bb.toast(`${nm} got off`, '#d6c8e4'); } }
+    else if (d.a === 'drop') { if (ride && ride.id === d.id) endRide(`${nm} dropped you off`); }
+    else if (d.a === 'take') { const v = lastVeh; if (!v || pl.veh === v || !bb.vehicles.includes(v)) return; const label = v.spec.label;
+      if (v.owned) { const i = v.ownedIdx; bb.removeVeh(v); if (bb.ownedVeh[i] === v) bb.ownedVeh[i] = null; const c = bb.P.cars[i]; if (c) c.x = null; bb.setDirty(); } else bb.removeVeh(v);
+      lastVeh = null; lastSent = null; bb.toast(`${nm} drove off in your ${label}! Call it back from Menu → Garage`, '#ff9f1c'); }
+  }
+  bb.on('exitVehicle', () => { for (const id of riders.keys()) vsend('drop', id); riders.clear(); lastSent = null; });
+  bb.on('teleport', () => { if (ride) { vsend('leave', ride.id); ride = null; bb.avatar.visible = true; } });
+  bb.addFirstPrompt(() => {
+    if (ride) return { text: `Get off · riding with ${ride.n}`, fn: () => { vsend('leave', ride.id); endRide(); } };
+    if (status !== 'on' || bb.player.mode !== 'foot') return null;
+    const p = bb.ppos(); let best = null, bd = 1e9, kind = '';
+    for (const r of remotes.values()) {
+      if (r.m === 'd' && r.v && (CAP[r.v] || 2) > 1) { const sp = bb.SPEC[r.v] || {}; const d = Math.hypot(r.x - p.x, r.z - p.z); if (d < (sp.len || 4) / 2 + 2 && d < bd) { bd = d; best = r; kind = 'ride'; } }
+      if (r.park) { const sp = bb.SPEC[r.pkType] || {}; const d = Math.hypot(r.park.position.x - p.x, r.park.position.z - p.z); if (d < (sp.len || 4) / 2 + 1.4 && d < bd) { bd = d; best = r; kind = 'take'; } }
+    }
+    if (!best) return null; const r = best;
+    if (kind === 'ride') { const lab = (bb.SPEC[r.v] || {}).label || 'vehicle', free = Math.max(0, (CAP[r.v] || 2) - 1 - (r.o || 0));
+      return { text: free ? `Ride with ${r.n} · ${free} seat${free > 1 ? 's' : ''} free` : `${r.n}'s ${lab} is full`, fn: () => {
+        if (!free) return bb.toast('No free seats', '#ff9f1c'); if (Math.abs(r.s) > 3) return bb.toast(`Wait for ${bb.esc(r.n)} to stop`, '#ff9f1c');
+        asked = { id: r.id }; vsend('ride', r.id); bb.toast(`Asking ${bb.esc(r.n)} for a ride…`, '#5fb4ff'); setTimeout(() => { if (asked && asked.id === r.id) { asked = null; bb.toast('No answer · try again', '#ff9f1c'); } }, 5000); } }; }
+    return { text: `Take ${r.n}'s ${(bb.SPEC[r.pkType] || {}).label || 'vehicle'}`, fn: () => takeParked(r) };
+  });
+  bb.onUpdate(() => {
+    const pl = bb.player, now = performance.now();
+    if (ride) { const r = remotes.get(ride.id);
+      if (!r || r.m !== 'd' || !ws) endRide('The driver got out · you are on foot');
+      else { const [x, , z] = seatWorld(r.x, r.z, r.h, r.v || ride.type, ride.s); pl.pos.set(x, 0, z); pl.h = r.h; pl.v = 0; bb.avatar.visible = false; } }
+    for (const r of remotes.values()) { if (r.m !== 'r' || !r.body) continue; let vx, vz, vh, vt;
+      if (r.rid === myId && pl.mode === 'drive' && pl.veh) { const v = pl.veh; vx = v.pos.x; vz = v.pos.z; vh = v.h; vt = v.type; }
+      else { const d = remotes.get(r.rid); if (!d || d.m !== 'd') { r.g.visible = false; continue; } vx = d.x; vz = d.z; vh = d.h; vt = d.v; }
+      const [x, y, z] = seatWorld(vx, vz, vh, vt, r.rs); r.x = r.tx = x; r.z = r.tz = z; r.h = r.th = vh; r.g.position.set(x, y, z); r.body.rotation.y = vh; r.g.visible = !bb.inside; }
+    if (riders.size) { if (pl.mode !== 'drive') { for (const id of riders.keys()) vsend('drop', id); riders.clear(); }
+      else for (const [id, q] of [...riders]) { const r = remotes.get(id); if ((!r || r.m !== 'r' || r.rid !== myId) && now - q.at > 6000) { riders.delete(id); lastSent = null; } } }
   });
 
   /* ---------- chat ---------- */
@@ -304,7 +376,7 @@ window.BBFeatures.push(function (bb) {
   function renderIntro() {
     if (!introLine) return;
     const who = session && profile ? `Signed in as <b>${bb.esc(profile.username)}</b>${isAnon() ? ' (guest)' : ''} · <button type="button" class="lnk" data-out>Sign out</button>` : session ? 'Signed in · pick a username when you start' : status === 'error' ? 'Online is unavailable right now' : 'Sign in when you start to play online';
-    introLine.innerHTML = `🌐 West India online${online ? ` · <b>${online}</b> playing now` : ''}<br><small>${who}</small>`;
+    introLine.innerHTML = `🌐 India online${online ? ` · <b>${online}</b> playing now` : ''}<br><small>${who}</small>`;
     const o = introLine.querySelector('[data-out]'); if (o) o.onclick = signOut;
   }
   async function signOut() { bb.save(); await upload(true); disconnect(true); try { await sb.auth.signOut(); } catch (e) {} localStorage.removeItem('ib.save.v3'); location.reload(); }
@@ -313,19 +385,23 @@ window.BBFeatures.push(function (bb) {
   function sheet() {
     if (!session || !profile) return bb.openSheet('🌐 Online', 'You are playing offline', `<p class="note">Sign in to see other players, chat and keep your progress in the cloud.</p><div class="btnrow"><button class="go" data-id="signin">Go online</button></div>`, s => s.onclick = e => { if (e.target.dataset.id === 'signin') { offline = false; next = () => { bb.closeSheet(); connect(); }; flow(); } });
     const pp = bb.ppos(); const list = [...remotes.values()].map(r => ({ r, d: Math.hypot(r.x - pp.x, r.z - pp.z) })).sort((a, b) => a.d - b.d);
-    const st = status === 'on' ? `Connected · ${online} online in West India` : status === 'connecting' || status === 'retry' ? 'Connecting…' : 'Offline';
+    const st = status === 'on' ? `Connected · ${online} online in India` : status === 'connecting' || status === 'retry' ? 'Connecting…' : 'Offline';
     bb.openSheet('🌐 Online', st,
-      bb.rowHtml('conn', status === 'on' ? 'Connected' : 'Not connected', `Region: West India${C.serverUrl ? '' : ' · server not set up yet'}`, status === 'on' ? 'Go offline' : 'Connect', status === 'on' ? 'ghost' : '') +
+      bb.rowHtml('conn', status === 'on' ? 'Connected' : 'Not connected', `Region: India${C.serverUrl ? '' : ' · server not set up yet'}`, status === 'on' ? 'Go offline' : 'Connect', status === 'on' ? 'ghost' : '') +
       bb.rowHtml('acct', bb.esc(profile.username), isAnon() ? 'Guest account · progress lives in this browser' : 'Google account · progress saved in the cloud', isAnon() ? (googleOn ? 'Link Google' : 'Guest') : 'Sign out', 'ghost') +
       (isAnon() ? bb.rowHtml('out', 'Sign out', 'A guest account cannot be recovered after signing out', 'Sign out', 'ghost') : '') +
+      bb.rowHtml('riders', 'Let players ride with me', allowRiders ? 'On · nearby players can hop into your vehicle when you stop' : 'Off · nobody can join your vehicle', allowRiders ? 'Turn off' : 'Turn on', 'ghost') +
+      (riders.size ? bb.rowHtml('dropall', `Riders on board: ${riders.size}`, 'They sit with you while you drive', 'Drop them off', 'ghost') : '') +
       `<h3 class="sub">Players near you (${list.length})</h3>` +
-      (list.length ? list.map(({ r, d }) => `<div class="row"><div class="nm">${bb.esc(r.n)}<small>${d < 1000 ? Math.round(d) + ' m' : (d / 1000).toFixed(1) + ' km'} · ${r.m === 'd' ? 'driving' : r.m === 'i' ? 'indoors' : 'on foot'}</small></div><div class="btnrow" style="flex-wrap:nowrap;gap:6px"><button class="buy ghost" data-mute="${bb.esc(r.n)}">${muted.has(r.n.toLowerCase()) ? 'Unmute' : 'Mute'}</button><button class="buy ghost" data-rep="${bb.esc(r.n)}">Report</button></div></div>`).join('') : '<p class="note">Nobody nearby yet. Players within about 700 m show up here and on the road.</p>') +
+      (list.length ? list.map(({ r, d }) => `<div class="row"><div class="nm">${bb.esc(r.n)}<small>${d < 1000 ? Math.round(d) + ' m' : (d / 1000).toFixed(1) + ' km'} · ${r.m === 'd' ? 'driving' + (r.o ? ` · ${r.o} rider${r.o > 1 ? 's' : ''}` : '') : r.m === 'i' ? 'indoors' : r.m === 'r' ? 'riding along' : 'on foot'}</small></div><div class="btnrow" style="flex-wrap:nowrap;gap:6px"><button class="buy ghost" data-mute="${bb.esc(r.n)}">${muted.has(r.n.toLowerCase()) ? 'Unmute' : 'Mute'}</button><button class="buy ghost" data-rep="${bb.esc(r.n)}">Report</button></div></div>`).join('') : '<p class="note">Nobody nearby yet. Players within about 700 m show up here and on the road.</p>') +
       `<p class="note">Chat with <kbd>T</kbd> or the 💬 button. Messages reach players within 250 m. Be kind: reports go to the admin.</p>`,
       s => s.onclick = async e => {
         const id = e.target.dataset.id, mu = e.target.dataset.mute, rep = e.target.dataset.rep;
         if (id === 'conn') { if (status === 'on') disconnect(); else { offline = false; connect(); } return setTimeout(sheet, 400); }
         if (id === 'acct') { if (!isAnon()) return signOut(); if (!googleOn) return bb.toast('Google sign-in is not set up yet', '#d6c8e4'); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
         if (id === 'out') return signOut();
+        if (id === 'riders') { allowRiders = !allowRiders; try { localStorage.setItem('ib.riders', allowRiders ? '1' : '0'); } catch (er) {} if (!allowRiders) { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; } return sheet(); }
+        if (id === 'dropall') { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; return sheet(); }
         if (mu) { const k = mu.toLowerCase(); muted.has(k) ? muted.delete(k) : muted.add(k); try { localStorage.setItem('ib.muted', JSON.stringify([...muted])); } catch (er) {} bb.toast(muted.has(k) ? `${mu} muted` : `${mu} unmuted`, '#d6c8e4'); return sheet(); }
         if (rep) return reportSheet(rep);
       });
