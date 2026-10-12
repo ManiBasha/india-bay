@@ -4,12 +4,13 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='3.6';
+const VERSION='3.7';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 const {REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg}=window.IBCONF;
 const CHANGELOG=[
+  {v:'3.7',date:'2026-10-12',notes:'More realistic look: cars, taxis, SUVs and police jeeps have shaped bodies with tinted glass, glossy paint, bumpers, number plates and wheels with rims. Autos have a curved canopy; buses and trucks have windows and painted cargo boxes.\nPeople have human proportions, faces, hands and shoes, with different skin tones and hair, and women in sarees. Bike riders wear helmets.\nRoads have real asphalt texture, kerbs, and zebra crossings at city junctions. Rivers get proper bridges with side walls and pillars.\nFixed: a copy of your character stayed standing outside after you got into a vehicle.\nFixed: hills no longer sit on top of roads, and crossing highways no longer flicker.\nFixed: roadside billboards stand further back and fade out when the camera is close.'},
   {v:'3.6',date:'2026-10-12',notes:'New roadside billboards along city roads, highways and expressways, plus the rooftop ones.\nWhen no brand ads are running, billboards advertise real places nearby: homes for sale, cars and bikes, food, jobs, repairs, trains, flights and more.\nTap a billboard to open it. India Bay ads give you directions; brand ads have a Visit button.\nPlayers under 18 only see child-safe ad categories.'},
   {v:'3.5',date:'2026-10-12',notes:'A cleaner start screen: just the game, your 👤 profile at the top, and the privacy policy and support links at the bottom.\nCreating a player now asks for your name and date of birth (kept private), so billboards can show ads suitable for your age.\nProfile holds Achievements, Settings, Privacy policy, Contact support, Log out and Delete account.\nSupport and advertising: support@indiabaygame.com.'},
   {v:'3.4',date:'2026-10-12',notes:'New 👤 Profile button in the top row: your account, settings, privacy policy and Contact support in one place.\nOnline players can change their username, sign out, or delete their online account from Profile.\nOther players now see your vehicle parked where you left it.\nPrivacy policy and Contact support links on the start screen.'},
@@ -61,11 +62,17 @@ const winTex=canvasTex(128,128,x=>{x.fillStyle='#fff';x.fillRect(0,0,128,128);fo
 const litTex=canvasTex(128,128,x=>{x.fillStyle='#000';x.fillRect(0,0,128,128);for(let i=0;i<8;i++)for(let j=0;j<8;j++){if(rnd()<.42){x.fillStyle=pick(['#ffd27a','#ffe9b8','#ffb85c','#cfe4ff','#ffc98a']);x.fillRect(i*16+4,j*16+3,8,9);}}});
 const oldTex=canvasTex(128,128,x=>{x.fillStyle='#fff';x.fillRect(0,0,128,128);for(let i=0;i<4;i++)for(let j=0;j<4;j++){const cx=i*32,cy=j*32;if(rnd()<.8){x.fillStyle='#3a3030';x.fillRect(cx+10,cy+12,12,14);x.beginPath();x.arc(cx+16,cy+12,6,Math.PI,0);x.fill();x.fillStyle='rgba(0,0,0,.12)';x.fillRect(cx+8,cy+26,16,2);}}});
 const oldLit=canvasTex(128,128,x=>{x.fillStyle='#000';x.fillRect(0,0,128,128);for(let i=0;i<4;i++)for(let j=0;j<4;j++){if(rnd()<.45){x.fillStyle=pick(['#ffd27a','#ffb85c','#ffe9b8']);x.fillRect(i*32+10,j*32+12,12,14);}}});
-const roadTex=canvasTex(64,64,x=>{x.fillStyle='#3a3b41';x.fillRect(0,0,64,64);for(let i=0;i<300;i++){x.fillStyle=rnd()<.5?'rgba(255,255,255,.04)':'rgba(0,0,0,.08)';x.fillRect(rnd()*64,rnd()*64,1,1);}x.fillStyle='#d9d3c3';x.fillRect(2,0,1.5,64);x.fillRect(60.5,0,1.5,64);x.fillStyle='#eadfb8';x.fillRect(31,4,2,26);});
-const hwTex=canvasTex(64,64,x=>{x.fillStyle='#35363b';x.fillRect(0,0,64,64);for(let i=0;i<300;i++){x.fillStyle=rnd()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.09)';x.fillRect(rnd()*64,rnd()*64,1,1);}x.fillStyle='#e8e2d0';x.fillRect(3,0,2,64);x.fillRect(59,0,2,64);x.fillStyle='#f2c94c';x.fillRect(30,0,1.5,64);x.fillRect(32.5,0,1.5,64);});
+// Asphalt with grain, patches, tyre-worn lanes and crisp markings (repeats every 16 m along the road).
+function asphalt(x,w,h,base){x.fillStyle=base;x.fillRect(0,0,w,h);for(let i=0;i<2600;i++){const v=rnd();x.fillStyle=v<.45?'rgba(255,255,255,.05)':v<.9?'rgba(0,0,0,.09)':'rgba(120,110,95,.12)';const s=rnd()<.9?1:2;x.fillRect(rnd()*w,rnd()*h,s,s);}
+  for(let i=0;i<5;i++){x.fillStyle=rnd()<.5?'rgba(0,0,0,.08)':'rgba(255,255,255,.035)';x.fillRect(rnd()*w,rnd()*h,20+rnd()*60,14+rnd()*50);}
+  x.fillStyle='rgba(0,0,0,.10)';for(const c of [.2,.34,.66,.8])x.fillRect(w*c-6,0,12,h);}
+const roadTex=canvasTex(256,512,x=>{asphalt(x,256,512,'#3c3d42');x.fillStyle='#e6e1d3';x.fillRect(7,0,5,512);x.fillRect(244,0,5,512);x.fillStyle='#f0e7c4';x.fillRect(125,24,6,220);x.fillRect(125,280,6,220);});
+const hwTex=canvasTex(256,512,x=>{asphalt(x,256,512,'#36373c');x.fillStyle='#ece7d8';x.fillRect(10,0,7,512);x.fillRect(239,0,7,512);x.fillStyle='#f2c94c';x.fillRect(120,0,5,512);x.fillRect(131,0,5,512);
+  x.fillStyle='rgba(236,231,216,.85)';x.fillRect(62,40,4,180);x.fillRect(62,300,4,180);x.fillRect(190,40,4,180);x.fillRect(190,300,4,180);});
+const zebraTex=canvasTex(128,64,x=>{x.clearRect(0,0,128,64);x.fillStyle='rgba(238,234,224,.92)';for(let i=4;i<128;i+=16)x.fillRect(i,4,9,56);},false);
 const seaTex=canvasTex(128,128,x=>{x.fillStyle='#fff';x.fillRect(0,0,128,128);for(let i=0;i<70;i++){x.fillStyle='rgba(120,170,210,.35)';x.fillRect(rnd()*128,rnd()*128,R(6,22),1);}});
 const LMat=(c,o={})=>new THREE.MeshLambertMaterial(Object.assign({color:c},o));
-const M={ground:LMat('#8c8676'),pave:LMat('#bdb4a4'),earth:LMat('#b8a58a'),road:LMat('#ffffff',{map:roadTex}),hw:LMat('#ffffff',{map:hwTex}),asphalt:LMat('#3a3b41'),grass:LMat('#5f9a45'),dirt:LMat('#c9a26b'),sand:LMat('#e2cf9f'),wall:LMat('#9c958a'),concrete:LMat('#aaa59b'),
+const M={kerb:LMat('#b9b2a2'),zebra:new THREE.MeshLambertMaterial({map:zebraTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}),ground:LMat('#8c8676'),pave:LMat('#bdb4a4'),earth:LMat('#b8a58a'),road:LMat('#ffffff',{map:roadTex}),hw:LMat('#ffffff',{map:hwTex}),asphalt:LMat('#3a3b41'),grass:LMat('#5f9a45'),dirt:LMat('#c9a26b'),sand:LMat('#e2cf9f'),wall:LMat('#9c958a'),concrete:LMat('#aaa59b'),
   trunk:LMat('#7a5a3a'),leaf:LMat('#3e8c3a'),tree:LMat('#4f8f3e'),treeDry:LMat('#7f8a3c'),treeDark:LMat('#2f6b33'),pole:LMat('#3b3a40'),tank:LMat('#202226'),stone:LMat('#d6b47c'),plaza:LMat('#cfc09e'),temple:LMat('#e2b77e'),gold:LMat('#f2c14e'),station:LMat('#a8704a'),cream:LMat('#f1e2c2'),
   awn:['#d9483b','#2f7fc1','#e8a628','#3aa66b','#9b4fb5'].map(c=>LMat(c)),boat:LMat('#e4572e'),boat2:LMat('#2e86ab'),white:LMat('#f3f1ec'),blue:LMat('#2d5fb3'),red:LMat('#c8102e'),kiosk:LMat('#e8a628'),wc:LMat('#3b82c4'),lamp:new THREE.MeshBasicMaterial({color:0x666055}),
   lampBox:new THREE.MeshBasicMaterial({color:0xfff6d8}),marble:LMat('#f4f0e6'),ballast:LMat('#7d7468'),steel:LMat('#8d939a'),wood:LMat('#6b4a32'),roofTin:LMat('#8a8f86'),dark:LMat('#24211f'),basalt:LMat('#55504a'),redstone:LMat('#b5562f'),blackstone:LMat('#3a3638'),
@@ -191,10 +198,28 @@ for(const z of W.zones){const x1=z.x0+z.nx*80,z1=z.z0+z.nz*80;
   for(let i=0;i<=z.nx;i++)clip([[z.x0+i*80,z.z0],[z.x0+i*80,z1]],16,z.name);for(let j=0;j<=z.nz;j++)clip([[z.x0,z.z0+j*80],[x1,z.z0+j*80]],16,z.name);}
 for(const h of W.highways){const w=h.w||(h.kind==='exp'?16:h.kind==='bridge'?14:14);addRoad(h.pts,w,h.kind==='bridge'?'bridge':h.kind==='coast'?'coast':'hw',h.name);}
 for(const a of W.airports)addRoad(a.access,12,'city',a.name+' road');
-function roadRibbons(){for(const r of ROADS){const isCity=r.kind==='city';const mat=isCity||r.kind==='coast'?M.road:M.hw;const y=isCity?(Math.abs(r.pts[0][0]-r.pts[1][0])<1?.02:.026):r.kind==='bridge'?.08:r.kind==='coast'?.03:.034;
+function roadRibbons(){ROADS.forEach((r,ri)=>{const isCity=r.kind==='city';const mat=isCity||r.kind==='coast'?M.road:M.hw;
+  // each highway gets its own small height so two highways that cross never flicker against each other
+  const y=isCity?(Math.abs(r.pts[0][0]-r.pts[1][0])<1?.02:.026):r.kind==='bridge'?.08:r.kind==='coast'?.03:.036+(ri%6)*.006;
   for(const e of r.edges){const seg=Math.ceil(e.len/160);for(let s=0;s<seg;s++){const t0=e.len*s/seg,t1=e.len*(s+1)/seg,l=t1-t0+(isCity?0:e.w*.5);const g=new THREE.PlaneGeometry(e.w,l);g.rotateX(-Math.PI/2);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*l/16);g.rotateY(Math.atan2(e.dx,e.dz));
       const mx=e.ax+e.dx*(t0+t1)/2,mz=e.az+e.dz*(t0+t1)/2;g.translate(mx,y,mz);addStatic(g,mat,false,true);
-      if(r.kind==='bridge'){const d=new THREE.BoxGeometry(e.w+1,1.2,l);d.rotateY(Math.atan2(e.dx,e.dz));d.translate(mx,-.55,mz);addStatic(d,M.concrete,false,true);}}}}}
+      if(r.kind==='bridge'){const d=new THREE.BoxGeometry(e.w+1,1.2,l);d.rotateY(Math.atan2(e.dx,e.dz));d.translate(mx,-.55,mz);addStatic(d,M.concrete,false,true);}}
+    if(r.kind!=='bridge')riverBridges(e,y);
+    if(isCity)kerbsAndCrossings(e,y);}});}
+// City roads run straight across the whole grid, so kerbs and zebra crossings are placed block by block between junctions.
+function kerbsAndCrossings(e,y){const zz=zoneAt((e.ax+e.bx)/2,(e.az+e.bz)/2,0);const vert=Math.abs(e.dx)<.01,ang=Math.atan2(e.dx,e.dz);
+  if(!zz||!(vert||Math.abs(e.dz)<.01)){return;}const o0=vert?zz.z0:zz.x0,a0=vert?e.az:e.ax,sgn=Math.sign(vert?e.dz:e.dx)||1;const trim=e.w/2+1.4,big=zz.size==='big'||zz.size==='mid';
+  const c0=Math.min(a0,a0+sgn*e.len),c1=Math.max(a0,a0+sgn*e.len);
+  for(let n=Math.floor((c0-o0)/80);n*80+o0<c1;n++){const g0=o0+n*80,g1=g0+80;const s0=Math.max(g0,c0),s1=Math.min(g1,c1);const k0=s0+(s0===g0?trim:.5),k1=s1-(s1===g1?trim:.5);if(k1-k0<4)continue;
+    const mid=(k0+k1)/2,l=k1-k0;const cx=vert?e.ax:mid,cz=vert?mid:e.az;
+    for(const sd of [-1,1]){const k=new THREE.BoxGeometry(.3,.15,l);k.rotateY(ang);k.translate(cx+e.dz*sd*(e.w/2+.15),.075,cz-e.dx*sd*(e.w/2+.15));addStatic(k,M.kerb,false,true);}
+    if(big)for(const [edge,at] of [[s0===g0,k0+1.2],[s1===g1,k1-1.2]]){if(!edge)continue;const zx=vert?e.ax:at,zz2=vert?at:e.az;const zg=new THREE.PlaneGeometry(e.w*.86,3);zg.rotateX(-Math.PI/2);zg.rotateY(ang);zg.translate(zx,y+.004,zz2);addStatic(zg,M.zebra,false,true);}}}
+// Where a road crosses a river or lake, add a concrete deck with side walls and pillars under it.
+function riverBridges(e,y){const st=6;let t0=-1;const ang=Math.atan2(e.dx,e.dz);const span=(a,b)=>{a=Math.max(0,a-10);b=Math.min(e.len,b+10);const l=b-a;if(l<8)return;const mx=e.ax+e.dx*(a+b)/2,mz=e.az+e.dz*(a+b)/2;
+    const d=new THREE.BoxGeometry(e.w+1.4,.9,l);d.rotateY(ang);d.translate(mx,y-.47,mz);addStatic(d,M.concrete,false,true);
+    for(const sd of [-1,1]){const w=new THREE.BoxGeometry(.35,.75,l);w.rotateY(ang);w.translate(mx+e.dz*sd*(e.w/2+.5),y+.36,mz-e.dx*sd*(e.w/2+.5));addStatic(w,M.concrete,false,true);}
+    for(let q=a+8;q<b-4;q+=28){const px=e.ax+e.dx*q,pz=e.az+e.dz*q;const pl=new THREE.BoxGeometry(e.w*.6,4,1.6);pl.rotateY(ang);pl.translate(px,y-2.8,pz);addStatic(pl,M.concrete,false,true);}};
+  for(let t=0;t<=e.len;t+=st){const w=isWater(e.ax+e.dx*t,e.az+e.dz*t);if(w&&t0<0)t0=t;if(!w&&t0>=0){span(t0,t);t0=-1;}}if(t0>=0)span(t0,e.len);}
 roadRibbons();
 for(const z of W.zones)for(let i=0;i<=z.nx;i++)for(let j=0;j<=z.nz;j++){const x=z.x0+i*80,zz=z.z0+j*80;if(!isLand(x,zz)||inLake(x,zz))continue;const p=new THREE.PlaneGeometry(16,16);p.rotateX(-Math.PI/2);p.translate(x,.04,zz);addStatic(p,M.asphalt,false,true);}
 function nearHighway(x,z,r){for(const id of edgesNear(x,z)){const e=EDGES[id];if(e.kind==='city')continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+r)return true;}for(const [ox,oz] of [[r,0],[-r,0],[0,r],[0,-r]])for(const id of edgesNear(x+ox,z+oz)){const e=EDGES[id];if(e.kind==='city')continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+r)return true;}return false;}
@@ -266,8 +291,15 @@ for(const a of W.airports){const s=a.side;box(a.L,.12,30,a.x,.05,a.z,M.runway,fa
 /* hills, dunes, forests */
 function freeSpot(x,z,r){return !roadAt(x,z,r)&&!isWater(x,z)&&!zoneAt(x,z,r)&&!colliders.slice(-1).length||(!roadAt(x,z,r)&&!isWater(x,z)&&!zoneAt(x,z,r));}
 const hillMats=[LMat('#6f7f45'),LMat('#7d8a4c'),LMat('#8a7a5a'),LMat('#5f7340')];
+const HILLS_TRY=[];window.__HILLS=HILLS_TRY;
+// A hill only goes where its whole base is clear: no road within its radius, no city, airport, famous place or water under it.
+function hillClear(x,z,rad){if(zoneAt(x,z,rad+30)||isWater(x,z))return false;
+  for(const e of EDGES){const m=e.w/2+rad*.95+8;if(Math.min(e.ax,e.bx)-m>x||Math.max(e.ax,e.bx)+m<x||Math.min(e.az,e.bz)-m>z||Math.max(e.az,e.bz)+m<z)continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<m)return false;}
+  for(const a of W.airports)if(Math.hypot(x-a.x,z-a.z)<a.L/2+rad+60)return false;
+  for(const pl of W.places)if(Math.hypot(x-pl[1],z-pl[2])<rad+50)return false;
+  let wet=0;for(let i=0;i<8;i++){const an=i*.785;if(isWater(x+Math.cos(an)*rad*.85,z+Math.sin(an)*rad*.85))wet++;}return wet<2;}
 for(const h of W.hills){for(let i=0;i<h.n;i++){const a=rnd()*6.283,rr=Math.sqrt(rnd());const x=h.x+Math.cos(a)*h.rx*rr,z=h.z+Math.sin(a)*h.rz*rr;const H=R(h.h[0],h.h[1]),rad=H*R(1.2,1.8);
-  if(roadAt(x,z,rad*.7)||nearHighway(x,z,rad*.8)||zoneAt(x,z,rad)||isWater(x,z))continue;const g=new THREE.ConeGeometry(rad,H,7,1);g.translate(x,H/2-.5,z);
+  HILLS_TRY.push({x,z,rad,H,ok:hillClear(x,z,rad)});if(!HILLS_TRY[HILLS_TRY.length-1].ok)continue;const g=new THREE.ConeGeometry(rad,H,7,1);g.translate(x,H/2-.5,z);
   lmCollect=[];addStatic(g,pick(hillMats));const l=lmCollect;lmCollect=null;flushFar(l,x,z);addCol(x,z,rad*.55,rad*.55);}}
 const duneMat=LMat('#d9b676');
 for(const d of W.dunes){for(let i=0;i<d.n;i++){const a=rnd()*6.283,rr=Math.sqrt(rnd());const x=d.x+Math.cos(a)*d.rx*rr,z=d.z+Math.sin(a)*d.rz*rr;const s=R(8,22);if(roadAt(x,z,s+4)||zoneAt(x,z,s))continue;

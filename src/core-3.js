@@ -55,7 +55,7 @@ function addChallan(amt,why){P.challans.push({amt:price(amt),why,day:istISO()});
 function enterVehicle(v){if(v.state==='traffic'){ejectDriver(v);addWanted(1,'Carjacking');if(v.m.userData.driver&&v.spec.two){v.m.remove(v.m.userData.driver);v.m.userData.driver=null;}}
   else if(v.state==='police'){if(!v.dead)addWanted(2,'Stole a police jeep');}
   if(v.fallen){v.fallen=false;}v.state='player';v.lane=null;v.v=0;player.veh=v;player.mode='drive';
-  const ride=v.spec.two||v.spec.pedal;avatar.visible=ride;if(v.m.userData.driver&&!v.spec.two)v.m.userData.driver.visible=true;
+  const ride=!!(v.spec.two||v.spec.pedal);avatar.visible=ride;if(v.m.userData.driver&&!v.spec.two)v.m.userData.driver.visible=true;
   v.m.add(headL);v.m.add(headT);headL.position.set(0,1.3,v.spec.len/2);headT.position.set(0,0,v.spec.len/2+12);
   emit('enterVehicle',v);toast(v.owned?`Your ${v.spec.label}`:v.spec.label,'#ffc93c');updAvatarGear();}
 function exitVehicle(force){const v=player.veh;if(!v)return;if(!force&&Math.abs(v.v)>4){toast('Slow down to get out','#ff9f1c');return;}
@@ -560,7 +560,7 @@ function loop(ms){requestAnimationFrame(loop);const now=ms/1000;const rdt=Math.m
     for(const v of vehicles)if(v.state==='parked'&&v.fallen)v.m.rotation.set(0,v.h,Math.PI/2.2,'YXZ');
     seaTex.offset.x+=dt*.004;seaTex.offset.y+=dt*.002;for(const f of flags)f.rotation.y=Math.sin(now*3+f.position.x)*.25;
     marker.rotation.y+=dt;beamMat.opacity=.22+Math.sin(now*3)*.07;for(const p of pois){if(p.sp)p.ring.material.opacity=.55+Math.sin(now*4)*.3;}
-    if(frame%20===0)updDiscover();if(frame%20===5)updLabels();if(frame%15===2)updChunks(ppos().x,ppos().z);if(frame%60===3)updBillboards(ppos().x,ppos().z);
+    if(frame%20===0)updDiscover();if(frame%20===5)updLabels();if(frame%15===2)updChunks(ppos().x,ppos().z);if(frame%60===3)updBillboards(ppos().x,ppos().z);if(frame%3===1)fadeBoards();
     if(sir)sir.g.gain.value=muted?0:(vehicles.some(v=>v.state==='police'&&!v.dead&&v.pos.distanceTo(ppos())<90)?.03:0);
     const an=areaName();if(frame%30===0&&an!==lastArea){const z=zoneAt(ppos().x,ppos().z,30);if(z&&!lastArea.startsWith(z.name)&&lastArea)toast(`Welcome to ${z.name} · ${W.states[z.st]}`,'#ffc93c');if(z)emit('zone',z);lastArea=an;$('#area').textContent=an;}}
   updNeeds(rdt);updSmoke(dt);
