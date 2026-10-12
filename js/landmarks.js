@@ -310,5 +310,23 @@ window.LANDMARKS = (function () {
     const rx = 6575, rz = 19010; c.box(16, 4, 12, rx, 2, rz, mat(c, '#b8a68a')); c.box(10, 5, 8, rx, 6.5, rz, mat(c, '#c8b69a')); c.dome(4, rx, 9, rz, mat(c, '#c8b69a'));
     const tx = 6618, tz = 19022, st = mat(c, '#9a8f80'); c.box(8, 10, 8, tx, 5, tz, st); c.box(4, 18, 3, tx, 19, tz, st); c.sph(2.2, tx, 30, tz, st); c.box(.5, 10, .5, tx + 2.6, 22, tz, st);
     c.col(x, z, 4, 3); c.far(); return { poi: [{ type: 'food', name: 'Sunrise point stall', x: x + 10, z: z - 10, rot: Math.PI, extra: 'KL' }] }; };
+
+  /* Football stadium (block special 'footballStadium:<team id>'), colours from js/football-data.js */
+  L.footballStadium = (c, x, z, o) => { const M = c.M, F = window.FOOTBALL, t = (F && F.byId(o && o.arg)) || { col: '#3a6fd8', col2: '#ffffff', stadium: 'Football stadium' };
+    const c1 = mat(c, t.col), c2 = mat(c, t.col2), grey = mat(c, '#8d8a84'), glow = new c.THREE.MeshBasicMaterial({ color: 0xfff6d8 });
+    c.box(64, .1, 64, x, Y + .02, z, M.concrete, false, true); c.box(26, .12, 40, x, Y + .08, z, mat(c, '#3f9a45'), false, true);
+    for (let i = 0; i < 8; i++) c.box(26, .02, 2.5, x, Y + .15, z - 17.5 + i * 5, mat(c, '#48a84d'), false, true);
+    const ln = M.white; c.box(24, .03, .25, x, Y + .17, z - 19, ln, false, true); c.box(24, .03, .25, x, Y + .17, z + 19, ln, false, true); c.box(.25, .03, 38, x - 12, Y + .17, z, ln, false, true); c.box(.25, .03, 38, x + 12, Y + .17, z, ln, false, true);
+    c.box(24, .03, .25, x, Y + .17, z, ln, false, true); for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283; c.boxRot(1.1, .03, .22, x + Math.cos(a) * 3.4, Y + .17, z + Math.sin(a) * 3.4, -a + Math.PI / 2, ln, false, true); }
+    for (const s of [-1, 1]) { c.box(10, .03, .25, x, Y + .17, z + s * 14.5, ln, false, true); c.box(.25, .03, 4.5, x - 5, Y + .17, z + s * 16.75, ln, false, true); c.box(.25, .03, 4.5, x + 5, Y + .17, z + s * 16.75, ln, false, true);
+      c.box(4.6, 1.6, .15, x, Y + .8, z + s * 19.6, ln); }
+    // stands: three tiers on each side, seats in the home colours
+    for (let i = 0; i < 3; i++) { const h = 2 + i * 1.8, m = i % 2 ? c2 : c1;
+      for (const s of [-1, 1]) { c.box(3, h, 44, x + s * (15.5 + i * 3), Y + h / 2, z, m); c.box(32 + i * 6, h, 3, x, Y + h / 2, z + s * (21.5 + i * 3), i === 1 ? grey : m); } }
+    for (const s of [-1, 1]) { c.box(11, .5, 48, x + s * 23, Y + 10.5, z, mat(c, '#e9e6df')); for (const dz of [-22, 0, 22]) c.box(.6, 10, .6, x + s * 28, Y + 5, z + dz, M.steel); }
+    // floodlights
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.box(.9, 26, .9, x + dx * 29, Y + 13, z + dz * 29, M.steel); c.box(4.4, 2.6, .5, x + dx * 28.4, Y + 26.5, z + dz * 28.4, glow); }
+    c.sign(t.stadium.toUpperCase(), x, Y + 8, z + 30.4, 0, 22, 2.6, '#ffffff', t.col2 === '#ffffff' ? '#1d3f9a' : t.col2);
+    c.col(x, z, 30, 30); return { poi: [{ type: 'stadium', name: t.stadium, side: 's', t: -12, extra: (o && o.arg) || '' }] }; };
   return L;
 })();

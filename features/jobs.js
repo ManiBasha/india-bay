@@ -1,26 +1,41 @@
 // Jobs: food delivery, auto taxi, cab, truck, bus and dabbawala, through the job agent (5% cut) or freelance.
-// Also the RTO office: licences with a short road-rules quiz.
+// Also the RTO office: licences with a short road-rules quiz. Licences only matter for jobs:
+// each job needs the licence for the vehicle it uses. Every job has a countdown worked out from the
+// real road distance, the vehicle's speed and the time the job takes at each stop.
 window.BBFeatures.push(function (bb) {
   const W = bb.WORLD, P = () => bb.P;
   const JOBS = {
-    delivery: { name: 'Food delivery', veh: ['cycle', 'bike', 'sportsbike'], unlock: 'Start', rate: .32, icon: '🍱', desc: 'Pick up from restaurants, deliver hot' },
-    auto: { name: 'Auto taxi', veh: ['auto'], unlock: 'Start', rate: .3, icon: '🛺', desc: 'Short city rides' },
-    cab: { name: 'Cab (app style)', veh: ['car', 'sedan', 'taxi', 'suv'], unlock: 'Car licence and 3.5★ in any job', rate: .45, icon: '🚕', desc: 'Better fares, pickier riders' },
-    truck: { name: 'Truck delivery', veh: ['truck'], unlock: 'Heavy licence', rate: .2, icon: '🚚', desc: 'City to city cargo, company truck' },
-    bus: { name: 'Bus driver', veh: ['bus'], unlock: 'Heavy licence', rate: 0, icon: '🚌', desc: 'Fixed route and stops, company bus' },
-    dabba: { name: 'Dabbawala', veh: ['cycle', 'foot'], unlock: 'Start', rate: .35, icon: '🥡', desc: 'Home tiffin to office, by noon, on cycle or local train' }
+    delivery: { name: 'Food delivery', veh: ['cycle', 'bike', 'sportsbike'], unlock: 'Cycle: no licence · motorbike: two-wheeler licence', rate: .32, icon: '🍱', desc: 'Pick up from restaurants, deliver hot' },
+    auto: { name: 'Auto taxi', veh: ['auto'], unlock: 'Auto rickshaw licence', rate: .3, icon: '🛺', desc: 'Short city rides' },
+    cab: { name: 'Cab (app style)', veh: ['car', 'sedan', 'taxi', 'suv'], unlock: 'Car licence (LMV) and 3.5★ in any job', rate: .45, icon: '🚕', desc: 'Better fares, pickier riders' },
+    truck: { name: 'Truck delivery', veh: ['truck'], unlock: 'Heavy vehicle licence', rate: .2, icon: '🚚', desc: 'City to city cargo, company truck' },
+    bus: { name: 'Bus driver', veh: ['bus'], unlock: 'Heavy vehicle licence', rate: 0, icon: '🚌', desc: 'Fixed route and stops, company bus' },
+    dabba: { name: 'Dabbawala', veh: ['cycle', 'foot'], unlock: 'No licence needed', rate: .35, icon: '🥡', desc: 'Home tiffin to office, by noon, on cycle or local train' }
   };
   let J = null; let freelance = false; let nextOfferT = 0; let hail = null;
   const rating = t => (P().ratings[t] != null ? P().ratings[t] : 3);
   const bestRating = () => Math.max(3, ...Object.values(P().ratings || { a: 3 }));
-  function unlocked(t) { const p = P(); if (t === 'cab') return p.lic.lmv && bestRating() >= 3.5; if (t === 'truck' || t === 'bus') return p.lic.heavy; return true; }
-  function needVeh(t) { const v = bb.player.mode === 'drive' ? bb.player.veh : null; const ok = JOBS[t].veh; if (ok.includes('foot') && bb.player.mode === 'foot') return true; return v && ok.includes(v.type); }
+  // Licence each vehicle needs for paid work. Cycles, cycle rickshaws and walking need none.
+  const VLIC = { bike: 'two', sportsbike: 'two', auto: 'three', taxi: 'lmv', car: 'lmv', sedan: 'lmv', suv: 'lmv', sports: 'lmv', truck: 'heavy', bus: 'heavy' };
+  const hasLic = type => !VLIC[type] || !!P().lic[VLIC[type]];
+  function unlocked(t) { const p = P(); if (t === 'cab') return p.lic.lmv && bestRating() >= 3.5; if (t === 'truck' || t === 'bus') return p.lic.heavy; if (t === 'auto') return !!p.lic.three; return true; }
+  function needVeh(t) { const v = bb.player.mode === 'drive' ? bb.player.veh : null; const ok = JOBS[t].veh; if (ok.includes('foot') && bb.player.mode === 'foot') return true; return v && ok.includes(v.type) && hasLic(v.type); }
+  const licName = type => LIC[VLIC[type]] ? LIC[VLIC[type]].name : '';
+  function vehProblem(t) { const v = bb.player.mode === 'drive' ? bb.player.veh : null; if (v && JOBS[t].veh.includes(v.type) && !hasLic(v.type)) return `A ${v.spec.label.toLowerCase()} needs a ${licName(v.type)} for this job · get it at an RTO office`; return null; }
   function zoneHere() { const p = bb.ppos(); return bb.zoneAt(p.x, p.z, 120) || W.zones.find(z => z.id === 'mumbai'); }
   function spotIn(z, avoid) { for (let k = 0; k < 30; k++) { const i = Math.floor(Math.random() * z.nx), j = Math.floor(Math.random() * z.nz); const bx = z.x0 + i * 80 + 40, bz = z.z0 + j * 80 + 40; const side = bb.mpick(['n', 's', 'e', 'w']); const [x, zz] = bb.edgePos(bx, bz, side, bb.MR(-20, 20), 33);
       if (!bb.drivable(x, zz) || bb.isWater(bx, bz)) continue; if (avoid && Math.hypot(x - avoid.x, zz - avoid.z) < Math.min(300, z.nx * 40)) continue; return { x, z: zz }; } return { x: z.x0 + 40, z: z.z0 - 8 }; }
   const PLACE = ['Main market', 'Station road', 'Old bazaar', 'College gate', 'Hospital chowk', 'Temple lane', 'Bus depot', 'Tech park', 'Housing society', 'Cinema hall', 'Circle', 'Ghat road'];
   const nameAt = (z) => `${bb.mpick(PLACE)}, ${z.name}`;
   function payFor(dist, t, x, z) { const r = rating(t); return Math.round((26 + dist * JOBS[t].rate) * (0.8 + 0.1 * r) * bb.fareMultAt(x, z)); }
+  /* countdown timers: road distance ÷ the job vehicle's speed, plus time at each stop */
+  const PACE = { delivery: .42, auto: .42, cab: .42, truck: .5, bus: .4, dabba: .5 };
+  const STOPS = { delivery: 15, auto: 12, cab: 12, truck: 30, bus: 6, dabba: 15 };
+  function jobSpeed(t) { const v = bb.player.mode === 'drive' ? bb.player.veh : null; let type = v && JOBS[t].veh.includes(v.type) ? v.type : JOBS[t].veh.find(q => q !== 'foot') || 'cycle';
+    if (t === 'dabba' && !v) return 3.4; const sp = bb.SPEC[type]; return Math.max(3.4, (sp ? sp.max : 10) * (PACE[t] || .42)); }
+  function roadLen(ax, az, bx, bz) { const R = bb.findRoute(ax, az, bx, bz); if (!R) return Math.hypot(bx - ax, bz - az) * 1.4; let L = 0; for (let i = 0; i < R.length - 1; i++) L += Math.hypot(R[i + 1][0] - R[i][0], R[i + 1][1] - R[i][1]); return L; }
+  function legTime(t, ax, az, bx, bz) { const L = roadLen(ax, az, bx, bz); return { L, secs: Math.round(L / jobSpeed(t) * 1.3 + (STOPS[t] || 12) + 10) }; }
+  const fmt = s => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
   function newJob(t) { const z = zoneHere(); const pp = bb.ppos(); let from, to, timer, pay, extra = {};
     if (t === 'delivery') { const rest = bb.pois.filter(p => p.type === 'food' && p.zone === z).sort((a, b) => Math.hypot(a.x - pp.x, a.z - pp.z) - Math.hypot(b.x - pp.x, b.z - pp.z)); const r = rest[Math.floor(Math.random() * Math.min(3, rest.length))] || { x: pp.x + 40, z: pp.z, name: 'Restaurant' };
       from = { x: r.x, z: r.z, name: r.name }; const d = spotIn(z, from); to = Object.assign(d, { name: nameAt(z) }); }
@@ -28,15 +43,17 @@ window.BBFeatures.push(function (bb) {
     else if (t === 'bus') { const stops = []; let last = pp; for (let i = 0; i < 5; i++) { const s = spotIn(z, last); stops.push(Object.assign(s, { name: `Stop ${i + 1} · ${bb.mpick(PLACE)}` })); last = s; } extra.stops = stops; extra.i = 0; from = stops[0]; to = stops[stops.length - 1]; }
     else if (t === 'dabba') { from = Object.assign(spotIn(z), { name: `Home tiffin · ${bb.mpick(['Sharma', 'Patil', 'Desai', 'Iyer', 'Khan', 'Shah'])} family` }); const mum = W.zones.find(q => q.id === 'mumbai'); const off = z.id === 'mumbai' ? bb.mpick([{ x: 2980, z: 8752, name: 'CSMT offices' }, { x: 2820, z: 8292, name: 'BKC office tower' }, { x: 2900, z: 8836, name: 'Churchgate offices' }]) : Object.assign(spotIn(z, from), { name: `Office block, ${z.name}` }); to = off; }
     else { const p0 = hail ? hail : Object.assign(spotIn(z), { name: nameAt(z) }); from = p0; let dz = z; if (Math.random() < .15) { const near = W.zones.filter(q => q !== z && Math.hypot(q.x0 - z.x0, q.z0 - z.z0) < 1600); if (near.length) dz = bb.mpick(near); } to = Object.assign(spotIn(dz, from), { name: nameAt(dz) }); }
-    const dist = Math.hypot(to.x - from.x, to.z - from.z); timer = t === 'bus' ? 240 : t === 'truck' ? Math.round(dist / 14 + 90) : Math.round(dist / (t === 'delivery' || t === 'dabba' ? 6 : 9) + 30);
+    const dist = Math.hypot(to.x - from.x, to.z - from.z);
+    if (t === 'bus') { let sx = pp.x, sz = pp.z; timer = 0; for (const st of extra.stops) { timer += legTime(t, sx, sz, st.x, st.z).secs; sx = st.x; sz = st.z; } }
+    else timer = legTime(t, pp.x, pp.z, from.x, from.z).secs;
     pay = t === 'bus' ? 0 : payFor(dist, t, from.x, from.z);
-    J = { t, stage: t === 'bus' ? 'route' : 'pickup', from, to, timer, pay, dist, crashes: 0, agent: !freelance, extra, started: performance.now() };
+    J = { t, stage: t === 'bus' ? 'route' : 'pickup', from, to, timer, total: timer, pay, dist, crashes: 0, agent: !freelance, extra, started: performance.now() };
     if (t === 'truck' || t === 'bus') companyVehicle(t);
-    bb.toast(`${JOBS[t].name}: ${J.stage === 'route' ? 'drive your route' : 'pick up at ' + from.name}`, '#ffc93c'); bb.emit('jobStart', J); }
+    bb.toast(`${JOBS[t].name}: ${J.stage === 'route' ? 'drive your route · ' + fmt(timer) + ' for all stops' : 'pick up at ' + from.name + ' · ' + fmt(timer)}`, '#ffc93c'); bb.emit('jobStart', J); }
   function companyVehicle(t) { const v0 = bb.player.veh; if (v0 && v0.type === t) return; const pp = bb.ppos(); const r = bb.nearestRoadPoint(pp.x, pp.z, 300); if (!r) return; const e = r.e; const nx = e.dz, nz = -e.dx;
     const v = bb.makeVeh(t, r.x + nx * (e.w / 2 + 2.4), r.z + nz * (e.w / 2 + 2.4), Math.atan2(e.dx, e.dz), 'parked', { fuel: 100, company: true }); J.company = v; bb.toast(`Your company ${bb.SPEC[t].label.toLowerCase()} is parked on the road nearby`, '#ffc93c'); }
   function finish(ok, why) { const t = J.t; const p = P(); let r = rating(t); if (ok) r = Math.min(5, r + (J.crashes ? .05 : .15)); else r = Math.max(1, r - .25); p.ratings[t] = Math.round(r * 100) / 100;
-    if (ok) { let pay = J.pay; const bonus = Math.max(0, Math.round(J.timer * 1.5)); pay += bonus; if (J.agent) pay = Math.round(pay * .95); bb.earn(pay, 'job'); p.trips++; p.stats.trips++; p.jobs[t] = (p.jobs[t] || 0) + 1;
+    if (ok) { let pay = J.pay; const bonus = J.late ? 0 : Math.max(0, Math.round(J.timer * 1.5)); pay += bonus; if (J.agent) pay = Math.round(pay * .95); bb.earn(pay, 'job'); p.trips++; p.stats.trips++; p.jobs[t] = (p.jobs[t] || 0) + 1;
       bb.toast(`+${bb.inr(pay)}${J.agent ? ' · agent kept 5%' : ''}<br><span style="font-size:15px;font-weight:600">${JOBS[t].name} · rating ${r.toFixed(1)}★</span>`, '#3ddc97'); bb.emit('job', { type: t, pay, agent: J.agent }); }
     else bb.toast(`${why} · rating ${r.toFixed(1)}★`, '#ff5d73');
     if (J.company && bb.player.veh !== J.company) bb.removeVeh(J.company); const t2 = t, comp = J.company; J = null; hail = null; bb.setDirty();
@@ -47,21 +64,29 @@ window.BBFeatures.push(function (bb) {
     if (!J) { if (freelance && JOBS[freelanceType] && !bb.inside && needVeh(freelanceType)) { nextOfferT -= dt; if (nextOfferT <= 0 && !hail) { const z = zoneHere(); if (['auto', 'cab'].includes(freelanceType)) { hail = Object.assign(spotIn(z), { name: 'Waving customer' }); } else { newJob(freelanceType); } } }
       if (hail) { const pp = bb.ppos(); const v = bb.player.veh; if (v && Math.hypot(pp.x - hail.x, pp.z - hail.z) < 9 && Math.abs(v.v) < 4) newJob(freelanceType); } return; }
     J.timer -= dt; const pp = bb.ppos(); const v = bb.player.veh; const slow = !v || Math.abs(v.v) < 6;
-    if (J.timer <= 0 && J.t !== 'bus') return finish(false, 'Too late · customer cancelled');
+    if (J.timer <= 0 && J.t !== 'bus') return finish(false, J.stage === 'pickup' ? (J.t === 'delivery' ? 'Too late · the restaurant gave the order to another rider' : J.t === 'truck' ? 'Too late · the depot sent another truck' : 'Too late · the customer cancelled') : J.t === 'delivery' ? 'Too late · the food went cold, order cancelled' : J.t === 'dabba' ? 'Too late · lunch hour is over' : J.t === 'truck' ? 'Too late · the warehouse refused the cargo' : 'Too late · the rider got out and left');
+    if (J.t === 'bus' && J.timer <= 0 && !J.late) { J.late = true; bb.toast('Bus running late · no on-time bonus', '#ff9f1c'); }
     if (J.t === 'bus') { const s = J.extra.stops[J.extra.i]; if (needVeh('bus') && Math.hypot(pp.x - s.x, pp.z - s.z) < 9 && slow) { J.extra.dwell = (J.extra.dwell || 0) + dt; if (J.extra.dwell > 2.5) { J.extra.dwell = 0; const fare = Math.round(bb.MR(4, 10) * 12 * bb.fareMultAt(pp.x, pp.z)); J.pay += fare; bb.toast(`${s.name} · ${Math.floor(bb.MR(3, 14))} passengers · +${bb.inr(fare)}`, '#3ddc97'); J.extra.i++; if (J.extra.i >= J.extra.stops.length) { J.timer = Math.max(0, J.timer); finish(true); } } } return; }
     const tg = J.stage === 'pickup' ? J.from : J.to; const d = Math.hypot(pp.x - tg.x, pp.z - tg.z);
-    if (d < (J.t === 'truck' ? 12 : 8) && slow && needVeh(J.t)) { if (J.stage === 'pickup') { J.stage = 'drop'; if (v && v.m.userData.pax) v.m.userData.pax.visible = true; bb.toast(J.t === 'delivery' ? 'Order picked up · deliver it hot' : J.t === 'truck' ? 'Cargo loaded · drive safe' : J.t === 'dabba' ? 'Dabba collected · office by noon' : 'Sawari on board · chalo!', '#ffc93c'); bb.hornSfx(); }
+    if (d < (J.t === 'truck' ? 12 : 8) && slow && needVeh(J.t)) { if (J.stage === 'pickup') { J.stage = 'drop'; J.timer = legTime(J.t, J.from.x, J.from.z, J.to.x, J.to.z).secs; J.total = J.timer; if (v && v.m.userData.pax) v.m.userData.pax.visible = true; bb.toast((J.t === 'delivery' ? 'Order picked up · deliver it hot' : J.t === 'truck' ? 'Cargo loaded · drive safe' : J.t === 'dabba' ? 'Dabba collected · office by noon' : 'Sawari on board · chalo!') + ` · ${fmt(J.timer)} to drop`, '#ffc93c'); bb.hornSfx(); }
       else { if (v && v.m.userData.pax) v.m.userData.pax.visible = false; finish(true); } } });
   let freelanceType = 'auto';
+  // Countdown pill that stays on screen while a job runs.
+  const pill = document.createElement('div'); pill.id = 'jobTimer'; pill.className = 'pill'; pill.hidden = true; const tc = document.querySelector('#topc'); if (tc) tc.appendChild(pill);
+  let pillT = 0; bb.onUpdate(dt => { pillT -= dt; if (pillT > 0) return; pillT = .25; if (!J || bb.inside) { pill.hidden = true; return; } pill.hidden = false;
+    const left = J.timer, frac = J.total ? Math.max(0, left / J.total) : 0; const late = J.t === 'bus' && J.late;
+    pill.className = 'pill' + (late || left < 30 ? ' low' : left < J.total * .35 ? ' mid' : '');
+    pill.innerHTML = `<span>${JOBS[J.t].icon} ${J.t === 'bus' ? 'Route' : J.stage === 'pickup' ? 'Pick up' : 'Drop'}</span><b>${late ? 'Late' : fmt(left)}</b><i style="width:${Math.round(frac * 100)}%"></i>`; });
   bb.addMission(() => { if (!J) { if (hail) return { pri: 40, k: `Freelance · ${JOBS[freelanceType].name}`, t: 'A customer is waving', m: 'Drive up and stop next to them', target: { x: hail.x, z: hail.z, col: 0x7fd858 } }; return null; }
     const pp = bb.ppos(); const tl = Math.max(0, Math.ceil(J.timer)); const tt = `${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`;
-    if (J.t === 'bus') { const s = J.extra.stops[J.extra.i]; return { pri: 50, k: `Bus route · stop ${J.extra.i + 1} of ${J.extra.stops.length}`, t: s.name, m: `${Math.round(Math.hypot(pp.x - s.x, pp.z - s.z) * 2.4 / 10) * 10} m · stop in the ring for 3 s · earned ${bb.inr(J.pay)}`, target: { x: s.x, z: s.z, col: 0xffb347 } }; }
-    const tg = J.stage === 'pickup' ? J.from : J.to; const need = needVeh(J.t) ? '' : ` · needs ${JOBS[J.t].veh.map(t => t === 'foot' ? 'on foot' : bb.SPEC[t].label).join(' or ')}`;
-    return { pri: 50, cls: J.stage === 'drop' ? 'ride' : '', k: `${JOBS[J.t].name} · ${J.agent ? 'agent' : 'freelance'} · ${rating(J.t).toFixed(1)}★`, t: (J.stage === 'pickup' ? 'Pick up: ' : 'Drop: ') + tg.name, m: `${Math.round(Math.hypot(pp.x - tg.x, pp.z - tg.z) * 2.4 / 10) * 10} m · ${tt} left · ${bb.inr(J.pay)}${need}`, target: { x: tg.x, z: tg.z, col: J.stage === 'pickup' ? 0x3ddc97 : 0xff9f1c } }; });
-  function jobsSheet() { const p = P(); const rows = Object.entries(JOBS).map(([id, j]) => { const ok = unlocked(id); const r = rating(id); return bb.rowHtml(id, `${j.icon} ${j.name}`, `${j.desc} · ${ok ? r.toFixed(1) + '★ · ' + (p.jobs[id] || 0) + ' done' : 'Unlock: ' + j.unlock}`, J && J.t === id ? 'Active' : ok ? 'Start' : 'Locked', ok ? '' : 'ghost'); }).join('');
-    bb.openSheet('Jobs', `${freelance ? 'Freelance · keep 100%, find your own customers' : 'Job agent · steady work, agent keeps 5%'}`, `<div class="chips"><button class="chip${freelance ? '' : ' on'}" data-mode="agent">Agent</button><button class="chip${freelance ? ' on' : ''}" data-mode="free">Freelance</button></div>${rows}${J ? bb.rowHtml('quit', 'Quit current job', 'Your rating drops a little', 'Quit', 'danger') : ''}<p class="note">Higher ratings bring better-paying customers. Truck and bus jobs give you a company vehicle.</p>`,
+    if (J.t === 'bus') { const s = J.extra.stops[J.extra.i]; return { pri: 50, k: `Bus route · stop ${J.extra.i + 1} of ${J.extra.stops.length}`, t: s.name, m: `${Math.round(Math.hypot(pp.x - s.x, pp.z - s.z) * 2.4 / 10) * 10} m · ${J.late ? 'late' : tt + ' to finish'} · earned ${bb.inr(J.pay)}`, target: { x: s.x, z: s.z, col: 0xffb347 } }; }
+    const tg = J.stage === 'pickup' ? J.from : J.to; const need = needVeh(J.t) ? '' : vehProblem(J.t) ? ' · needs a licence for this vehicle' : ` · needs ${JOBS[J.t].veh.map(t => t === 'foot' ? 'on foot' : bb.SPEC[t].label).join(' or ')}`;
+    return { pri: 50, cls: J.stage === 'drop' ? 'ride' : '', k: `${JOBS[J.t].name} · ${J.agent ? 'agent' : 'freelance'} · ${rating(J.t).toFixed(1)}★`, t: (J.stage === 'pickup' ? 'Pick up: ' : 'Drop: ') + tg.name, m: `${Math.round(Math.hypot(pp.x - tg.x, pp.z - tg.z) * 2.4 / 10) * 10} m · ${tt} to ${J.stage === 'pickup' ? 'pick up' : 'drop'} · ${bb.inr(J.pay)}${need}`, target: { x: tg.x, z: tg.z, col: J.stage === 'pickup' ? 0x3ddc97 : 0xff9f1c } }; });
+  function jobsSheet() { const p = P(); const rows = Object.entries(JOBS).map(([id, j]) => { const ok = unlocked(id); const r = rating(id); return bb.rowHtml(id, `${j.icon} ${j.name}`, `${j.desc} · ${ok ? r.toFixed(1) + '★ · ' + (p.jobs[id] || 0) + ' done · ' + j.unlock : 'Needs: ' + j.unlock}`, J && J.t === id ? 'Active' : ok ? 'Start' : 'Locked', ok ? '' : 'ghost'); }).join('');
+    bb.openSheet('Jobs', `${freelance ? 'Freelance · keep 100%, find your own customers' : 'Job agent · steady work, agent keeps 5%'}`, `<div class="chips"><button class="chip${freelance ? '' : ' on'}" data-mode="agent">Agent</button><button class="chip${freelance ? ' on' : ''}" data-mode="free">Freelance</button></div>${rows}${J ? bb.rowHtml('quit', 'Quit current job', 'Your rating drops a little', 'Quit', 'danger') : ''}<p class="note">Every job has a countdown worked out from the road distance and your vehicle. Finish early for a bonus. Licences come from RTO offices. Truck and bus jobs give you a company vehicle.</p>`,
       s => s.onclick = e => { const m = e.target.dataset.mode; if (m) { freelance = m === 'free'; jobsSheet(); return; } const id = e.target.dataset.id; if (!id) return; if (id === 'quit') { finish(false, 'You quit the job'); bb.closeSheet(); return; }
         if (J) { bb.toast('Finish or quit your current job first', '#ff9f1c'); return; } if (!unlocked(id)) { bb.toast(`Locked · ${JOBS[id].unlock}`, '#ff9f1c'); return; }
+        const vp = vehProblem(id); if (vp) { bb.toast(vp, '#ff9f1c'); return; }
         if (!['truck', 'bus'].includes(id) && !needVeh(id)) { bb.toast(`You need to be ${JOBS[id].veh.map(t => t === 'foot' ? 'on foot' : 'on a ' + bb.SPEC[t].label.toLowerCase()).join(' or ')}`, '#ff9f1c'); if (id === 'delivery' && bb.P.cash >= bb.price(50)) { rentCycle(); } return; }
         bb.closeSheet(); if (freelance) { freelanceType = id; nextOfferT = 3; bb.toast(id === 'auto' || id === 'cab' ? 'Freelance · look for waving customers' : 'Freelance · orders will ping your phone', '#ffc93c'); } else newJob(id); }); }
   function rentCycle() { if (!bb.spend(bb.price(50))) return; const pp = bb.ppos(); const r = bb.nearestRoadPoint(pp.x, pp.z, 200); if (!r) return; const e = r.e; const v = bb.makeVeh('cycle', r.x + e.dz * (e.w / 2 + 1), r.z - e.dx * (e.w / 2 + 1), Math.atan2(e.dx, e.dz), 'parked', { company: true }); bb.toast(`Rented a cycle for ${bb.inr(bb.price(50))} · it is next to you`, '#3ddc97'); }
@@ -69,7 +94,7 @@ window.BBFeatures.push(function (bb) {
   bb.addApp({ id: 'jobs', label: 'Jobs', icon: '💼', group: 'menu', fn: jobsSheet });
 
   /* RTO: licences */
-  const LIC = { two: { name: 'Two-wheeler licence (MCWG)', fee: 1500 }, lmv: { name: 'Car licence (LMV)', fee: 2500 }, heavy: { name: 'Heavy vehicle licence', fee: 6000, need: 'lmv' } };
+  const LIC = { two: { name: 'Two-wheeler licence (MCWG)', fee: 1500 }, three: { name: 'Auto rickshaw licence (3-wheeler)', fee: 1000 }, lmv: { name: 'Car licence (LMV)', fee: 2500 }, heavy: { name: 'Heavy vehicle licence', fee: 6000, need: 'lmv' } };
   const QUIZ = [['In India, vehicles keep to which side of the road?', ['Left', 'Right', 'Middle'], 0], ['What should you do at a red traffic light?', ['Stop', 'Slow down', 'Honk and go'], 0],
     ['Must the pillion rider on a motorbike wear a helmet?', ['Yes', 'Only on highways', 'No'], 0], ['What does PUC stand for?', ['Pollution Under Control', 'Public Utility Card', 'Permit Under Commerce'], 0],
     ['What is the minimum age for a car (LMV) licence?', ['18', '16', '21'], 0], ['An ambulance comes up behind you with its siren on. You should:', ['Move aside and let it pass', 'Speed up', 'Stop in the middle'], 0],
@@ -82,5 +107,6 @@ window.BBFeatures.push(function (bb) {
     bb.openSheet(`Question ${i + 1} of 3`, LIC[id].name, `<p style="font-size:16px;line-height:1.5;margin:0 0 10px">${bb.esc(q)}</p>${order.map(k => `<div class="row"><div class="nm">${bb.esc(opts[k])}</div><button class="buy ghost" data-a="${k}">Choose</button></div>`).join('')}`,
       s => s.onclick = e => { const a = e.target.dataset.a; if (a == null) return; if (+a === ans) quiz(poi, id, i + 1, qs); else { bb.closeSheet(); bb.toast('Wrong answer · test failed. Pay the fee and try again.', '#ff5d73'); } }); }
   bb.poiHandlers.rto = rtoSheet;
+  bb.onStart(() => { const p = P(); if (!p.lic) p.lic = {}; if (p.lic.three == null) { p.lic.three = !!(p.lic.lmv || (p.jobs && p.jobs.auto)); bb.setDirty(); } });
   bb.JOBS = { JOBS, get current() { return J; }, rating };
 });

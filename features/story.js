@@ -3,7 +3,7 @@ window.BBFeatures.push(function (bb) {
   const P = () => bb.P;
   const STEPS = [
     { t: 'Meet cousin Pappu', m: 'He left you his old auto at CSMT. Find him at the chai tapri.', target: () => { const p = bb.pois.find(q => q.type === 'food' && q.zone && q.zone.id === 'mumbai' && /Chai/.test(q.name)); return p && { x: p.x, z: p.z }; }, near: 6, reward: 250 },
-    { t: 'First sawari', m: 'Do 2 auto taxi rides · Phone → Jobs → Auto taxi', ev: 'job', check: d => d.type === 'auto', count: 2, reward: 500 },
+    { t: 'First earnings', m: 'Do 2 jobs · Menu → Jobs · food delivery on a rented cycle needs no licence', ev: 'job', check: d => true, count: 2, reward: 500 },
     { t: 'Bank it', m: 'Deposit at least ₹500 at Bharat Bay Bank', ev: 'deposit', check: v => v >= 500, reward: 250 },
     { t: 'Licence raj', m: 'Get a car licence at an RTO office', ev: 'licence', check: id => id === 'lmv', reward: 750 },
     { t: 'Vada pav break', m: 'Eat a vada pav, Mumbai style', ev: 'eat', check: it => it[0] === 'vadapav', reward: 200 },
@@ -20,7 +20,7 @@ window.BBFeatures.push(function (bb) {
   const ACH = [['firstjob', 'First day at work', 'Finish any job'], ['jobs10', 'Regular', 'Finish 10 jobs'], ['jobs50', 'Workhorse', 'Finish 50 jobs'], ['lakh', 'Lakhpati', 'Have ₹1,00,000 in cash and bank'], ['crore', 'Crorepati', 'Have ₹1,00,00,000 in cash and bank'],
     ['home', 'Ghar ka sapna', 'Buy a home'], ['homes3', 'Property tycoon', 'Own 3 homes'], ['states', 'Tri-state traveller', 'Visit Maharashtra, Gujarat and Rajasthan'], ['ut', 'UT explorer', 'Visit Daman and Silvassa'], ['places10', 'Sightseer', 'Discover 10 famous places'],
     ['places30', 'Guidebook', 'Discover 30 famous places'], ['placesAll', 'Know your West', 'Discover every famous place'], ['lions', 'Simba spotted', 'See lions on a Gir safari'], ['camel', 'Ship of the desert', 'Ride a camel at Sam'], ['local', 'Local legend', 'Ride the Mumbai local'],
-    ['flight', 'Frequent flyer', 'Take a flight'], ['five', 'Most wanted', 'Reach 5 police stars'], ['helmet', 'Safety first', 'Buy a helmet'], ['challan', 'Welcome to India', 'Get your first e-challan'], ['ludo', 'Ludo king', 'Win a game of Ludo'],
+    ['flight', 'Frequent flyer', 'Take a flight'], ['five', 'Most wanted', 'Reach 5 police stars'], ['helmet', 'Safety first', 'Buy a helmet'], ['matchday', 'Matchday', 'Watch a league match in a stadium'], ['fanclub', 'True fan', 'Join a fan club'], ['march', 'Ultras', 'Walk in a fan march to the stadium'], ['jersey', 'Team colours', 'Buy a home jersey'], ['ludo', 'Ludo king', 'Win a game of Ludo'],
     ['quiz', 'Quiz master', 'Score 4 or more in the quiz'], ['km100', 'Road tripper', 'Drive 100 km'], ['km1000', 'Highway hero', 'Drive 1,000 km'], ['chapter1', 'New in Maharashtra', 'Finish chapter 1'], ['photo', 'Content creator', 'Save a photo or clip'], ['streak7', 'Seven days', 'Log in 7 days in a row']];
   function grant(id) { const p = P(); if (p.ach[id]) return; p.ach[id] = bb.istISO(); const a = ACH.find(x => x[0] === id); if (!a) return; bb.toast(`🏆 Achievement · ${a[1]}`, '#ffc93c'); bb.earn(bb.price(300), 'achievement'); bb.setDirty(); }
   const visited = () => (P().extra.states = P().extra.states || {});
@@ -29,7 +29,8 @@ window.BBFeatures.push(function (bb) {
   bb.on('zone', z => { visited()[z.st] = 1; const v = visited(); if (v.MH && v.GJ && v.RJ) grant('states'); if (v.DD && v.DN) grant('ut'); });
   bb.on('discover', () => { const n = Object.keys(P().discovered).length; if (n >= 10) grant('places10'); if (n >= 30) grant('places30'); if (n >= bb.WORLD.places.length) grant('placesAll'); });
   bb.on('safari', () => grant('lions')); bb.on('camel', () => grant('camel')); bb.on('travel', d => { if (d.mode === 'local') grant('local'); if (d.mode === 'flight') grant('flight'); });
-  bb.on('stars', n => { if (n >= 5) grant('five'); }); bb.on('challan', () => grant('challan')); bb.on('media', () => grant('photo'));
+  bb.on('football', d => { if (d.kind === 'watched') grant('matchday'); if (d.kind === 'club') grant('fanclub'); if (d.kind === 'march') grant('march'); if (d.kind === 'jersey') grant('jersey'); });
+  bb.on('stars', n => { if (n >= 5) grant('five'); }); bb.on('media', () => grant('photo'));
   bb.on('baygame', d => { if (d.win && d.game === 'Ludo') grant('ludo'); if (d.win && d.game === 'the quiz') grant('quiz'); });
   bb.onUpdate(() => { const p = P(); const net = p.cash + p.bank; if (net >= 1e5) grant('lakh'); if (net >= 1e7) grant('crore'); if (p.stats.km >= 100) grant('km100'); if (p.stats.km >= 1000) grant('km1000'); });
   function achSheet() { const p = P(); const got = ACH.filter(a => p.ach[a[0]]).length;

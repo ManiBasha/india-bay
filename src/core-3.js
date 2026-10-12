@@ -49,7 +49,7 @@ function knockedOut(why){if(overT>0)return;overT=3;big('KNOCKED OUT','#ff5d73');
   setTimeout(()=>{const h=nearestPoi('hospital',ppos().x,ppos().z);respawnAt(h.x+Math.sin(h.rot)*2,h.z+Math.cos(h.rot)*2,h.rot);P.health=100;P.hunger=Math.max(P.hunger,50);P.bladder=Math.max(P.bladder,60);P.energy=Math.max(P.energy,50);save();toast(`${h.name} · treatment ${inr(fee)}`,'#ffc93c');},1800);}
 function busted(){if(overT>0)return;overT=3;big('BUSTED','#5fb4ff');const fine=Math.min(P.cash,Math.max(price(500),Math.round(P.cash*.15)));P.cash-=fine;P.weapons=P.weapons.filter(w=>WEAP[w].melee);P.ammo={pistol:0,shotgun:0};if(!P.weapons.includes(P.weapon))P.weapon='fist';emit('bust');
   setTimeout(()=>{const s=nearestPoi('police',ppos().x,ppos().z);respawnAt(s.x+Math.sin(s.rot)*2,s.z+Math.cos(s.rot)*2,s.rot);updWeap();save();toast(`Released · fine ${inr(fine)}, guns taken`,'#5fb4ff');},1800);}
-function addChallan(amt,why){P.challans.push({amt:price(amt),why,day:istISO()});P.stats.fines++;dirty=true;toast(`e-challan ${inr(price(amt))} · ${why}`,'#ff9f1c');emit('challan',{amt,why});}
+function addChallan(){} // traffic fines were removed in v3.9
 
 /* ================= entering and leaving vehicles ================= */
 function enterVehicle(v){if(v.state==='traffic'){ejectDriver(v);addWanted(1,'Carjacking');if(v.m.userData.driver&&v.spec.two){v.m.remove(v.m.userData.driver);v.m.userData.driver=null;}}
@@ -127,7 +127,7 @@ const QLINES=['Bhaiya, jaldi karo!','Line mein raho, boss.','Ek minute, server d
 function startQueue(o){if(player.stars){toast('Lose the police first','#ff5d73');return;}const rush=(clockH>=8&&clockH<11)||(clockH>=17&&clockH<21);let ahead=o.ahead!=null?o.ahead:Math.floor(MR(0,rush?6:3));const svc=CFG.queue[o.place]||15;
   const total=Math.max(1,(ahead+1)*svc);openWait({kind:'Queue',title:o.title,sub:ahead?`${ahead} ${ahead===1?'person':'people'} ahead of you${rush?' · rush hour':''}`:'You are next',total,cancel:'Leave the queue',
     timeText:(l,f)=>{const pos=Math.ceil((1-f)*(ahead+1))-1;$('#wsub').textContent=pos>0?`${pos} ahead of you`:'Being served';return `~${l}s`;},
-    buttons:[...(['petrol','cng'].includes(o.place)&&player.mode==='drive'?[{id:'honk',label:'Honk',fn:()=>{hornSfx();toast(mpick(QLINES),'#ffc93c');}}]:[]),{id:'cut',label:'Cut the queue',fn:()=>{closeWait();toast('Attendant: "Line mein aao!" · service refused','#ff5d73');if(Math.random()<.4)addChallan(CFG.challan.queue,'Queue jumping');}}],
+    buttons:[...(['petrol','cng'].includes(o.place)&&player.mode==='drive'?[{id:'honk',label:'Honk',fn:()=>{hornSfx();toast(mpick(QLINES),'#ffc93c');}}]:[]),{id:'cut',label:'Cut the queue',fn:()=>{closeWait();toast('Attendant: "Line mein aao!" · service refused','#ff5d73');}}],
     onDone:()=>{o.onServe&&o.onServe();}});}
 
 /* ================= sheets ================= */
@@ -157,8 +157,8 @@ function gunSheet(poi){if(!CFG.weapons){toast('Weapons are switched off in this 
   s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;const it=GUNSHOP.find(i=>i[0]===id);if(['bat','pistol','shotgun'].includes(id)&&P.weapons.includes(id))return;if(!spend(price(it[3])))return;
     if(id==='ammoP')P.ammo.pistol+=24;else if(id==='ammoS')P.ammo.shotgun+=12;else{P.weapons.push(id);P.weapon=id;if(id==='pistol')P.ammo.pistol+=24;if(id==='shotgun')P.ammo.shotgun+=12;}updWeap();save();emit('buy',{kind:'weapon',id});toast(`Bought ${it[1]}`,'#3ddc97');gunSheet(poi);});}
 const SHOWROOM=[['auto','Auto rickshaw','CNG · no licence needed',12000],['car','Hatchback','Petrol · LMV licence',45000],['sedan','Sedan','Petrol · for cab jobs',85000],['suv','SUV','Diesel · big and tough',120000],['sports','Sports coupe','Top speed 110 km/h',250000]];
-function buyVehicle(type,cost,near){if(!spend(cost,true))return false;P.cars.push({type,fuel:100,hp:100,puc:gameDay+30,ins:gameDay+30});const i=P.cars.length-1;const [x,z,h]=roadSpotNear(near);spawnOwned(i,x,z,h);save();emit('buy',{kind:'vehicle',type});toast(`${SPEC[type].label} is yours · parked outside`,'#3ddc97');return true;}
-function carSheet(poi){openSheet(poi.name,`Cash ${inr(P.cash)} · bank money works too`,SHOWROOM.map(([id,nm,sub,p])=>rowHtml(id,nm,sub,inr(price(p)))).join('')+`<p class="note">Comes with a full tank, 30 game days of PUC and insurance. Renew both later at pumps and mechanic garages.</p>`,
+function buyVehicle(type,cost,near){if(!spend(cost,true))return false;P.cars.push({type,fuel:100,hp:100});const i=P.cars.length-1;const [x,z,h]=roadSpotNear(near);spawnOwned(i,x,z,h);save();emit('buy',{kind:'vehicle',type});toast(`${SPEC[type].label} is yours · parked outside`,'#3ddc97');return true;}
+function carSheet(poi){openSheet(poi.name,`Cash ${inr(P.cash)} · bank money works too`,SHOWROOM.map(([id,nm,sub,p])=>rowHtml(id,nm,sub,inr(price(p)))).join('')+`<p class="note">Comes with a full tank.</p>`,
   s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;const it=SHOWROOM.find(i=>i[0]===id);if(buyVehicle(id,price(it[3]),{x:poi.x,z:poi.z}))closeSheet();});}
 function realtySheet(poi){openSheet(poi.name,`Cash ${inr(P.cash)} · Bank ${inr(P.bank)}`,W.homes.map(h=>{const z=W.zones.find(q=>q.id===h.zone);return rowHtml(h.id,h.name,`${z?z.name:''} · ${HTYPE[h.type].toilet?'with bathroom':'shared toilet'}`,P.homes.includes(h.id)?'Owned':inr(price(h.price)),P.homes.includes(h.id)?'ghost':'');}).join('')+`<p class="note">Homes are marked H on the map once you own them. Sleep, cook, decorate, hide from police, or rent them out.</p>`,
   s=>s.onclick=e=>{const id=e.target.dataset.id;if(id)buyHome(id,()=>realtySheet(poi));});}
@@ -166,16 +166,14 @@ function buyHome(id,done){const h=homeById(id);const cost=price(h.price);if(P.ho
 function fuelSheet(poi){const v=player.veh;if(!v){toast('Drive in to refuel','#d6c8e4');return;}const sp=v.spec;if(!sp.fuel){toast(`A ${sp.label.toLowerCase()} runs on legs, not fuel`,'#d6c8e4');return;}
   const cng=poi.type==='cng';if(cng!==(sp.fuel==='cng')){toast(cng?'This pump only has CNG':`This ${sp.label.toLowerCase()} runs on CNG · find a CNG pump`,'#ff9f1c');return;}
   const per=CFG.fuel[sp.fuel]*CFG.priceMul;const unit='L';const need=(100-v.fuel)/100*sp.tank;const full=Math.ceil(need*per);
-  const owned=v.owned?P.cars[v.ownedIdx]:null;const pucOk=owned&&owned.puc>=gameDay;
-  openSheet(poi.name,`${sp.label} · ${Math.round(v.fuel)}% · ${inr(per)}/${unit}`,rowHtml('full','Fill it up',`${need.toFixed(1)} ${unit}`,inr(full))+rowHtml('500','₹500 worth',`${(500/per).toFixed(1)} ${unit}`,inr(500),'ghost')+rowHtml('200','₹200 worth',`${(200/per).toFixed(1)} ${unit}`,inr(200),'ghost')+
-    (owned?rowHtml('puc','PUC certificate',pucOk?`Valid for ${owned.puc-gameDay} more game days`:'Expired · traffic police will fine you',inr(price(100)),pucOk?'ghost':''):''),
-    s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;if(id==='puc'){if(spend(price(100))){owned.puc=gameDay+30;save();toast('PUC valid for 30 game days','#3ddc97');fuelSheet(poi);}return;}
+  openSheet(poi.name,`${sp.label} · ${Math.round(v.fuel)}% · ${inr(per)}/${unit}`,rowHtml('full','Fill it up',`${need.toFixed(1)} ${unit}`,inr(full))+rowHtml('500','₹500 worth',`${(500/per).toFixed(1)} ${unit}`,inr(500),'ghost')+rowHtml('200','₹200 worth',`${(200/per).toFixed(1)} ${unit}`,inr(200),'ghost'),
+    s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;
       const amt=id==='full'?full:+id;if(amt<=0){toast('Tank is already full','#d6c8e4');return;}if(P.cash<amt){toast(`You need ${inr(amt)} in cash`,'#ff5d73');return;}closeSheet();
       startQueue({place:cng?'cng':'petrol',title:cng?'CNG pump queue':'Petrol pump queue',onServe:()=>{P.cash-=amt;v.fuel=Math.min(100,v.fuel+amt/per/sp.tank*100);dirty=true;emit('refuel',v);toast(`Filled · ${Math.round(v.fuel)}% tank`,'#3ddc97');}});});}
 function hospitalSheet(poi){openSheet(poi.name,`Health ${Math.round(P.health)}%`,rowHtml('heal','Full treatment','Restores health to 100% · OPD queue',inr(price(300))),s=>s.onclick=e=>{if(!e.target.dataset.id)return;if(P.cash<price(300)){toast(`You need ${inr(price(300))}`,'#ff5d73');return;}closeSheet();
   startQueue({place:'hospital',title:'OPD queue',onServe:()=>{P.cash-=price(300);P.health=100;dirty=true;toast('Treated · health 100%','#3ddc97');}});});}
 function policeSheet(poi){const ch=P.challans.reduce((a,c)=>a+c.amt,0);const fine=price(1000*player.stars);
-  openSheet(poi.name,`${player.stars?player.stars+' star'+(player.stars>1?'s':''):'No wanted level'} · ${P.challans.length} unpaid challan${P.challans.length===1?'':'s'}`,(player.stars?rowHtml('fine','Surrender and pay','Clears your wanted level',inr(fine)):'')+(ch?rowHtml('ch','Pay all e-challans',P.challans.map(c=>c.why).slice(0,4).join(', '),inr(ch)):'')||'<p class="note">Nothing to pay · drive safe.</p>',
+  openSheet(poi.name,`${player.stars?player.stars+' star'+(player.stars>1?'s':''):'No wanted level'}`,(player.stars?rowHtml('fine','Surrender and pay','Clears your wanted level',inr(fine)):'')+''||'<p class="note">Nothing to pay · drive safe.</p>',
   s=>s.onclick=e=>{const id=e.target.dataset.id;if(id==='fine'&&spend(fine,true)){player.stars=0;renderStars();emit('stars',0);toast('Fine paid · record clear','#3ddc97');policeSheet(poi);}if(id==='ch'&&spend(ch,true)){P.challans=[];save();toast('All challans paid','#3ddc97');policeSheet(poi);}});}
 function lodgeSheet(poi){const p=price(poi.name.includes('dharamshala')?200:poi.name.includes('tent')||poi.name.includes('camp')?1500:600);openSheet(poi.name,'Rooms by the night',rowHtml('sleep','Sleep here',`Energy ${Math.round(P.energy)}% · includes a bathroom`,inr(p)),s=>s.onclick=e=>{if(!e.target.dataset.id)return;if(P.energy>85){toast('You are not sleepy yet','#d6c8e4');return;}if(!spend(p))return;closeSheet();P.bladder=100;startSleep(poi.name,'Room booked');});}
 function safariSheet(poi){const camel=poi.type==='camel';const p=price(camel?500:800);openSheet(poi.name,camel?'Ride into the dunes at sunset':'Open jeep safari with a guide',rowHtml('go',camel?'Camel ride':'Lion safari',camel?'20 game minutes':'40 game minutes',inr(p)),s=>s.onclick=e=>{if(!e.target.dataset.id||!spend(p))return;closeSheet();
@@ -189,7 +187,7 @@ function openPoi(poi){const T=poi.type;if(player.stars&&!['police','home'].inclu
 
 /* ================= phone ================= */
 function addApp(a){apps.push(a);}
-const ORDER={phone:['map','baypay','challans','roadside','radio','baygame','camera','baygram','story'],menu:['garage','jobs','wardrobe','business'],settings:['whatsnew','ach','admin']};
+const ORDER={phone:['map','football','baypay','roadside','radio','baygame','camera','baygram','story'],menu:['garage','jobs','wardrobe','business'],settings:['whatsnew','ach','admin']};
 function appGrid(group){const smart=P.phone==='smart';const list=apps.filter(a=>(a.group||'phone')===group&&(!a.admin||adminOK)).sort((a,b)=>(ORDER[group].indexOf(a.id)+99)%99-(ORDER[group].indexOf(b.id)+99)%99);
   return `<div class="apps">${list.map(a=>`<button class="app${a.smart&&!smart?' locked':''}" data-app="${a.id}"><span>${esc(a.icon||'•')}</span>${esc(a.label)}</button>`).join('')}</div>`;}
 function appClick(e){const b=e.target.closest('[data-app]');if(!b)return false;const a=apps.find(x=>x.id===b.dataset.app);if(a.smart&&P.phone!=='smart'){toast('Needs a smartphone · Mobile Point sells them','#ff9f1c');return true;}a.fn(api);return true;}
@@ -232,7 +230,7 @@ function suggestSheet(){openSheet('Suggest a change','The admin reads every sugg
   const row={region:s.querySelector('#sg_r').value,text:t.slice(0,400),name:P.name||'player',date:istISO()};if(cfgBackend&&cfgBackend.suggest){try{await cfgBackend.suggest(row);closeSheet();toast('Sent to the admin · thank you','#3ddc97');return;}catch(err){m.textContent='Could not send. Check your connection and that you are signed in.';m.className='note bad';return;}}if(db){try{await db.collection('suggestions').add(row);closeSheet();toast('Sent to the admin · thank you','#3ddc97');return;}catch(err){m.textContent='Could not send. Only players with access to this game can send suggestions.';m.className='note bad';return;}}
   const l=store.get('ib.suggestions')||[];l.push(row);store.set('ib.suggestions',l);closeSheet();toast('Saved on this device for the admin','#3ddc97');};});}
 function helpSheet(){openSheet('Controls','',`<div class="note" style="font-size:14px;line-height:1.9;color:var(--ink)"><b>Keyboard</b><br><kbd>W</kbd><kbd>S</kbd> forward and back · <kbd>A</kbd><kbd>D</kbd> turn · <kbd>Shift</kbd> run · <kbd>E</kbd> enter, leave, use · <kbd>J</kbd> or click attack · <kbd>Q</kbd> weapon · <kbd>Space</kbd> brake · <kbd>H</kbd> horn · <kbd>C</kbd> camera · <kbd>M</kbd> phone · <kbd>I</kbd> menu · <kbd>O</kbd> settings · <kbd>R</kbd> radio · <kbd>N</kbd> India map · <kbd>P</kbd> photo mode<br>
-  <b>Touch</b><br>Arrows turn · GO and BACK move · E enters, leaves and uses · FIRE attacks · GUN switches weapon · HORN honks · tap the minimap for the map<br><b>Tips</b><br>Keep cash in the bank. Fill up before long highway drives. Licences, PUC, insurance and a helmet keep traffic police happy.</div>`);}
+  <b>Touch</b><br>Arrows turn · GO and BACK move · E enters, leaves and uses · FIRE attacks · GUN switches weapon · HORN honks · tap the minimap for the map<br><b>Tips</b><br>Keep cash in the bank. Fill up before long highway drives. Wear a helmet on bikes: falls hurt less. Jobs need the right licence from an RTO office.</div>`);}
 const BLOCK=['admin','police','mod','moderator','support','staff','claude','anthropic','root','system','sex','fuck','shit','bitch','chutiya','madarchod','bhenchod','gandu','randi','harami','kamina','bastard','asshole'];
 function nameOk(n){if(!/^[A-Za-z0-9]{1,10}$/.test(n))return 'Use 1 to 10 letters or numbers.';const l=n.toLowerCase();if(BLOCK.some(b=>l.includes(b)))return 'That name is not allowed. Try another.';return '';}
 function personErr(full,dob){full=String(full||'').trim();if(full.length<2)return 'Please type your name.';if(!/^[\p{L}\p{M} .'-]{2,60}$/u.test(full))return 'Use letters only in your name.';const age=IBCONF.ageFromDob(dob);if(age==null)return 'Please pick your date of birth.';if(age<3||age>120)return 'Please check your date of birth.';return '';}
@@ -271,7 +269,7 @@ function adminSheet(){const C=JSON.parse(JSON.stringify(CFG));let work=C;
   <details><summary>Travel tickets and times</summary>${Object.keys(C.travel).map(k=>`<div class="pair">${num('travel.'+k+'.0',{sleeper:'Train sleeper',ac:'Train AC',flight:'Flight',bus:'Bus',bottaxi:'Bot taxi',ferry:'Ferry',local:'Mumbai local'}[k]+' ticket (₹)',0,100000,10)}${num('travel.'+k+'.1','Longest trip (real seconds)',5,1800,5)}</div>`).join('')}<p class="note">Shorter trips take less time, scaled by distance.</p></details>
   <details><summary>Streets and police</summary>${rng('traffic','Traffic vehicles near the player',0,60,1)}${rng('peds','Pedestrians near the player',0,80,1)}${sel('police','Police',[['off','Off'],['easy','Easy'],['normal','Normal'],['hard','Hard']])}${ck('weapons','Weapons and bank robbery')}</details>
   <details><summary>Economy</summary>${rng('priceMul','Prices ×',0.5,3,0.1)}${rng('fareMul','Job pay ×',0.5,3,0.1)}${num('startCash','Starting cash for new players (₹)',0,10000000,100)}${num('fuel.petrol','Petrol ₹/L',10,500,1)}${num('fuel.diesel','Diesel ₹/L',10,500,1)}${num('fuel.cng','CNG ₹/L',10,500,1)}${num('toll','Toll (₹)',0,5000,10)}
-   ${Object.keys(C.challan).map(k=>num('challan.'+k,{signal:'Red light challan',licence:'No licence challan',helmet:'No helmet challan',puc:'No PUC challan',insurance:'No insurance challan',speeding:'Speeding challan',queue:'Queue jumping challan'}[k]+' (₹)',0,100000,100)).join('')}</details>
+</details>
   <details><summary>Festivals</summary><p class="note">Real dates in India time. Check dates each year: they follow the Hindu calendar.</p>${list('festivals')}</details>
   <details><summary>Happening now events</summary>${list('events')}</details>
   <details><summary>Billboards</summary><p class="note">Text billboards on rooftops in the chosen city. Image uploads need the online storage (R2).</p>${list('billboards')}</details>
@@ -539,7 +537,7 @@ function startSpot(z){const cx=z.x0+z.nx*40,cz=z.z0+z.nz*40;const r=nearestRoadP
 $('#newGame').onclick=e=>{if(e.target.dataset.sure){P=newSave();store.set('ib.save.v3',P);location.reload();}else{e.target.dataset.sure=1;e.target.textContent='Tap again to reset';}};
 let camSnap=true;
 function begin(){setAvatar();document.body.classList.remove('pre');$('#intro').hidden=true;initAudio();if(ac&&ac.state==='suspended')ac.resume();started=true;camSnap=true;$('#c').focus();applyOutfit();
-  if(!startedOnce){startedOnce=true;for(const c of P.cars){if(!(c.puc>0))c.puc=gameDay+30;if(!(c.ins>0))c.ins=gameDay+30;}
+  if(!startedOnce){startedOnce=true;P.challans=[];
     P.cars.forEach((c,i)=>{if(c.x!=null)spawnOwned(i,c.x,c.z,c.h||0);});
     if(P.pos){if(P.inCar!=null&&P.cars[P.inCar]){const v=ownedVeh[P.inCar]||spawnOwned(P.inCar,P.pos.x,P.pos.z,P.pos.h);v.pos.set(P.pos.x,0,P.pos.z);v.h=P.pos.h;enterVehicle(v);}else{player.mode='foot';player.pos.set(P.pos.x,0,P.pos.z);player.h=P.pos.h;avatar.visible=true;}}
     else{const sp=startPick?startSpot(startPick.zone):{x:2940,z:8736,h:Math.PI/2};const v=ownedVeh[0]||spawnOwned(0,sp.x,sp.z,sp.h);v.pos.set(sp.x,0,sp.z);v.h=sp.h;enterVehicle(v);startPick=null;}
@@ -591,7 +589,7 @@ function loop(ms){requestAnimationFrame(loop);const now=ms/1000;const rdt=Math.m
   for(let i=tracers.length-1;i>=0;i--){tracers[i].t-=dt;if(tracers[i].t<=0){scene.remove(tracers[i].l);tracers[i].l.geometry.dispose();tracers.splice(i,1);}}flash.intensity=Math.max(0,flash.intensity-dt*40);
   if(frame%6===0){curMission=evalMission();showMission(curMission);}
   if(frame%10===0)updNav(dt*10);
-  if(frame%8===0&&!inside)updSignals();if(frame%4===0&&!inside)checkRedLight(now);congT+=rdt;if(congT>20){congT=0;updCongestion();}
+  if(frame%8===0&&!inside)updSignals();congT+=rdt;if(congT>20){congT=0;updCongestion();}
   arrow.visible=false;
   if(frame%5===0)updPrompt();updHud();if(frame%2===0&&!inside)drawMini(now);
   if(dirty&&ms-lastSave>15000){lastSave=ms;save();}

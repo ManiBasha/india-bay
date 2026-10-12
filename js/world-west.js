@@ -53,7 +53,7 @@ window.WORLD = {
   zones: [
     { id: 'mumbai', name: 'Mumbai', st: 'MH', x0: 2540, z0: 8100, nx: 6, nz: 10, style: 'metro', size: 'big', food: 'MH',
       specials: { '4,0': 'localStation:Andheri', '4,1': 'rail', '4,2': 'localStation:Bandra', '4,3': 'rail', '4,4': 'rail', '4,5': 'localStation:Dadar', '4,6': 'rail', '4,7': 'rail', '4,8': 'rail', '4,9': 'localStation:Churchgate',
-        '5,8': 'csmt', '5,9': 'gateway', '3,8': 'maidan', '2,7': 'wankhede', '1,5': 'siddhivinayak', '2,4': 'policeHQ', '3,1': 'hospitalBlock', '3,2': 'biz', '5,2': 'biz', '3,3': 'biz', '5,3': 'biz', '0,0': 'beachBlock', '0,1': 'beachBlock' } },
+        '5,8': 'csmt', '5,9': 'gateway', '3,8': 'maidan', '2,7': 'wankhede', '1,5': 'siddhivinayak', '2,4': 'policeHQ', '3,1': 'hospitalBlock', '3,2': 'biz', '5,2': 'biz', '3,3': 'biz', '5,3': 'biz', '0,0': 'beachBlock', '0,1': 'beachBlock', '2,0': 'footballStadium:mum' } },
     { id: 'pune', name: 'Pune', st: 'MH', x0: 4400, z0: 9100, nx: 5, nz: 5, style: 'mid', size: 'big', food: 'MH', specials: { '2,2': 'shaniwarWada', '1,3': 'dagdusheth' } },
     { id: 'lonavala', name: 'Lonavala', st: 'MH', x0: 3780, z0: 8920, nx: 3, nz: 2, style: 'hill', size: 'small', food: 'MH', station: true, specials: {} },
     { id: 'mahabaleshwar', name: 'Mahabaleshwar', st: 'MH', x0: 4170, z0: 10020, nx: 2, nz: 2, style: 'hill', size: 'small', food: 'MH', specials: {} },
