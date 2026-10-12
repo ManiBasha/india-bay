@@ -158,10 +158,14 @@ revoke all on function public.audience_by_age() from public, anon;
 grant execute on function public.audience_by_age() to authenticated;
 
 -- ─────────────────────────────────────────────────────────────
--- MAKE YOURSELF ADMIN (run this separately, after you have signed in
--- to the game once with Google). Replace the email with yours:
---
---   insert into public.admins (user_id)
---   select id from auth.users where email = 'you@gmail.com'
---   on conflict do nothing;
+-- ADMIN: indiabaygame@gmail.com
+-- Gives that account admin access. It only works once that email has signed in
+-- at least once (game or indiabaygame.com/admin). Run this file again after that.
+-- To add another admin later, copy these lines and change the email.
 -- ─────────────────────────────────────────────────────────────
+insert into public.admins (user_id)
+select id from auth.users where email = 'indiabaygame@gmail.com'
+on conflict do nothing;
+
+-- Check who is admin:
+--   select u.email from public.admins a join auth.users u on u.id = a.user_id;

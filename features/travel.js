@@ -86,5 +86,5 @@ window.BBFeatures.push(function (bb) {
   bb.poiHandlers.local = poi => { const dests = bb.pois.filter(p => p.type === 'local' && p !== poi).map(p => ({ key: p.extra, name: p.name, x: p.x, z: p.z, arrive: { x: p.x + 2.5, z: p.z, rot: Math.PI / 2, name: p.name, zoneName: p.name } })); bookSheet(poi, ['local'], dests); };
   for (const f of W.ferries) { bb.addPoi({ type: 'ferry', name: f.a, x: f.ax, z: f.az, rot: -Math.PI / 2, extra: 'b' }); bb.addPoi({ type: 'ferry', name: f.b, x: f.bx, z: f.bz, rot: Math.PI / 2, extra: 'a' }); }
   bb.poiHandlers.ferry = poi => { const f = W.ferries[0]; const toB = poi.extra === 'b'; const d = toB ? { key: 'b', name: f.b, x: f.bx, z: f.bz, arrive: { x: f.bx - 2, z: f.bz, rot: Math.PI / 2, name: f.b, zoneName: 'Alibaug' } } : { key: 'a', name: f.a, x: f.ax, z: f.az, arrive: { x: f.ax - 3, z: f.az, rot: -Math.PI / 2, name: f.a, zoneName: 'Mumbai' } }; bookSheet(Object.assign({}, poi, { zone: null }), ['ferry'], [d]); };
-  bb.TRAVEL = { setGps, mapSheet };
+  bb.TRAVEL = { setGps, mapSheet, go };
 });

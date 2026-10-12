@@ -203,3 +203,7 @@ body.pre .hud,body.pre .pad,body.pre #chatbar{display:none!important}
 #intro .legal{line-height:1.8}
 #intro{padding-top:calc(env(safe-area-inset-top,0px) + 64px);padding-bottom:24px}
 .form input[type=date]{color-scheme:dark}
+/* billboard ad pop-up */
+.adprev{border:3px solid;border-radius:12px;padding:16px;margin:4px 0 10px;text-align:center;display:grid;gap:4px}
+.adprev b{font:800 22px/1.15 var(--f-display)}.adprev span{font:700 14px var(--f-display);opacity:.9}
+a.go{text-decoration:none;display:inline-grid;place-items:center}

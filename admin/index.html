@@ -81,8 +81,17 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
     gate.hidden = true; $('#app').hidden = false; tabs();
   }
   function signIn(guest) {
-    gate.innerHTML = `<h2>Admin sign-in</h2><p class="note">${guest ? 'You are signed in as a guest. Admins sign in with Google.' : 'Only India Bay admins can open this page.'}</p><p><button class="pri" id="g">Sign in with Google</button></p><p class="note bad" id="gm"></p>`;
-    $('#g').onclick = async () => { if (guest) await sb.auth.signOut(); const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here } }); if (error) $('#gm').textContent = error.message; };
+    gate.innerHTML = `<h2>Admin sign-in</h2><p class="note">${guest ? 'You are signed in as a guest. Admins sign in with email or Google.' : 'Only India Bay admins can open this page.'}</p>
+      <form id="em" novalidate style="display:flex;gap:8px;margin:12px 0"><input type="email" id="ea" placeholder="you@gmail.com" autocomplete="email" required><button class="pri" type="submit">Email me a link</button></form>
+      <p><button id="g">Sign in with Google</button></p><p class="note" id="gm" aria-live="polite"></p>`;
+    const gm = $('#gm');
+    $('#em').onsubmit = async e => { e.preventDefault(); const email = $('#ea').value.trim(); if (!/^\S+@\S+\.\S+$/.test(email)) { gm.textContent = 'Type your email address.'; gm.className = 'note bad'; return; }
+      if (guest) await sb.auth.signOut(); gm.textContent = 'Sending…'; gm.className = 'note';
+      const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: here, shouldCreateUser: true } });
+      if (error) { gm.textContent = /rate limit/i.test(error.message) ? 'Too many emails sent. Wait an hour and try again.' : error.message; gm.className = 'note bad'; return; }
+      gm.textContent = `Check ${email} (and spam) for a sign-in link from Supabase, then open it on this device.`; gm.className = 'note ok'; };
+    $('#g').onclick = async () => { if (guest) await sb.auth.signOut(); const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here } }); if (error) { gm.textContent = error.message; gm.className = 'note bad'; } };
+    sb.auth.getSession && fetch(C.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: C.supabaseKey } }).then(r => r.json()).then(j => { if (!(j.external && j.external.google)) $('#g').hidden = true; }).catch(() => {});
   }
   function notAdmin() {
     const email = session.user.email || 'your-email@gmail.com';
@@ -154,7 +163,7 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
   }
   async function listTab(...names) {
     await loadCfg();
-    const T = { billboards: ['Billboards and ads', 'Rooftop billboards in each city. Pick who sees each ad by age (players give their date of birth when they sign up), and set dates for paid campaigns. Use | in the text for a second line, like YOUR AD HERE|support@indiabaygame.com.'], festivals: ['Festivals', 'Real dates in India time. Check them each year: they follow the Hindu calendar.'], events: ['Happening now events', 'City events that raise taxi fares while they run.'] };
+    const T = { billboards: ['Collaborator ads', 'Paid ads for brands. An ad shows only when it has an Advertiser name, is inside its dates, and fits the player: players under 18 see only child-safe categories (food, education, sports, games, public service); adults see ads for their chosen age group. Each ad appears on at most 3 billboards per player per session. Tapping it opens the Click link. When no collaborator ad fits a billboard, the game fills it with India Bay ads for real places nearby (homes for sale, vehicles, food, jobs and more) that give directions when tapped. Use | for a second line, like FOOD IN 10 MIN|Order now.'], festivals: ['Festivals', 'Real dates in India time. Check them each year: they follow the Hindu calendar.'], events: ['Happening now events', 'City events that raise taxi fares while they run.'] };
     $('#pane').innerHTML = names.map(n => `<div class="card"><h2>${T[n][0]}</h2><p class="note">${T[n][1]}</p><div id="l_${n}"></div></div>`).join('') + `<div class="bar"><button class="pri" id="save">Save for all players</button><span class="note" id="msg" style="margin:0"></span></div>`;
     names.forEach(n => listEditor($('#l_' + n), n));
     $('#save').onclick = () => saveCfg($('#msg'));

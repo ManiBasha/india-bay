@@ -16,9 +16,7 @@ const FEST_DEFAULT=[
   {name:'Holi',type:'holi',where:'all',start:'2027-03-21',end:'2027-03-22',mult:1.3},
   {name:'Ganpati',type:'ganpati',where:'MH',start:'2027-09-04',end:'2027-09-14',mult:1.3}];
 const EVENT_DEFAULT=[{name:'Rann Utsav',zone:'bhuj',start:'2026-11-01',end:'2027-02-28',mult:1.2},{name:'Juhu beach party',zone:'mumbai',start:'2026-10-10',end:'2026-10-18',mult:1.5}];
-const BILL_DEFAULT=[{text:'INDIA BAY',fg:'#ff9f1c',bg:'#1d1433',zone:'all',start:'',end:''},{text:'चाय पियो',fg:'#2a1600',bg:'#ffc93c',zone:'all',start:'',end:''},{text:'VADA PAV ₹20',fg:'#ffffff',bg:'#d9483b',zone:'mumbai',start:'',end:''},
-  {text:'KHAMAN HOUSE',fg:'#2a1600',bg:'#f6d7a7',zone:'ahmedabad',start:'',end:''},{text:'पधारो म्हारे देस',fg:'#ffffff',bg:'#b5562f',zone:'jaipur',start:'',end:''},{text:'SUNRISE CINEMA',fg:'#ffe9b8',bg:'#2f3e8f',zone:'all',start:'',end:''},{text:'MONSOON SALE',fg:'#1d1433',bg:'#3ddc97',zone:'all',start:'',end:''},
-  {text:'YOUR AD HERE|support@indiabaygame.com',fg:'#1d1433',bg:'#ffffff',zone:'all',start:'',end:'',ages:'all'}];
+const BILL_DEFAULT=[];   // collaborator ads are added in /admin; with none running, the game shows its own ads
 const DEFAULTS={name:'India Bay',tagline:'Open-world West India: Maharashtra, Gujarat, Rajasthan and the coast',announce:'',theme:'kesar',accent:'#ffc93c',
   timeSpeed:1,timeOffset:0,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
   foodHrs:30,wcHrs:24,awakeHrs:16,
@@ -29,13 +27,20 @@ const DEFAULTS={name:'India Bay',tagline:'Open-world West India: Maharashtra, Gu
   priceMul:1,fareMul:1,startCash:500,regions:{west:true},festivals:FEST_DEFAULT,events:EVENT_DEFAULT,billboards:BILL_DEFAULT,changelog:[]};
 const THEMES={kesar:{label:'Sunset kesar',accent:'#ffc93c',panel:'rgba(20,15,38,.66)',edge:'rgba(255,214,150,.22)',sheet:'#211a3a',sheet2:'#2c2350'},neon:{label:'Bollywood neon',accent:'#ff4fa3',panel:'rgba(14,6,32,.72)',edge:'rgba(255,79,163,.38)',sheet:'#1c0f33',sheet2:'#2b1648'},monsoon:{label:'Monsoon teal',accent:'#3fd0c9',panel:'rgba(8,26,32,.7)',edge:'rgba(63,208,201,.32)',sheet:'#0f2a30',sheet2:'#173b42'},chalk:{label:'Chalk and ink',accent:'#f4f1ea',panel:'rgba(16,16,20,.74)',edge:'rgba(244,241,234,.26)',sheet:'#1b1b20',sheet2:'#2a2a31'}};
 function mergeCfg(base,over){const o=Object.assign({},base,over||{});for(const k of ['act','queue','travel','fuel','challan','regions'])o[k]=Object.assign({},base[k],(over&&over[k])||{});for(const k of ['festivals','events','billboards','changelog'])o[k]=Array.isArray(over&&over[k])?over[k]:base[k];return o;}
+// Ad categories (spec: billboard ads). kids:true = shown to players under 18 and guests without a date of birth.
+const AD_CATS=[['food','Food and food delivery',1],['education','Education and coaching',1],['sports','Sports gear, cricket',1],['games','Games (no real money)',1],['public','Public service (road safety, health)',1],
+  ['tech','Mobiles and tech',0],['fashion','Fashion',0],['twowheel','Two-wheelers',0],['streaming','Streaming and entertainment',0],['travel','Travel and hotels',0],['jobs','Jobs and careers',0],['cars','Cars',0],['home','Home and appliances',0],['banking','Banking and insurance',0]];
+const AD_BLOCKED=['real-money gaming','betting','alcohol','tobacco','loans','crypto','dating'];
+const kidSafe=c=>!!(AD_CATS.find(x=>x[0]===c)||[])[2];
+const adBlocked=c=>!!c&&!AD_CATS.some(x=>x[0]===c);
+const adLabel=c=>(AD_CATS.find(x=>x[0]===c)||[0,'Ad'])[1];
 const AGE_GROUPS=['all','under 18','18-24','25-34','35-49','50+'];
 function ageOK(group,age){if(!group||group==='all')return true;if(age==null)return false;
   if(group==='under 18')return age<18;if(group==='50+')return age>=50;const m=/^(\d+)-(\d+)$/.exec(group);return m?age>=+m[1]&&age<=+m[2]:true;}
 function ageFromDob(dob){if(!dob)return null;const d=new Date(dob+'T00:00:00');if(isNaN(d))return null;const n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return a;}
 function lists(zones){return{festivals:[['name','Name','text'],['type','Type',['navratri','diwali','uttarayan','holi','ganpati','durga','onam','other']],['where','States (MH,GJ,RJ,DD,DN or all)','text'],['start','Start','date'],['end','End','date'],['mult','Fare ×','number']],
   events:[['name','Name','text'],['zone','City',zones],['start','Start','date'],['end','End','date'],['mult','Fare ×','number']],
-  billboards:[['text','Text (use | for a second line)','text'],['fg','Text colour','color'],['bg','Background','color'],['zone','City',['all'].concat(zones)],['ages','Show to ages',AGE_GROUPS],['start','From','date'],['end','To','date']],
+  billboards:[['advertiser','Advertiser (brand)','text'],['text','Ad text (use | for a second line)','text'],['category','Category',AD_CATS.map(c=>c[0])],['link','Click link (https://…)','text'],['fg','Text colour','color'],['bg','Background','color'],['zone','City',['all'].concat(zones)],['ages','Show to ages (adults)',AGE_GROUPS],['start','From','date'],['end','To','date']],
   changelog:[['v','Version','text'],['date','Date','date'],['notes','Notes','text']]};}
-window.IBCONF={REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg,AGE_GROUPS,ageOK,ageFromDob,lists};
+window.IBCONF={AD_CATS,AD_BLOCKED,kidSafe,adBlocked,adLabel,REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg,AGE_GROUPS,ageOK,ageFromDob,lists};
 })();
