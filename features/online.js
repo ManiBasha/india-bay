@@ -218,14 +218,22 @@ window.BBFeatures.push(function (bb) {
     if (r.kind !== kind && kind !== 'i') rebuild(r, d, kind); else if (kind === 'i') r.kind = 'i';
     r.tx = d.x; r.tz = d.z; r.ty = d.y || 0; r.th = d.h; r.s = d.s || 0; r.seen = performance.now(); r.n = d.n; r.m = d.m;
     if (Math.hypot(r.tx - r.x, r.tz - r.z) > 60) { r.x = r.tx; r.z = r.tz; r.h = r.th; }
+    // Their parked vehicle
+    const pk = d.m !== 'd' && d.pv ? d.pv : '';
+    if (r.pkType !== pk) { if (r.park) { bb.scene.remove(r.park); r.park = null; } if (pk) { r.park = bb.buildVeh(pk); bb.scene.add(r.park); } r.pkType = pk; }
+    if (r.park) { r.park.position.set(d.px, d.py || 0, d.pz); r.park.rotation.y = d.ph; }
   }
-  function drop(id) { const r = remotes.get(id); if (!r) return; bb.scene.remove(r.g); freeSprite(r.tag); freeSprite(r.bub); remotes.delete(id); }
+  function drop(id) { const r = remotes.get(id); if (!r) return; bb.scene.remove(r.g); if (r.park) bb.scene.remove(r.park); freeSprite(r.tag); freeSprite(r.bub); remotes.delete(id); }
   function clearRemotes() { for (const id of [...remotes.keys()]) drop(id); }
   const selfG = new THREE.Group(); bb.scene.add(selfG); let selfBub = null, selfBubT = 0;
 
+  let lastVeh = null;
   function state() {
     const pl = bb.player, drive = pl.mode === 'drive' && pl.veh, p = bb.ppos();
-    return { t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '' };
+    if (drive) lastVeh = pl.veh;
+    const lv = !drive && lastVeh && !lastVeh.dead && bb.vehicles.includes(lastVeh) && Math.hypot(lastVeh.pos.x - p.x, lastVeh.pos.z - p.z) < 600 ? lastVeh : null;
+    const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
+    return { ...park, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '' };
   }
   bb.onUpdate(dt => {
     const now = performance.now(), k = 1 - Math.exp(-8 * Math.min(dt, .2)), hide = bb.inside;
@@ -233,7 +241,7 @@ window.BBFeatures.push(function (bb) {
       if (now - r.seen > 9000) { drop(r.id); renderChip(); continue; }
       r.x += (r.tx - r.x) * k; r.z += (r.tz - r.z) * k; r.y += (r.ty - r.y) * k;
       let dh = r.th - r.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); r.h += dh * k;
-      r.g.position.set(r.x, r.y, r.z); if (r.body) r.body.rotation.y = r.h; r.g.visible = !hide && r.kind !== 'i';
+      r.g.position.set(r.x, r.y, r.z); if (r.body) r.body.rotation.y = r.h; r.g.visible = !hide && r.kind !== 'i'; if (r.park) r.park.visible = !hide;
       if (r.kind[0] === 'f' && r.body && r.body.userData.legs) { const mv = Math.hypot(r.tx - r.x, r.tz - r.z) > .05 || Math.abs(r.s) > .3; r.walk += Math.min(dt, .2) * (mv ? 9 : 0); const a = mv ? Math.sin(r.walk) * .6 : 0; const U = r.body.userData; U.legs[0].rotation.x = a; U.legs[1].rotation.x = -a; U.arms[0].rotation.x = -a; U.arms[1].rotation.x = a; }
       if (r.bub && now > r.bubT) { freeSprite(r.bub); r.bub = null; }
     }
@@ -241,7 +249,7 @@ window.BBFeatures.push(function (bb) {
     if (selfBub && now > selfBubT) { freeSprite(selfBub); selfBub = null; }
     if (ws && ws.readyState === 1 && myId && bb.started) {
       const st = state(), t = Date.now(), L = lastSent;
-      const moved = !L || Math.hypot(st.x - L.x, st.z - L.z) > .4 || Math.abs(st.h - L.h) > .05 || st.m !== L.m || st.v !== L.v || st.c !== L.c;
+      const moved = !L || Math.hypot(st.x - L.x, st.z - L.z) > .4 || Math.abs(st.h - L.h) > .05 || st.m !== L.m || st.v !== L.v || st.c !== L.c || st.pv !== L.pv || (st.pv && Math.hypot(st.px - L.px, st.pz - L.pz) > .5);
       const gap = L ? t - L.at : 1e9;
       if ((moved && gap > 300) || gap > 4000) { ws.send(JSON.stringify(st)); st.at = t; lastSent = st; }
     }

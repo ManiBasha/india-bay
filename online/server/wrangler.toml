@@ -6,7 +6,7 @@ compatibility_date = "2026-09-01"
 
 [vars]
 # Supabase → Project Settings → API → Project URL
-SUPABASE_URL = "https://uljtvpecjibatqbihmql.supabase.co/rest/v1/"
+SUPABASE_URL = "https://uljtvpecjibatqbihmql.supabase.co"
 # Supabase → Project Settings → API Keys → Publishable key (or the legacy anon key). This key is public.
 SUPABASE_KEY = "sb_publishable_KdKpKgsZjkZ783CmVA-sRA_Ht4-s7W1"
 # Websites allowed to join, separated by commas (no slash at the end).

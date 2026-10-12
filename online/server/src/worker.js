@@ -75,6 +75,8 @@ async function whoIs(env, token) {
 
 export default {
   async fetch(req, env) {
+    // Accept the Project URL even if it was copied with /rest/v1 or a trailing slash on the end.
+    env = Object.assign({}, env, { SUPABASE_URL: String(env.SUPABASE_URL || '').trim().replace(/\/(rest|auth)\/v1.*$/, '').replace(/\/+$/, '') });
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-allow-headers': '*' } });
     if (url.pathname === '/' || url.pathname === '/health') return json({ ok: true, game: 'India Bay', regions: REGIONS });
@@ -110,7 +112,7 @@ function clean(t) {
   for (const w of BAD) t = t.replace(new RegExp('\\b' + w + '\\b', 'gi'), m => m[0] + '*'.repeat(m.length - 1));
   return t;
 }
-const pub = p => ({ id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s });
+const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph }); return o; };
 const near = (a, b, r) => Math.abs(a.x - b.x) < r && Math.abs(a.z - b.z) < r;
 
 export class Region extends DurableObject {
@@ -165,6 +167,9 @@ export class Region extends DurableObject {
       p.m = d.m === 'd' ? 'd' : d.m === 'i' ? 'i' : 'f';
       p.v = p.m === 'd' && VEH.has(d.v) ? d.v : '';
       p.c = /^#[0-9a-fA-F]{6}$/.test(d.c) ? d.c : '';
+      // The vehicle this player last got out of, so others see it parked where they left it.
+      p.pv = p.m !== 'd' && VEH.has(d.pv) ? d.pv : '';
+      p.px = num(d.px, -1e5, 1e5); p.pz = num(d.pz, -1e5, 1e5); p.py = num(d.py, -50, 500); p.ph = num(d.ph, -100, 100);
       const first = !p.ready; p.ready = true;
       ws.serializeAttachment(p);
       const out = JSON.stringify(Object.assign({ t: 'p' }, pub(p)));
