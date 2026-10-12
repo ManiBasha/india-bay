@@ -7,6 +7,8 @@ const REGIONS = ['west'];          // regions that have a live map
 const MAX_PLAYERS = 150;           // per region
 const NEAR = 700;                  // metres: players closer than this see each other
 const CHAT_NEAR = 250;             // metres: chat reaches this far
+const VOICE_MAX = 46000;           // characters of base64 audio in one voice message (about 8 seconds)
+const VOICE_MIME = new Set(['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/aac']);
 const IDLE_MS = 60_000;            // drop sockets silent for a minute
 const VEH = new Set(['cycle', 'rickshaw', 'bike', 'sportsbike', 'auto', 'taxi', 'car', 'sedan', 'suv', 'sports', 'police', 'bus', 'truck']);
 const BAD = ['fuck', 'shit', 'bitch', 'chutiya', 'madarchod', 'bhenchod', 'gandu', 'randi', 'harami', 'kamina', 'bastard', 'asshole', 'mc', 'bc'];
@@ -142,6 +144,16 @@ export class Region extends DurableObject {
     return new Response(null, { status: 101, webSocket: c });
   }
 
+  // Reads the admin's voice switch from the game settings in Supabase, at most once a minute.
+  async voiceOn() {
+    const now = Date.now(); if (this.vcCheck && now - this.vcCheck.at < 60_000) return this.vcCheck.on;
+    let on = true;
+    try { const base = String(this.env.SUPABASE_URL || '').trim().replace(/\/(rest|auth)\/v1.*$/, '').replace(/\/+$/, '');
+      const r = await fetch(base + '/rest/v1/game_config?select=data&id=eq.1', { headers: { apikey: this.env.SUPABASE_KEY } });
+      if (r.ok) { const rows = await r.json(); if (rows[0] && rows[0].data && rows[0].data.voiceChat === false) on = false; } } catch (e) {}
+    this.vcCheck = { at: now, on }; return on;
+  }
+
   send(ws, msg) { try { ws.send(msg); } catch (e) { this.players.delete(ws); } }
 
   drop(ws, code, why) {
@@ -160,7 +172,7 @@ export class Region extends DurableObject {
   async webSocketMessage(ws, raw) {
     let p = this.players.get(ws);
     if (!p) { p = ws.deserializeAttachment(); if (!p) { try { ws.close(4003, 'Unknown'); } catch (e) {} return; } this.players.set(ws, p); }
-    if (typeof raw !== 'string' || raw.length > 600) return;
+    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') ? VOICE_MAX + 300 : 600)) return;
     let d; try { d = JSON.parse(raw); } catch (e) { return; }
     const now = Date.now();
     p.seen = now;
@@ -197,6 +209,16 @@ export class Region extends DurableObject {
       if (now - (p.vAt || 0) < 150) return; p.vAt = now;
       const out = JSON.stringify({ t: 'v', a: d.a, id: p.id, n: p.name, s: num(d.s, 0, 40) | 0 });
       for (const [w, q] of this.players) if (q.id === d.to) { if (near(p, q, 150)) this.send(w, out); break; }
+    } else if (d.t === 'vc') {
+      // Push-to-talk voice message: a short recorded clip, sent to players within chat range.
+      // The admin can switch voice off for everyone (Admin → Online and moderation); the server checks it.
+      if (!(await this.voiceOn())) return this.send(ws, JSON.stringify({ t: 'vcoff' }));
+      if (now - (p.vcAt || 0) < 4000) return this.send(ws, JSON.stringify({ t: 'slow' }));
+      if (typeof d.a !== 'string' || d.a.length < 200 || d.a.length > VOICE_MAX || !/^[A-Za-z0-9+/=]+$/.test(d.a)) return;
+      const mime = VOICE_MIME.has(d.mime) ? d.mime : 'audio/webm'; const ms = num(d.ms, 300, 10000) | 0;
+      p.vcAt = now;
+      const out = JSON.stringify({ t: 'vc', id: p.id, n: p.name, a: d.a, ms, mime });
+      for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, CHAT_NEAR))) this.send(w, out);
     } else if (d.t === 'ping') {
       this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size }));
     }

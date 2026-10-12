@@ -27,17 +27,18 @@ window.BBFeatures.push(function (bb) {
   function interlude() { const S = STATIONS[cur]; say(Math.random() < .5 ? `${S.host}: ${bb.mpick(HOST)}` : `Ad break · ${bb.mpick(ADS)}`); }
   function start(i) { ac = bb.audio; if (!ac) return; if (!out) { out = ac.createGain(); out.gain.value = .5; out.connect(ac.destination); } cur = i; on = true; out.gain.value = bb.muted ? 0 : .5; newSong(); nextT = ac.currentTime + .05; if (!timer) timer = setInterval(sched, 100); el.hidden = false; say(`${STATIONS[i].host} on air`); bb.emit('radio', STATIONS[i].id); }
   function stop() { on = false; el.hidden = true; if (window.speechSynthesis) try { speechSynthesis.cancel(); } catch (e) {} }
-  // Radio never starts by itself. The player's last choice (on or off, and the station) is remembered.
+  // Radio is off every time the game starts and never starts by itself; R or Phone → Radio turns it on. The station is remembered.
+  let session = false; bb.onStart(() => { if (!session && bb.P && bb.P.extra) pref().on = false; });
   const pref = () => (bb.P.extra.radio = bb.P.extra.radio || { on: false, st: 0 });
-  function userStart(i) { const p = pref(); p.on = true; p.st = i; bb.setDirty(); start(i); }
+  function userStart(i) { const p = pref(); p.on = true; session = true; p.st = i; bb.setDirty(); start(i); }
   function userStop() { const p = pref(); p.on = false; bb.setDirty(); stop(); }
   function cycle() { if (!bb.audio) return; if (!on) userStart(pref().st || 0); else if (cur === STATIONS.length - 1) { userStop(); bb.toast('Radio off · R turns it back on', '#d6c8e4'); return; } else userStart(cur + 1); bb.toast(`📻 ${STATIONS[cur].name}`, '#ffc93c'); }
   bb.onKey('KeyR', cycle);
   bb.on('radioSetting', en => { if (!en) userStop(); else userStart(pref().st || 0); });
-  bb.on('enterVehicle', v => { const p = pref(); if (!v.spec.pedal && !on && p.on) start(p.st || 0); });
+  bb.on('enterVehicle', v => { const p = pref(); if (session && !v.spec.pedal && !on && p.on) start(p.st || 0); });
   bb.on('exitVehicle', () => { if (bb.P.phone !== 'smart') stop(); });
   bb.on('mute', m => { if (out) out.gain.value = m ? 0 : .5; if (m && window.speechSynthesis) speechSynthesis.cancel(); });
-  bb.RADIO = { get on() { return pref().on; }, userStart, userStop, cycle };
+  bb.RADIO = { get on() { return on; }, userStart, userStop, cycle };
   bb.addApp({ id: 'radio', label: 'Radio', icon: '📻', fn: () => bb.openSheet('Radio', on ? `Playing ${STATIONS[cur].name}` : 'Off · pick a station to start', STATIONS.map((s, i) => bb.rowHtml(i, s.name, `Host ${s.host}`, on && cur === i ? 'Playing' : 'Play', on && cur === i ? 'ghost' : '')).join('') + bb.rowHtml('off', 'Turn off', 'Stays off until you start it again', 'Off', 'ghost') + bb.rowHtml('voice', 'Presenter voice', speak ? 'Spoken and captioned' : 'Captions only', speak ? 'Captions only' : 'Speak', 'ghost'),
     s => s.onclick = e => { const id = e.target.dataset.id; if (id == null) return; if (id === 'off') userStop(); else if (id === 'voice') speak = !speak; else userStart(+id); bb.closeSheet(); }) });
 });

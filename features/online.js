@@ -69,7 +69,7 @@ window.BBFeatures.push(function (bb) {
       const { data } = await sb.auth.getSession(); session = data.session;
       if (q.has('code') || q.has('error')) { if (q.get('error_description')) setTimeout(() => bb.toast(q.get('error_description'), '#ff8b8b'), 800); history.replaceState(null, '', location.pathname + location.hash); }
       sb.auth.onAuthStateChange((ev, s) => { session = s; if (ev === 'SIGNED_OUT') { profile = null; priv = null; disconnect(true); } });
-      loadConfig(); setInterval(loadConfig, 5 * 60 * 1000);
+      loadConfig(); setInterval(loadConfig, 60 * 1000);
       if (session) await afterSignIn();
       if (sessionStorage.getItem('ib.cloudLoaded')) { sessionStorage.removeItem('ib.cloudLoaded'); setTimeout(() => bb.toast('☁ Loaded your cloud save', '#3ddc97'), 600); }
       renderIntro(); serverStatus();
@@ -191,6 +191,7 @@ window.BBFeatures.push(function (bb) {
     else if (d.t === 'slow') bb.toast('Wait a moment before sending again', '#ffc93c');
     else if (d.t === 'chat') chat(d);
     else if (d.t === 'v') onV(d);
+    else if (d.t === 'vc' || d.t === 'vcoff') bb.emit('voice', Object.assign({ self: d.id === myId }, d));
     else if (d.t === 'kick') { kicked = true; if (/idle/i.test(d.msg)) idleOff = true; bb.toast(d.msg + (idleOff ? ' · press any key to rejoin' : ''), '#ffc93c'); }
     else if (d.t === 'err') {
       if (d.code === 'auth' && !authRetry) { authRetry = true; try { const r = await sb.auth.refreshSession(); if (r.data && r.data.session) { session = r.data.session; return; } } catch (e) {} kicked = true; bb.toast(d.msg, '#ff8b8b'); }
@@ -394,12 +395,14 @@ window.BBFeatures.push(function (bb) {
       (riders.size ? bb.rowHtml('dropall', `Riders on board: ${riders.size}`, 'They sit with you while you drive', 'Drop them off', 'ghost') : '') +
       `<h3 class="sub">Players near you (${list.length})</h3>` +
       (list.length ? list.map(({ r, d }) => `<div class="row"><div class="nm">${bb.esc(r.n)}<small>${d < 1000 ? Math.round(d) + ' m' : (d / 1000).toFixed(1) + ' km'} · ${r.m === 'd' ? 'driving' + (r.o ? ` · ${r.o} rider${r.o > 1 ? 's' : ''}` : '') : r.m === 'i' ? 'indoors' : r.m === 'r' ? 'riding along' : 'on foot'}</small></div><div class="btnrow" style="flex-wrap:nowrap;gap:6px"><button class="buy ghost" data-mute="${bb.esc(r.n)}">${muted.has(r.n.toLowerCase()) ? 'Unmute' : 'Mute'}</button><button class="buy ghost" data-rep="${bb.esc(r.n)}">Report</button></div></div>`).join('') : '<p class="note">Nobody nearby yet. Players within about 700 m show up here and on the road.</p>') +
-      `<p class="note">Chat with <kbd>T</kbd> or the 💬 button. Messages reach players within 250 m. Be kind: reports go to the admin.</p>`,
+      (bb.VOICE ? bb.rowHtml('voicein', 'Voice messages from others', bb.VOICE.hear ? 'On · they play out loud when they arrive' : 'Off · you will not hear voice messages', bb.VOICE.hear ? 'Turn off' : 'Turn on', 'ghost') : '') +
+      `<p class="note">Chat with <kbd>T</kbd> or the 💬 button. Messages reach players within 250 m. Hold 🎙 (or V) to send a voice message. Be kind: reports go to the admin.</p>`,
       s => s.onclick = async e => {
         const id = e.target.dataset.id, mu = e.target.dataset.mute, rep = e.target.dataset.rep;
         if (id === 'conn') { if (status === 'on') disconnect(); else { offline = false; connect(); } return setTimeout(sheet, 400); }
         if (id === 'acct') { if (!isAnon()) return signOut(); if (!googleOn) return bb.toast('Google sign-in is not set up yet', '#d6c8e4'); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
         if (id === 'out') return signOut();
+        if (id === 'voicein' && bb.VOICE) { bb.VOICE.hear = !bb.VOICE.hear; return sheet(); }
         if (id === 'riders') { allowRiders = !allowRiders; try { localStorage.setItem('ib.riders', allowRiders ? '1' : '0'); } catch (er) {} if (!allowRiders) { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; } return sheet(); }
         if (id === 'dropall') { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; return sheet(); }
         if (mu) { const k = mu.toLowerCase(); muted.has(k) ? muted.delete(k) : muted.add(k); try { localStorage.setItem('ib.muted', JSON.stringify([...muted])); } catch (er) {} bb.toast(muted.has(k) ? `${mu} muted` : `${mu} unmuted`, '#d6c8e4'); return sheet(); }
@@ -439,7 +442,12 @@ window.BBFeatures.push(function (bb) {
   bb.introLabel = () => (session && profile ? profile.username : 'Sign in');
   bb.introClick = () => { if (session && profile) return bb.hubSheet(); offline = false; next = () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); };
 
-  bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, connect, disconnect };
+  // bubble over a player (or yourself) without adding a chat line; used by voice messages
+  function bubble(id, text) { if (id === myId) { freeSprite(selfBub); selfBub = tag(text, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 5000; return; }
+    const r = remotes.get(id); if (r) { freeSprite(r.bub); r.bub = tag(text, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 5000; } }
+  bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
+    send(o) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); return true; } return false; }, isMuted: n => muted.has(String(n).toLowerCase()), openChat: () => openBar(),
+    rpc: (n, a) => (sb ? sb.rpc(n, a) : Promise.resolve({ error: { message: 'offline' } })), get signedIn() { return !!(session && profile); }, get guest() { return !!(session && isAnon()); } };
 
   // Bot people and bot traffic make room for real players: the more players online near you, the fewer bots.
   // No players = 100% bots. Every player near you removes 8% and every 20 players online in the region remove 5% more,

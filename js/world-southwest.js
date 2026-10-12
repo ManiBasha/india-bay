@@ -182,7 +182,7 @@
     { name: 'NH66 Kasaragod–Kannur', pts: [[4520,14540],[4600,14760],[4720,14950],[4860,15080]] },
     { name: 'NH66 Kannur–Kozhikode', pts: [[4950,15240],[5000,15420],[5100,15580],[5160,15700]] },
     { name: 'NH66 Kozhikode–Guruvayur', pts: [[5240,15940],[5270,16100],[5320,16250],[5350,16330]] },
-    { name: 'NH66 Guruvayur–Kochi', pts: [[5370,16410],[5410,16620],[5460,16800],[5530,16980]] },
+    { name: 'NH66 Guruvayur–Kochi', pts: [[5370,16410],[5410,16620],[5500,16800]] },
     { name: 'NH66 Kochi–Alappuzha', pts: [[5570,17220],[5580,17340],[5590,17460]] },
     { name: 'NH66 Alappuzha–Kollam', pts: [[5620,17620],[5680,17780],[5760,17920],[5830,18020]] },
     { name: 'NH66 Kollam–Thiruvananthapuram', pts: [[5900,18180],[5960,18260],[6040,18280],[6090,18300]] },
@@ -190,17 +190,16 @@
     { name: 'Kanyakumari Road', pts: [[6410,18400],[6520,18500],[6600,18880]] },
     // Goa local roads
     { name: 'Arambol Road', pts: [[3480,11290],[3560,11300]] },
-    { name: 'Calangute Road', pts: [[3530,11440],[3570,11440]] },
+    { name: 'Calangute Road', pts: [[3530,11440],[3577,11442]] },
     { name: 'NH748 Panaji–Ponda', pts: [[3730,11620],[3780,11620],[3860,11620],[3940,11630]] },
     { name: 'NH748 Ponda–Mollem', pts: [[4100,11640],[4200,11720]] },
     { name: 'NH748 Anmod Ghat', pts: [[4280,11700],[4300,11560],[4240,11440],[4140,11320]] },
     { name: 'NH366 Vasco–Verna', pts: [[3600,11820],[3700,11810],[3755,11803]] },
-    { name: 'Mopa Link Road', pts: [[3700,11244],[3700,11290]] },
     { name: 'Colva Road', pts: [[3640,12060],[3560,12010]] },
-    { name: 'Palolem Road', pts: [[3780,12210],[3812,12210]] },
-    { name: 'Dudhsagar Jeep Track', pts: [[4280,11760],[4340,11790],[4370,11800]] },
+    { name: 'Palolem Road', pts: [[3780,12210],[3816,12209]] },
+    { name: 'Dudhsagar Jeep Track', pts: [[4280,11760],[4340,11790],[4355,11796]] },
     // NH48, Pune to Bengaluru
-    { name: 'NH48 Pune–Kolhapur', pts: [[4700,9500],[4650,9800],[4500,10050],[4200,10250],[3980,10420]] },
+    { name: 'NH48 Pune–Kolhapur', pts: [[4700,9500],[4650,9800],[4500,10050],[4360,10200],[4200,10250],[3980,10420]] },
     { name: 'NH48 Kolhapur–Belagavi', pts: [[3860,10540],[3950,10800],[4040,11080]] },
     { name: 'NH48 Belagavi–Dharwad', pts: [[4200,11200],[4320,11320],[4420,11500]] },
     { name: 'NH48 Hubballi–Davanagere', pts: [[4740,11740],[4900,11950],[5050,12200],[5180,12480]] },
@@ -219,7 +218,7 @@
     { name: 'Pune–Vijayapura Highway', pts: [[4800,9300],[5000,9600],[5060,10120]] },
     { name: 'Vijayapura–Kalaburagi Road', pts: [[5220,10200],[5600,9900],[5940,9700]] },
     { name: 'Kalaburagi–Bidar Road', pts: [[6180,9620],[6400,9300],[6540,9200]] },
-    { name: 'Bidar–Aurangabad Road', pts: [[6620,9040],[6580,8700],[6540,8300],[6500,8100],[6460,7980]] },
+    { name: 'Bidar–Aurangabad Road', pts: [[6620,9040],[6580,8700],[6540,8300],[6500,8100],[6460,8060]] },
     { name: 'NH50 Vijayapura–Hosapete', pts: [[5140,10280],[5300,10800],[5450,11300],[5600,11740]] },
     { name: 'NH67 Hubballi–Hosapete', pts: [[4740,11600],[5100,11650],[5400,11720],[5560,11790]] },
     { name: 'Hampi Road', pts: [[5680,11740],[5720,11700],[5760,11690]] },
@@ -227,7 +226,7 @@
     { name: 'Ballari–Bengaluru (NH44)', pts: [[6140,11980],[6400,12500],[6700,13100],[6800,13500]] },
     { name: 'Hubballi–Karwar Road', pts: [[4420,11700],[4250,11950],[4050,12200],[3930,12330]] },
     // Malnad and the ghats
-    { name: 'Honnavar–Jog Falls Road', pts: [[3990,12740],[4150,12790],[4280,12840]] },
+    { name: 'Honnavar–Jog Falls Road', pts: [[4010,12760],[4150,12790],[4280,12840]] },
     { name: 'Shivamogga–Jog Falls Road', pts: [[4880,13040],[4700,12940],[4500,12890],[4330,12860]] },
     { name: 'Shivamogga–Davanagere Road', pts: [[5120,13040],[5200,12800],[5260,12640]] },
     { name: 'Agumbe Ghat', pts: [[4900,13180],[4720,13380],[4560,13520],[4470,13660]] },
@@ -237,7 +236,7 @@
     { name: 'Sampaje Ghat', pts: [[5040,14560],[4880,14420],[4740,14300],[4640,14230]] },
     { name: 'NH766 Mysuru–Bandipur', pts: [[5900,14920],[5880,15100],[5860,15300]] },
     { name: 'NH766 Bandipur–Wayanad', pts: [[5860,15300],[5650,15380],[5490,15400]] },
-    { name: 'Thamarassery Ghat', pts: [[5330,15420],[5300,15560],[5250,15640],[5280,15700]] },
+    { name: 'Thamarassery Ghat', pts: [[5330,15440],[5300,15560],[5250,15640],[5280,15700]] },
     { name: 'Mysuru–Chamundi Hill Road', pts: [[6140,14900],[6200,14930],[6230,14950]] },
     // Kerala
     { name: 'NH544 Thrissur–Palakkad', pts: [[5680,16500],[5760,16380],[5800,16300]] },
@@ -254,8 +253,7 @@
     { name: 'Palakkad–Coimbatore Road', pts: [[5960,16260],[6200,16280],[6500,16300]] },
     { name: 'Fatorda Stadium Road', pts: [[3880,12100],[3896,12150],[3908,12150]] },
     { name: 'Kanteerava Stadium Road', pts: [[7000,14080],[7034,14080]] },
-    { name: 'Kaloor Stadium Road', pts: [[5830,17110],[5859,17110]] },
-    { name: 'Mangaluru–Kasaragod Coastal Link', pts: [[4640,14190],[4800,14300],[4900,14450]] }
+    { name: 'Kaloor Stadium Road', pts: [[5830,17110],[5859,17110]] }
   ]);
 
   add('airports', [

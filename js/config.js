@@ -18,7 +18,7 @@ const FEST_DEFAULT=[
 const EVENT_DEFAULT=[{name:'Rann Utsav',zone:'bhuj',start:'2026-11-01',end:'2027-02-28',mult:1.2},{name:'Juhu beach party',zone:'mumbai',start:'2026-10-10',end:'2026-10-18',mult:1.5}];
 const BILL_DEFAULT=[];   // collaborator ads are added in /admin; with none running, the game shows its own ads
 const DEFAULTS={name:'India Bay',tagline:'Open-world India: drive from Rajasthan to Kerala',announce:'',theme:'kesar',accent:'#ffc93c',
-  timeSpeed:1,timeOffset:0,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
+  timeSpeed:1,timeOffset:0,challansOn:false,voiceChat:true,referBonus:10000,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
   foodHrs:30,wcHrs:24,awakeHrs:16,
   act:{sleep:480,meal:30,snack:10,drink:5,cook:30,tv:60,toilet:5},
   queue:{petrol:20,cng:40,atm:15,toilet:5,ticket:20,hospital:30,checkin:30},
@@ -42,7 +42,7 @@ const STATE_OPTS=[['all','All states'],['MH','Maharashtra'],['GJ','Gujarat'],['R
 // zones: list of zone ids, or [id, name] pairs (the admin page passes names so it can show them)
 function lists(zonesIn){const zones=zonesIn.map(z=>Array.isArray(z)?z[0]:z),zoneOpts=[['all','All cities']].concat(zonesIn.map(z=>Array.isArray(z)?z:[z,z]));return{festivals:[['name','Name','text'],['type','Type',['navratri','diwali','uttarayan','holi','ganpati','durga','onam','christmas','eid','pongal','other']],['where','States','multi',STATE_OPTS],['start','Start','date'],['end','End','date'],['mult','Fare ×','number'],['gift','Gift to every player (₹)','number',{min:0,max:100000,step:50}]],
   events:[['name','Name','text'],['zone','City',zones],['start','Start','date'],['end','End','date'],['mult','Fare ×','number']],
-  billboards:[['advertiser','Advertiser (brand)','text'],['text','Ad text (use | for a second line)','text'],['category','Category',AD_CATS.map(c=>c[0])],['link','Click link (https://…)','text'],['fg','Text colour','color'],['bg','Background','color'],['zone','Cities','multi',zoneOpts],['ages','Show to ages (adults)',AGE_GROUPS],['start','From','date'],['end','To','date']],
+  billboards:[['advertiser','Advertiser (brand)','text'],['text','Ad text (use | for a second line)','text'],['category','Category',AD_CATS.map(c=>c[0])],['link','Click link (https://…)','text'],['fg','Text colour','color'],['bg','Background (not green or blue: those are road-sign colours and get swapped)','color'],['zone','Cities','multi',zoneOpts],['ages','Show to ages (adults)',AGE_GROUPS],['start','From','date'],['end','To','date']],
   gifts:[['name','Name (shown to players)','text'],['message','Message','text'],['start','From','date'],['end','To','date'],['gift','Gift to every player (₹)','number',{min:0,max:1000000,step:50}]],
   changelog:[['v','Version','text'],['date','Date','date'],['notes','Notes','text']]};}
 window.IBCONF={STATE_OPTS,AD_CATS,AD_BLOCKED,kidSafe,adBlocked,adLabel,REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg,AGE_GROUPS,ageOK,ageFromDob,lists};
