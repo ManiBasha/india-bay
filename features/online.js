@@ -7,7 +7,7 @@ window.BBFeatures.push(function (bb) {
   const THREE = bb.THREE;
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
-  let googleOn = true, sb = null, session = null, profile = null, isAdmin = false, offline = false, passed = false, next = null;
+  let priv = null, googleOn = true, sb = null, session = null, profile = null, isAdmin = false, offline = false, passed = false, next = null;
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
   const muted = new Set((() => { try { return JSON.parse(localStorage.getItem('ib.muted') || '[]'); } catch (e) { return []; } })());
@@ -53,7 +53,10 @@ window.BBFeatures.push(function (bb) {
     profile = pr.data || null;
     const ad = await sb.from('admins').select('user_id').eq('user_id', uid).maybeSingle();
     isAdmin = !!(ad.data);
-    bb.setCfgBackend(backend(isAdmin));
+    bb.setCfgBackend(backend(false));   // admin settings live on the /admin page only
+    const pv = await sb.from('profile_private').select('full_name,dob,parent_ok').eq('user_id', uid).maybeSingle();
+    priv = pv.data || null;
+    if (priv) { bb.P.fullName = priv.full_name; bb.P.dob = priv.dob; bb.P.age18 = (bb.ageFromDob(priv.dob) || 0) >= 18; bb.refreshBillboards(); }
     if (profile && profile.is_guest && !isAnon()) { await sb.from('profiles').update({ is_guest: false }).eq('id', uid); profile.is_guest = false; }
     renderIntro(); bb.setAvatar();
   }
@@ -65,7 +68,7 @@ window.BBFeatures.push(function (bb) {
       try { const st = await fetch(C.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: C.supabaseKey } }); if (st.ok) { const j = await st.json(); googleOn = !!(j.external && j.external.google); } } catch (e) {}
       const { data } = await sb.auth.getSession(); session = data.session;
       if (q.has('code') || q.has('error')) { if (q.get('error_description')) setTimeout(() => bb.toast(q.get('error_description'), '#ff8b8b'), 800); history.replaceState(null, '', location.pathname + location.hash); }
-      sb.auth.onAuthStateChange((ev, s) => { session = s; if (ev === 'SIGNED_OUT') { profile = null; disconnect(true); } });
+      sb.auth.onAuthStateChange((ev, s) => { session = s; if (ev === 'SIGNED_OUT') { profile = null; priv = null; disconnect(true); } });
       loadConfig(); setInterval(loadConfig, 5 * 60 * 1000);
       if (session) await afterSignIn();
       if (sessionStorage.getItem('ib.cloudLoaded')) { sessionStorage.removeItem('ib.cloudLoaded'); setTimeout(() => bb.toast('☁ Loaded your cloud save', '#3ddc97'), 600); }
@@ -89,14 +92,14 @@ window.BBFeatures.push(function (bb) {
     if (!ok) { bb.toast('Online is unavailable right now · playing offline', '#ffc93c'); offline = true; return next(); }
     if (offline) return next();
     if (!session) return signInSheet();
-    if (!profile) return nameSheet();
+    if (!profile || !priv) return nameSheet();
     if (await syncSave()) return;
     offline = false; next();
   }
 
   function signInSheet() {
     bb.openSheet('Play online', 'Play West India with everyone', `<div class="stack">${googleOn ? '<button class="go" data-id="google">Sign in with Google</button>' : ''}<button class="go${googleOn ? ' alt' : ''}" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
-      <p class="note">${googleOn ? 'Google keeps your progress on every device. A guest account lives in this browser only; you can link Google later from Phone → Online.' : 'A guest account keeps your progress in this browser.'}</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
+      <p class="note">${googleOn ? 'Google keeps your progress on every device. A guest account lives in this browser only; you can link Google later from Phone → Online.' : 'A guest account keeps your progress in this browser.'}</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
       s.onclick = async e => {
         const id = e.target.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
         const bad = t => { msg.textContent = t; msg.className = 'note bad'; };
@@ -111,18 +114,31 @@ window.BBFeatures.push(function (bb) {
       };
     });
   }
-  function nameSheet() {
-    const sug = bb.P.name && !bb.nameOk(bb.P.name) ? bb.P.name : '';
-    bb.openSheet('Pick your username', 'Everyone online sees this name', `<form class="form" id="un" novalidate><label>Username<input type="text" id="un_n" maxlength="10" autocomplete="off" value="${bb.esc(sug)}" placeholder="Raju2026"></label><div class="note" id="un_m">Letters and numbers, up to 10. Nobody else can have the same name.</div>
-      <label class="ck"><input type="checkbox" id="un_18"${bb.P.age18 ? ' checked' : ''}> I am 18 or older</label><div class="btnrow"><button class="go" type="submit">Continue</button></div></form>`, s => {
-      const f = s.querySelector('#un'), n = s.querySelector('#un_n'), m = s.querySelector('#un_m');
-      n.oninput = () => { const er = bb.nameOk(n.value); m.textContent = er || 'Looks good.'; m.className = 'note ' + (er ? 'bad' : 'ok'); };
+  // Create (or finish) the player: username for everyone to see, name and date of birth kept private.
+  function nameSheet(editing) {
+    const has = !!profile, P = bb.P;
+    const sug = has ? profile.username : (P.name && !bb.nameOk(P.name) ? P.name : '');
+    const pre = priv ? { fullName: priv.full_name, dob: priv.dob } : { fullName: P.fullName, dob: P.dob };
+    bb.openSheet(editing ? 'Edit profile' : has ? 'Finish your profile' : 'Create your player', editing ? 'Username, name and date of birth' : 'Takes a few seconds', `<form class="form" id="un" novalidate><label>Username<input type="text" id="un_n" maxlength="10" autocomplete="off" value="${bb.esc(sug)}" placeholder="Raju2026"></label><div class="note" id="un_m">Letters and numbers, up to 10. Nobody else can have the same name.</div>
+      ${bb.personFields(pre)}<label class="ck" id="un_pw" hidden><input type="checkbox" id="un_par"${priv && priv.parent_ok ? ' checked' : ''}> My parent or guardian agrees to me playing online</label>
+      <p class="note bad" id="un_err" aria-live="polite"></p><div class="btnrow"><button class="go" type="submit">${editing ? 'Save' : 'Continue'}</button></div></form>`, s => {
+      const f = s.querySelector('#un'), n = s.querySelector('#un_n'), m = s.querySelector('#un_m'), er = s.querySelector('#un_err'), dobI = s.querySelector('#pf_dob'), pw = s.querySelector('#un_pw');
+      const minor = () => { const a = bb.ageFromDob(dobI.value); return a != null && a < 18; };
+      const showPw = () => { pw.hidden = !minor(); }; dobI.oninput = showPw; showPw();
+      n.oninput = () => { const e2 = bb.nameOk(n.value); m.textContent = e2 || 'Looks good.'; m.className = 'note ' + (e2 ? 'bad' : 'ok'); };
       f.onsubmit = async e => {
-        e.preventDefault(); const name = n.value.trim(); const er = bb.nameOk(name); if (er) { m.textContent = er; m.className = 'note bad'; return; }
-        m.textContent = 'Checking…'; m.className = 'note';
-        const { error } = await sb.from('profiles').insert({ id: session.user.id, username: name, is_guest: isAnon() });
-        if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; }
-        profile = { username: name, is_guest: isAnon() }; bb.P.age18 = s.querySelector('#un_18').checked; bb.closeSheet(); renderIntro(); flow();
+        e.preventDefault(); er.textContent = '';
+        const name = n.value.trim(), e1 = bb.nameOk(name); if (e1) { m.textContent = e1; m.className = 'note bad'; return; }
+        const full = s.querySelector('#pf_full').value.trim(), dob = dobI.value, pe = bb.personErr(full, dob); if (pe) { er.textContent = pe; return; }
+        const parentOk = s.querySelector('#un_par').checked; if (minor() && !parentOk) { er.textContent = 'Players under 18 need a parent or guardian to agree before playing online.'; return; }
+        m.textContent = 'Saving…'; m.className = 'note';
+        if (!has) { const { error } = await sb.from('profiles').insert({ id: session.user.id, username: name, is_guest: isAnon() }); if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; } profile = { username: name, is_guest: isAnon() }; }
+        else if (name !== profile.username) { const { error } = await sb.from('profiles').update({ username: name }).eq('id', session.user.id); if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; } profile.username = name; if (ws) { disconnect(true); setTimeout(connect, 300); } }
+        const { error: pe2 } = await sb.from('profile_private').upsert({ user_id: session.user.id, full_name: full, dob, parent_ok: minor() ? parentOk : null, updated_at: new Date().toISOString() });
+        if (pe2) { er.textContent = niceErr(pe2); return; }
+        priv = { full_name: full, dob, parent_ok: minor() ? parentOk : null };
+        P.name = name; P.fullName = full; P.dob = dob; P.age18 = !minor(); bb.setDirty(); bb.refreshBillboards(); bb.setAvatar(); renderIntro(); bb.closeSheet();
+        if (editing) { bb.save(); bb.toast('Profile saved', '#3ddc97'); } else flow();
       };
     });
   }
@@ -318,7 +334,7 @@ window.BBFeatures.push(function (bb) {
     bb.openSheet('Report ' + name, 'The admin reviews every report', `<form class="form" id="rp" novalidate><label>What happened?<select id="rp_r"><option>Rude or abusive chat</option><option>Bad username</option><option>Cheating</option><option>Spamming</option><option>Other</option></select></label><label>Details (optional)<textarea id="rp_t" maxlength="200"></textarea></label><div class="btnrow"><button class="go" type="submit">Send report</button></div><p class="note" id="rp_m"></p></form>`, s => {
       s.querySelector('#rp').onsubmit = async e => {
         e.preventDefault(); const reason = (s.querySelector('#rp_r').value + ' · ' + s.querySelector('#rp_t').value).slice(0, 300);
-        const { error } = await sb.from('reports').insert({ target_name: name, reason, last_chat: lastChat[name] || null });
+        const { error } = await sb.from('reports').insert({ target_name: name, reporter_name: profile ? profile.username : null, reason, last_chat: lastChat[name] || null });
         if (error) { const m = s.querySelector('#rp_m'); m.textContent = niceErr(error); m.className = 'note bad'; return; }
         muted.add(name.toLowerCase()); try { localStorage.setItem('ib.muted', JSON.stringify([...muted])); } catch (er) {}
         bb.closeSheet(); bb.toast(`Report sent · ${name} is muted for you`, '#3ddc97');
@@ -330,38 +346,22 @@ window.BBFeatures.push(function (bb) {
   /* ---------- profile button (👤): account rows ---------- */
   bb.displayName = () => (profile ? profile.username : '');
   bb.userEmail = () => (session && session.user && !isAnon() ? session.user.email || '' : '');
-  bb.profileEdit = () => (session && profile ? renameSheet() : bb.profileSheet(false));
   function sure(e, text) { if (e && e.target && !e.target.dataset.sure) { e.target.dataset.sure = 1; e.target.textContent = text; return false; } return true; }
   bb.addProfileRows(() => {
-    if (!session || !profile) return { sub: offline ? 'Playing offline on this device' : 'Not signed in', rows: [{ id: 'p_on', label: '🌐 Play online', sub: 'See other players and keep your progress in the cloud', btn: 'Go online', cls: '' }],
-      handle: id => { if (id === 'p_on') { offline = false; next = () => { bb.closeSheet(); connect(); }; flow(); } } };
-    const rows = [{ id: 'p_on', label: status === 'on' ? '🌐 Online' : '🌐 Offline', sub: status === 'on' ? `${online} playing in West India · ${remotes.size} near you` : 'Not connected to the West India server', btn: status === 'on' ? 'Players' : 'Connect' }];
-    if (isAnon() && googleOn) rows.push({ id: 'p_link', label: '🔗 Save this player to Google', sub: 'Keep your progress on any device', btn: 'Link Google', cls: '' });
-    rows.push({ id: 'p_name', label: '✏ Change username', sub: 'Letters and numbers, must be unique', btn: 'Change' });
-    rows.push({ id: 'p_out', label: '🚪 Sign out', sub: isAnon() ? 'A guest account cannot be recovered after signing out' : 'Sign in again any time with Google', btn: 'Sign out', cls: 'danger' });
-    rows.push({ id: 'p_del', label: '🗑 Delete my online account', sub: 'Removes your username, cloud save and messages for good', btn: 'Delete', cls: 'danger' });
-    return { sub: isAnon() ? 'Guest account · this browser only' : 'Google · ' + (session.user.email || ''), rows, handle: async (id, e) => {
-      if (id === 'p_on') { if (status === 'on') return sheet(); offline = false; connect(); bb.closeSheet(); return; }
-      if (id === 'p_link') { const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
-      if (id === 'p_name') return renameSheet();
-      if (id === 'p_out') { if (isAnon() && !sure(e, 'Tap again to sign out')) return; return signOut(); }
-      if (id === 'p_del') { if (!sure(e, 'Tap again to delete for good')) return; const { error } = await sb.rpc('delete_my_account'); if (error) return bb.toast(niceErr(error), '#ff8b8b'); disconnect(true); try { await sb.auth.signOut(); } catch (er) {} localStorage.removeItem('ib.save.v3'); bb.toast('Your online account was deleted', '#d6c8e4'); setTimeout(() => location.reload(), 1200); }
+    if (!session || !profile) return { sub: offline ? 'Playing offline on this device' : 'Not signed in', top: [{ id: 'p_in', label: '🌐 Sign in to play online', sub: 'See other players and keep your progress in the cloud', btn: 'Sign in', cls: '' }], end: [],
+      handle: id => { if (id === 'p_in') { offline = false; next = passed ? () => { bb.closeSheet(); connect(); } : () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); } } };
+    const top = isAdmin ? [{ id: 'p_admin', label: '🔑 Admin panel', sub: 'Game settings, billboards, reports and support', btn: 'Open', cls: '' }] : [];
+    const end = [{ id: 'p_out', label: '🚪 Log out', sub: isAnon() ? 'A guest account cannot be recovered after logging out' : 'Sign in again any time with Google', btn: 'Log out', cls: 'danger' },
+      { id: 'p_del', label: '🗑 Delete account', sub: 'Removes your player, name, date of birth and cloud save for good', btn: 'Delete', cls: 'danger' }];
+    return { sub: isAnon() ? 'Guest account' : 'Google · ' + (session.user.email || ''), top, end, handle: async (id, e) => {
+      if (id === 'p_admin') return window.open('admin/', '_blank', 'noopener');
+      if (id === 'p_out') { if (isAnon() && !sure(e, 'Tap again to log out')) return; return signOut(); }
+      if (id === 'p_del') { if (!sure(e, 'Tap again to delete for good')) return; const { error } = await sb.rpc('delete_my_account'); if (error) return bb.toast(niceErr(error), '#ff8b8b'); disconnect(true); try { await sb.auth.signOut(); } catch (er) {} localStorage.removeItem('ib.save.v3'); bb.toast('Your account was deleted', '#d6c8e4'); setTimeout(() => location.reload(), 1200); }
     } };
   });
-  function renameSheet() {
-    bb.openSheet('Change username', 'Everyone online will see the new name', `<form class="form" id="rn" novalidate><label>New username<input type="text" id="rn_n" maxlength="10" autocomplete="off" value="${bb.esc(profile.username)}"></label><div class="note" id="rn_m">Letters and numbers, up to 10.</div><div class="btnrow"><button class="go" type="submit">Save</button></div></form>`, s => {
-      const n = s.querySelector('#rn_n'), m = s.querySelector('#rn_m');
-      n.oninput = () => { const er = bb.nameOk(n.value); m.textContent = er || 'Looks good.'; m.className = 'note ' + (er ? 'bad' : 'ok'); };
-      s.querySelector('#rn').onsubmit = async e => {
-        e.preventDefault(); const name = n.value.trim(); const er = bb.nameOk(name); if (er) { m.textContent = er; m.className = 'note bad'; return; }
-        if (name === profile.username) return bb.closeSheet();
-        m.textContent = 'Checking…'; m.className = 'note';
-        const { error } = await sb.from('profiles').update({ username: name }).eq('id', session.user.id);
-        if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; }
-        profile.username = name; bb.P.name = name; bb.setDirty(); bb.save(); bb.setAvatar(); renderIntro(); bb.closeSheet(); bb.toast('Username changed to ' + name, '#3ddc97');
-        if (ws) { disconnect(true); setTimeout(connect, 300); }
-      };
-    });
-  }
+  bb.profileEdit = () => (session && profile ? nameSheet(true) : bb.profileSheet(false));
+  bb.introLabel = () => (session && profile ? profile.username : 'Sign in');
+  bb.introClick = () => { if (session && profile) return bb.hubSheet(); offline = false; next = () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); };
+
   bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, connect, disconnect };
 });

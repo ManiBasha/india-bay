@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>India Bay Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Martel+Sans:wght@400;600&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#15112a;--panel:#1f1938;--panel2:#2a2250;--ink:#f3eefc;--muted:#b6adcc;--edge:#3a3060;--acc:#ffc93c;--ok:#3ddc97;--bad:#ff7a7a}
+:root[data-theme="light"]{--bg:#f6f1e7;--panel:#fffdf8;--panel2:#f3ecdf;--ink:#1f1a33;--muted:#5d5670;--edge:#e0d6c3;--acc:#c2410c;--ok:#13804f;--bad:#b42318}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Martel Sans",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.brand{font:800 22px "Baloo 2",sans-serif}.brand small{font:600 13px "Martel Sans",sans-serif;color:var(--muted);margin-left:6px}
+.who{color:var(--muted);font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button,.btn{font:700 14px "Baloo 2",sans-serif;border-radius:10px;border:1px solid var(--edge);background:var(--panel2);color:var(--ink);padding:7px 14px;cursor:pointer}
+button.pri{background:var(--acc);border-color:transparent;color:#1f1a33}button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px}
+nav button{white-space:nowrap}nav button[aria-selected="true"]{background:var(--acc);color:#1f1a33;border-color:transparent}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:16px;margin-bottom:14px}
+h2{font:800 20px "Baloo 2",sans-serif;margin:0 0 4px}h3{font:800 16px "Baloo 2",sans-serif;margin:0 0 10px}
+.note{color:var(--muted);font-size:13.5px;margin:0 0 10px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+label.ck{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+input,select,textarea{font:14px "Martel Sans",sans-serif;color:var(--ink);background:var(--panel2);border:1px solid var(--edge);border-radius:9px;padding:7px 9px;width:100%;min-width:0}
+input[type=checkbox]{width:18px;height:18px}input[type=color]{padding:2px;height:36px}
+textarea{min-height:70px;resize:vertical}
+details{border-top:1px solid var(--edge);padding:10px 0}details:first-of-type{border-top:0}
+summary{font:800 16px "Baloo 2",sans-serif;cursor:pointer;list-style-position:outside}
+.list .lrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;align-items:end;background:var(--panel2);border-radius:12px;padding:10px;margin:0 0 8px}
+.list .lrow .del{justify-self:end}.list .lrow label:first-child{grid-column:span 2}@media (max-width:420px){.list .lrow label:first-child{grid-column:1/-1}}
+.bar{position:sticky;bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:10px 14px;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;vertical-align:top;padding:8px 6px;border-top:1px solid var(--edge)}th{color:var(--muted);font-weight:600;font-size:12.5px}
+td.msg{white-space:pre-wrap;word-break:break-word;max-width:360px}
+.tw{overflow-x:auto}
+.stats{display:flex;gap:10px;flex-wrap:wrap}.stat{background:var(--panel2);border-radius:12px;padding:10px 14px;min-width:120px}.stat b{display:block;font:800 22px "Baloo 2",sans-serif}
+.center{max-width:460px;margin:12vh auto;text-align:center}
+code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px 6px}pre{padding:10px;text-align:left;white-space:pre-wrap}
+.pill{display:inline-block;font-size:12px;border-radius:999px;padding:1px 8px;background:var(--panel2)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="brand">🔑 India Bay <small>Admin</small></div><div class="who" id="who"></div></header>
+  <div id="gate" class="card center"><p>Loading…</p></div>
+  <div id="app" hidden>
+    <nav role="tablist" id="tabs"></nav>
+    <section id="pane"></section>
+  </div>
+</div>
+<script src="../js/site-config.js"></script>
+<script src="../js/online-config.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/world-west.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  const C = window.ONLINE || {}, K = window.IBCONF, W = window.WORLD;
+  const $ = q => document.querySelector(q), esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const gate = $('#gate');
+  if (!C.supabaseUrl || !window.supabase) { gate.innerHTML = '<h2>Online settings missing</h2><p class="note">Fill in js/online-config.js first.</p>'; return; }
+  const sb = supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' } });
+  const here = location.origin + location.pathname;
+  let session = null, cfg = null;
+
+  async function start() {
+    const { data } = await sb.auth.getSession(); session = data.session;
+    if (location.search) history.replaceState(null, '', location.pathname);
+    if (!session || session.user.is_anonymous) return signIn(session && session.user.is_anonymous);
+    $('#who').innerHTML = `${esc(session.user.email || '')} <button id="out">Log out</button>`;
+    $('#out').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    const ad = await sb.from('admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
+    if (!ad.data) return notAdmin();
+    gate.hidden = true; $('#app').hidden = false; tabs();
+  }
+  function signIn(guest) {
+    gate.innerHTML = `<h2>Admin sign-in</h2><p class="note">${guest ? 'You are signed in as a guest. Admins sign in with Google.' : 'Only India Bay admins can open this page.'}</p><p><button class="pri" id="g">Sign in with Google</button></p><p class="note bad" id="gm"></p>`;
+    $('#g').onclick = async () => { if (guest) await sb.auth.signOut(); const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here } }); if (error) $('#gm').textContent = error.message; };
+  }
+  function notAdmin() {
+    const email = session.user.email || 'your-email@gmail.com';
+    gate.innerHTML = `<h2>Not an admin</h2><p class="note">${esc(email)} doesn't have admin access yet. To give it, run this in Supabase → SQL Editor:</p><pre>insert into public.admins (user_id)\nselect id from auth.users where email = '${esc(email)}'\non conflict do nothing;</pre><p class="note">Then reload this page.</p>`;
+  }
+
+  /* ---------- tabs ---------- */
+  const TABS = [['settings', 'Game settings'], ['ads', 'Billboards and ads'], ['fest', 'Festivals and events'], ['reports', 'Reports'], ['support', 'Support'], ['sugg', 'Suggestions'], ['players', 'Players']];
+  let cur = 'settings';
+  function tabs() {
+    $('#tabs').innerHTML = TABS.map(([id, l]) => `<button role="tab" data-t="${id}" aria-selected="${id === cur}">${l}</button>`).join('');
+    $('#tabs').onclick = e => { const t = e.target.dataset.t; if (t) { cur = t; tabs(); } };
+    ({ settings: settingsTab, ads: () => listTab('billboards'), fest: () => listTab('festivals', 'events'), reports: reportsTab, support: supportTab, sugg: suggTab, players: playersTab })[cur]();
+  }
+  async function loadCfg() { if (cfg) return cfg; const { data, error } = await sb.from('game_config').select('data').eq('id', 1).maybeSingle(); if (error) throw error; cfg = K.mergeCfg(K.DEFAULTS, data && data.data); return cfg; }
+  async function saveCfg(msgEl) {
+    msgEl.textContent = 'Saving…'; msgEl.className = 'note';
+    cfg.name = String(cfg.name || '').trim() || K.DEFAULTS.name;
+    const { error } = await sb.from('game_config').upsert({ id: 1, data: cfg, updated_at: new Date().toISOString() });
+    if (error) { msgEl.textContent = 'Could not save: ' + error.message; msgEl.className = 'note bad'; return; }
+    msgEl.textContent = 'Saved. Players get the new settings when they load the game, or within 5 minutes.'; msgEl.className = 'note ok';
+  }
+  const get = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+  function set(o, p, v) { const k = p.split('.'); let a = o; for (let i = 0; i < k.length - 1; i++) a = a[k[i]]; a[k[k.length - 1]] = v; }
+
+  /* ---------- settings form ---------- */
+  const ACT = { sleep: 'Full sleep', meal: 'Meal', snack: 'Snack', drink: 'Drink', cook: 'Cooking', tv: 'TV cricket', toilet: 'Toilet' };
+  const QUE = { petrol: 'Petrol pump', cng: 'CNG pump', atm: 'ATM', toilet: 'Public toilet', ticket: 'Railway ticket counter', hospital: 'Hospital', checkin: 'Airport check-in' };
+  const TRV = { sleeper: 'Train sleeper', ac: 'Train AC', flight: 'Flight', bus: 'Bus', bottaxi: 'Bot taxi', ferry: 'Ferry', local: 'Mumbai local' };
+  const CHL = { signal: 'Red light', licence: 'No licence', helmet: 'No helmet', puc: 'No PUC', insurance: 'No insurance', speeding: 'Speeding', queue: 'Queue jumping' };
+  const num = (p, l, min, max, step) => `<label>${l}<input type="number" data-p="${p}" min="${min}" max="${max}" step="${step || 1}"></label>`;
+  const txt = (p, l, max) => `<label>${l}<input type="text" data-p="${p}" maxlength="${max}"></label>`;
+  const ck = (p, l) => `<label class="ck"><input type="checkbox" data-p="${p}" data-b="1"> ${l}</label>`;
+  const sel = (p, l, opts) => `<label>${l}<select data-p="${p}">${opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select></label>`;
+  async function settingsTab() {
+    const c = await loadCfg();
+    const S = [
+      ['Game', txt('name', 'Game name', 40) + txt('tagline', 'Tagline', 90) + `<label style="grid-column:1/-1">Announcement on the start screen<textarea data-p="announce" maxlength="240" placeholder="Diwali update: double fares this week"></textarea></label>`],
+      ['Look', sel('theme', 'Colour theme', Object.entries(K.THEMES).map(([k, t]) => [k, t.label])) + `<label>Accent colour<input type="color" data-p="accent"></label>`],
+      ['Bay clock and weather', num('timeSpeed', 'Time speed (game minutes per real second)', 0, 10, .5) + num('timeOffset', 'Clock shift (game minutes)', -1440, 1440, 10) + sel('weather', 'Weather', [['auto', 'Follows the season'], ['clear', 'Always clear'], ['cloudy', 'Cloudy'], ['rain', 'Rain'], ['monsoon', 'Monsoon storm'], ['fog', 'Fog']])],
+      ['Needs and activity times', ck('needs', 'Hunger, toilet and sleep needs') + num('foodHrs', 'Food lasts (game hours)', 2, 48) + num('wcHrs', 'Bladder lasts (game hours)', 2, 48) + num('awakeHrs', 'Awake before exhausted (game hours)', 4, 48) + Object.keys(ACT).map(k => num('act.' + k, ACT[k] + ' (game minutes)', 1, 720)).join('')],
+      ['Queues (real seconds per person)', Object.keys(QUE).map(k => num('queue.' + k, QUE[k], 1, 300)).join('')],
+      ['Travel tickets and times', Object.keys(TRV).map(k => num('travel.' + k + '.0', TRV[k] + ' ticket (₹)', 0, 100000, 10) + num('travel.' + k + '.1', TRV[k] + ' longest trip (s)', 5, 1800, 5)).join('')],
+      ['Streets and police', num('traffic', 'Traffic vehicles near the player', 0, 60) + num('peds', 'Pedestrians near the player', 0, 80) + sel('police', 'Police', [['off', 'Off'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']]) + ck('weapons', 'Weapons and bank robbery')],
+      ['Economy', num('priceMul', 'Prices ×', .5, 3, .1) + num('fareMul', 'Job pay ×', .5, 3, .1) + num('startCash', 'Starting cash (₹)', 0, 10000000, 100) + num('fuel.petrol', 'Petrol ₹/L', 10, 500) + num('fuel.diesel', 'Diesel ₹/L', 10, 500) + num('fuel.cng', 'CNG ₹/L', 10, 500) + num('toll', 'Toll (₹)', 0, 5000, 10) + Object.keys(CHL).map(k => num('challan.' + k, CHL[k] + ' challan (₹)', 0, 100000, 100)).join('')],
+      ['Regions', K.REGIONS.map(r => `<label class="ck"><input type="checkbox" data-p="regions.${r.id}" data-b="1"${r.map ? '' : ' disabled'}> ${esc(r.name)}${r.map ? '' : ' (map not built yet)'}</label>`).join('')]
+    ];
+    $('#pane').innerHTML = `<div class="card"><h2>Game settings</h2><p class="note">These apply to every player.</p><form id="f" novalidate>${S.map(([t, h], i) => `<details${i === 0 ? ' open' : ''}><summary>${t}</summary><div class="grid" style="margin-top:10px">${h}</div></details>`).join('')}
+      <details><summary>Changelog</summary><p class="note">Add an entry with a higher version number to show players a What's new pop-up.</p><div id="l_changelog"></div></details></form>
+      <div class="bar"><button class="pri" id="save">Save for all players</button><button id="reset" class="danger">Reset to defaults</button><span class="note" id="msg" style="margin:0"></span></div></div>`;
+    const f = $('#f');
+    f.querySelectorAll('[data-p]').forEach(el => { const v = get(c, el.dataset.p); if (el.dataset.b) el.checked = !!v; else if (v != null) el.value = v; });
+    listEditor($('#l_changelog'), 'changelog');
+    f.addEventListener('input', e => { const el = e.target; if (!el.dataset.p) return; let v = el.dataset.b ? el.checked : el.type === 'number' ? Math.min(+el.max || 1e9, Math.max(+el.min || -1e9, +el.value || 0)) : el.value; if (el.dataset.p === 'theme') { f.querySelector('[data-p=accent]').value = K.THEMES[el.value].accent; set(c, 'accent', K.THEMES[el.value].accent); } set(c, el.dataset.p, v); });
+    $('#save').onclick = () => saveCfg($('#msg'));
+    $('#reset').onclick = () => { if (!confirm('Reset every setting to the defaults? You still need to press Save.')) return; cfg = JSON.parse(JSON.stringify(K.DEFAULTS)); settingsTab(); };
+  }
+  function listEditor(box, name) {
+    const cols = K.lists(W.zones.map(z => z.id))[name];
+    const draw = () => {
+      box.innerHTML = `<div class="list">${(cfg[name] || []).map((row, i) => `<div class="lrow">${cols.map(([k, l, t]) => Array.isArray(t) ? `<label>${esc(l)}<select data-i="${i}" data-k="${k}">${t.map(o => `<option${o === (row[k] || (k === 'ages' ? 'all' : '')) ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>` : `<label>${esc(l)}<input type="${t}" data-i="${i}" data-k="${k}" value="${esc(row[k])}"${t === 'number' ? ' step="0.1" min="0.5" max="3"' : ''}></label>`).join('')}<button type="button" class="del danger" data-del="${i}">Remove</button></div>`).join('') || '<p class="note">None yet.</p>'}</div><button type="button" data-add="1">+ Add</button>`;
+    };
+    draw();
+    box.oninput = box.onchange = e => { const el = e.target; if (el.dataset.k == null) return; const i = +el.dataset.i; cfg[name] = cfg[name].slice(); cfg[name][i] = Object.assign({}, cfg[name][i], { [el.dataset.k]: el.type === 'number' ? +el.value : el.value }); };
+    box.onclick = e => {
+      if (e.target.dataset.del != null) { cfg[name] = cfg[name].filter((_, i) => i !== +e.target.dataset.del); draw(); }
+      if (e.target.dataset.add) { const row = {}; for (const [k, , t] of cols) row[k] = Array.isArray(t) ? t[0] : t === 'number' ? 1 : t === 'color' ? '#ffffff' : t === 'date' ? new Date().toISOString().slice(0, 10) : ''; if (name === 'billboards') { row.fg = '#1d1433'; row.start = ''; row.end = ''; } cfg[name] = (cfg[name] || []).concat([row]); draw(); }
+    };
+  }
+  async function listTab(...names) {
+    await loadCfg();
+    const T = { billboards: ['Billboards and ads', 'Rooftop billboards in each city. Pick who sees each ad by age (players give their date of birth when they sign up), and set dates for paid campaigns. Use | in the text for a second line, like YOUR AD HERE|support@indiabaygame.com.'], festivals: ['Festivals', 'Real dates in India time. Check them each year: they follow the Hindu calendar.'], events: ['Happening now events', 'City events that raise taxi fares while they run.'] };
+    $('#pane').innerHTML = names.map(n => `<div class="card"><h2>${T[n][0]}</h2><p class="note">${T[n][1]}</p><div id="l_${n}"></div></div>`).join('') + `<div class="bar"><button class="pri" id="save">Save for all players</button><span class="note" id="msg" style="margin:0"></span></div>`;
+    names.forEach(n => listEditor($('#l_' + n), n));
+    $('#save').onclick = () => saveCfg($('#msg'));
+    if (names[0] === 'billboards') { const { data } = await sb.rpc('audience_by_age'); if (data && data.length) $('#pane').insertAdjacentHTML('afterbegin', `<div class="card"><h3>Players by age</h3><div class="stats">${data.map(r => `<div class="stat"><b>${r.players}</b>${esc(r.age_group)}</div>`).join('')}</div></div>`); }
+  }
+
+  /* ---------- reports, support, suggestions, players ---------- */
+  const when = t => new Date(t).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  const STAT = ['new', 'reviewed', 'action taken', 'dismissed'];
+  const statSel = (tbl, id, v) => `<select data-tbl="${tbl}" data-id="${id}">${STAT.map(s => `<option${s === v ? ' selected' : ''}>${s}</option>`).join('')}</select>`;
+  function bindStatus() { $('#pane').onchange = async e => { const el = e.target; if (!el.dataset.tbl) return; const { error } = await sb.from(el.dataset.tbl).update({ status: el.value }).eq('id', +el.dataset.id); el.style.outline = error ? '2px solid var(--bad)' : '2px solid var(--ok)'; if (error) alert(error.message); }; }
+  async function table(tbl, cols, head, row, title, intro) {
+    $('#pane').innerHTML = `<div class="card"><h2>${title}</h2><p class="note">${intro}</p><div class="tw" id="tw">Loading…</div></div>`;
+    const { data, error } = await sb.from(tbl).select(cols).order('created_at', { ascending: false }).limit(200);
+    if (error) { $('#tw').innerHTML = `<p class="bad">${esc(error.message)}</p><p class="note">If this says the table or column doesn't exist, run the latest supabase-update SQL file.</p>`; return; }
+    $('#tw').innerHTML = data.length ? `<table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${data.map(row).join('')}</table>` : '<p class="note">Nothing here yet.</p>';
+    bindStatus();
+  }
+  const reportsTab = () => table('reports', 'id,created_at,target_name,reporter_name,reason,last_chat,status', ['When', 'Reported player', 'Reason and message', 'Their last chat', 'Sent by', 'Status'],
+    r => `<tr><td>${when(r.created_at)}</td><td><b>${esc(r.target_name)}</b></td><td class="msg">${esc(r.reason)}</td><td class="msg">${esc(r.last_chat || '')}</td><td>${esc(r.reporter_name || '(deleted account)')}</td><td>${statSel('reports', r.id, r.status)}</td></tr>`,
+    'Player reports', 'Reports stay here even if the player who sent them deletes their account.');
+  const supportTab = () => table('support_messages', 'id,created_at,name,topic,message,reply_email,page,status', ['When', 'From', 'Topic', 'Message', 'Reply to', 'Status'],
+    r => `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || '')}</td><td>${esc(r.topic || '')}</td><td class="msg">${esc(r.message)}<br><small class="note">${esc(r.page || '')}</small></td><td>${r.reply_email ? `<a href="mailto:${esc(r.reply_email)}?subject=${encodeURIComponent('Re: India Bay · ' + (r.topic || 'support'))}">${esc(r.reply_email)}</a>` : '<span class="note">none</span>'}</td><td>${statSel('support_messages', r.id, r.status)}</td></tr>`,
+    'Support messages', 'From the Contact support form. Click an email address to reply from your mail app.');
+  const suggTab = () => table('suggestions', 'id,created_at,name,region,text', ['When', 'From', 'Region', 'Suggestion'],
+    r => `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || '')}</td><td>${esc(r.region || '')}</td><td class="msg">${esc(r.text)}</td></tr>`, 'Player suggestions', 'Schedule and event ideas from players.');
+  async function playersTab() {
+    $('#pane').innerHTML = `<div class="card"><h2>Players</h2><div class="stats" id="st"></div></div><div class="card"><h3>Newest players</h3><div class="tw" id="tw">Loading…</div></div>`;
+    const tot = await sb.from('profiles').select('id', { count: 'exact', head: true });
+    const gst = await sb.from('profiles').select('id', { count: 'exact', head: true }).eq('is_guest', true);
+    let live = '–'; try { const r = await fetch(String(C.serverUrl).replace(/\/$/, '') + '/status'); const j = await r.json(); live = j.west; } catch (e) {}
+    $('#st').innerHTML = `<div class="stat"><b>${tot.count ?? '–'}</b>accounts</div><div class="stat"><b>${gst.count ?? '–'}</b>guests</div><div class="stat"><b>${(tot.count ?? 0) - (gst.count ?? 0)}</b>Google</div><div class="stat"><b>${live}</b>online now</div>`;
+    const { data } = await sb.from('profiles').select('username,is_guest,created_at').order('created_at', { ascending: false }).limit(50);
+    $('#tw').innerHTML = data && data.length ? `<table><tr><th>Username</th><th>Account</th><th>Joined</th></tr>${data.map(p => `<tr><td>${esc(p.username)}</td><td><span class="pill">${p.is_guest ? 'Guest' : 'Google'}</span></td><td>${when(p.created_at)}</td></tr>`).join('')}</table>` : '<p class="note">No players yet.</p>';
+  }
+  start().catch(e => { gate.innerHTML = `<h2>Something went wrong</h2><p class="note bad">${esc(e.message || e)}</p>`; });
+})();
+</script>
+</body>
+</html>

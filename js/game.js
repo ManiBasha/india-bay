@@ -4,28 +4,13 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='3.4';
+const VERSION='3.5';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
-const REGIONS=[
-  {id:'west',name:'West',states:'Maharashtra, Gujarat, Rajasthan, Dadra & Nagar Haveli and Daman & Diu',map:true},
-  {id:'north',name:'North',states:'Delhi, Punjab, Haryana, Chandigarh, Himachal Pradesh, Uttarakhand, J&K, Ladakh'},
-  {id:'central',name:'Central',states:'Uttar Pradesh, Madhya Pradesh, Chhattisgarh'},
-  {id:'east',name:'East',states:'West Bengal, Bihar, Jharkhand, Odisha'},
-  {id:'northeast',name:'Northeast',states:'Assam, Arunachal Pradesh, Meghalaya, Manipur, Mizoram, Nagaland, Tripura, Sikkim'},
-  {id:'southwest',name:'South-West',states:'Karnataka, Kerala, Goa, Lakshadweep'},
-  {id:'southeast',name:'South-East',states:'Tamil Nadu, Andhra Pradesh, Telangana, Puducherry, Andaman & Nicobar'}];
-const FEST_DEFAULT=[
-  {name:'Navratri',type:'navratri',where:'GJ,MH,RJ,DD,DN',start:'2026-10-11',end:'2026-10-20',mult:1.2},
-  {name:'Diwali',type:'diwali',where:'all',start:'2026-11-06',end:'2026-11-10',mult:1.5},
-  {name:'Uttarayan',type:'uttarayan',where:'GJ',start:'2027-01-14',end:'2027-01-15',mult:1.2},
-  {name:'Holi',type:'holi',where:'all',start:'2027-03-21',end:'2027-03-22',mult:1.3},
-  {name:'Ganpati',type:'ganpati',where:'MH',start:'2027-09-04',end:'2027-09-14',mult:1.3}];
-const EVENT_DEFAULT=[{name:'Rann Utsav',zone:'bhuj',start:'2026-11-01',end:'2027-02-28',mult:1.2},{name:'Juhu beach party',zone:'mumbai',start:'2026-10-10',end:'2026-10-18',mult:1.5}];
-const BILL_DEFAULT=[{text:'INDIA BAY',fg:'#ff9f1c',bg:'#1d1433',zone:'all',start:'',end:''},{text:'चाय पियो',fg:'#2a1600',bg:'#ffc93c',zone:'all',start:'',end:''},{text:'VADA PAV ₹20',fg:'#ffffff',bg:'#d9483b',zone:'mumbai',start:'',end:''},
-  {text:'KHAMAN HOUSE',fg:'#2a1600',bg:'#f6d7a7',zone:'ahmedabad',start:'',end:''},{text:'पधारो म्हारे देस',fg:'#ffffff',bg:'#b5562f',zone:'jaipur',start:'',end:''},{text:'SUNRISE CINEMA',fg:'#ffe9b8',bg:'#2f3e8f',zone:'all',start:'',end:''},{text:'MONSOON SALE',fg:'#1d1433',bg:'#3ddc97',zone:'all',start:'',end:''}];
+const {REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg}=window.IBCONF;
 const CHANGELOG=[
+  {v:'3.5',date:'2026-10-12',notes:'A cleaner start screen: just the game, your 👤 profile at the top, and the privacy policy and support links at the bottom.\nCreating a player now asks for your name and date of birth (kept private), so billboards can show ads suitable for your age.\nProfile holds Achievements, Settings, Privacy policy, Contact support, Log out and Delete account.\nSupport and advertising: support@indiabaygame.com.'},
   {v:'3.4',date:'2026-10-12',notes:'New 👤 Profile button in the top row: your account, settings, privacy policy and Contact support in one place.\nOnline players can change their username, sign out, or delete their online account from Profile.\nOther players now see your vehicle parked where you left it.\nPrivacy policy and Contact support links on the start screen.'},
   {v:'3.3',date:'2026-10-11',notes:'Online play: sign in with Google or as a guest, pick a unique username, and your progress is saved in the cloud.\nSee other players walking and driving around West India, with their names above them.\nChat with players near you (T or the 💬 button), with mute and report in Phone → Online.\nAdmin settings now reach every player on the hosted game.'},
   {v:'3.2',date:'2026-10-11',notes:'Cleaner screen: menu, phone, settings and camera are four icons in one row, with the date, time and weather removed from the corner.\nDirections sit as a small chip under those icons, and the 3D arrow in front of the vehicle is gone; the blue line on the minimap shows the way.\nOn phones the health bars and minimap are smaller, so you see more road.\nDrag with the mouse or a finger to look around; the camera returns behind you after a moment.\nThe radio never starts by itself. Turn it on once and it remembers your station in every vehicle until you turn it off.\nAll India map shows the real state outlines; tap a state to see its region.\nTapping a map now shows a card with a Directions button, like a maps app.\nTraffic signals at city junctions: cars stop at red, and jumping a red light costs a ₹1,000 e-challan.\nTraffic jams appear in orange and red on the maps, and directions route around them, with an arrival time.'},
@@ -33,16 +18,6 @@ const CHANGELOG=[
   {v:'3.0',date:'2026-10-11',notes:'The whole West region is open: Maharashtra, Gujarat, Rajasthan, Daman & Diu and Dadra & Nagar Haveli, with 28 cities and towns, 57 famous places, 13 airports, the Arabian Sea coast, highways and expressways.\nTrains, flights, buses, bot taxis, the Mumbai local and the Gateway–Mandwa ferry.\nCycles, motorbikes, sports bikes, cycle rickshaws and sedans. Fuel, damage, mechanics, insurance, PUC, licences and traffic police checks.\nJobs with an agent or freelance: food delivery, auto, cab, truck, bus and dabbawala, each with a star rating.\nShared Bay clock (1 game minute = 1 real second), real-time needs, queues, festivals, radio, BayGame, photo mode and clips, story chapter, achievements and daily rewards.'},
   {v:'2.0',date:'2026-10-10',notes:'Open-world Mumbai with admin settings, banks, shops, weapons, police stars, homes, needs and first-person view.'},
   {v:'1.0',date:'2026-10-10',notes:'First drive along the Mumbai seafront in an auto rickshaw.'}];
-const DEFAULTS={name:'India Bay',tagline:'Open-world West India: Maharashtra, Gujarat, Rajasthan and the coast',announce:'',theme:'kesar',accent:'#ffc93c',
-  timeSpeed:1,timeOffset:0,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
-  foodHrs:30,wcHrs:24,awakeHrs:16,
-  act:{sleep:480,meal:30,snack:10,drink:5,cook:30,tv:60,toilet:5},
-  queue:{petrol:20,cng:40,atm:15,toilet:5,ticket:20,hospital:30,checkin:30},
-  travel:{sleeper:[400,360],ac:[1200,300],flight:[4500,120],bus:[250,420],bottaxi:[2500,240],ferry:[300,90],local:[10,40]},
-  fuel:{petrol:100,diesel:90,cng:80},challan:{licence:5000,helmet:1000,puc:10000,insurance:2000,speeding:2000,queue:500,signal:1000},toll:150,
-  priceMul:1,fareMul:1,startCash:500,regions:{west:true},festivals:FEST_DEFAULT,events:EVENT_DEFAULT,billboards:BILL_DEFAULT,changelog:[]};
-const THEMES={kesar:{label:'Sunset kesar',accent:'#ffc93c',panel:'rgba(20,15,38,.66)',edge:'rgba(255,214,150,.22)',sheet:'#211a3a',sheet2:'#2c2350'},neon:{label:'Bollywood neon',accent:'#ff4fa3',panel:'rgba(14,6,32,.72)',edge:'rgba(255,79,163,.38)',sheet:'#1c0f33',sheet2:'#2b1648'},monsoon:{label:'Monsoon teal',accent:'#3fd0c9',panel:'rgba(8,26,32,.7)',edge:'rgba(63,208,201,.32)',sheet:'#0f2a30',sheet2:'#173b42'},chalk:{label:'Chalk and ink',accent:'#f4f1ea',panel:'rgba(16,16,20,.74)',edge:'rgba(244,241,234,.26)',sheet:'#1b1b20',sheet2:'#2a2a31'}};
-function mergeCfg(base,over){const o=Object.assign({},base,over||{});for(const k of ['act','queue','travel','fuel','challan','regions'])o[k]=Object.assign({},base[k],(over&&over[k])||{});for(const k of ['festivals','events','billboards','changelog'])o[k]=Array.isArray(over&&over[k])?over[k]:base[k];return o;}
 let CFG=mergeCfg(DEFAULTS,store.get('ib.cfg'));let savedCFG=CFG;
 const price=b=>Math.max(5,Math.round(b*CFG.priceMul/5)*5);
 const inr=n=>(n<0?'−':'')+'₹'+Math.abs(Math.round(n)).toLocaleString('en-IN');
@@ -179,7 +154,7 @@ function tree(x,z,s=1,mat){const t=new THREE.CylinderGeometry(.25*s,.35*s,3*s,5)
 const flags=[];const flagGeo=new THREE.BufferGeometry();flagGeo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,0,-1.6,0,3,-.8,0],3));flagGeo.computeVertexNormals();const flagMat=new THREE.MeshLambertMaterial({color:0xff8a1c,side:THREE.DoubleSide});
 function addFlag(x,y,z,big){const f=new THREE.Mesh(flagGeo,flagMat);f.position.set(x,y,z);if(big)f.scale.setScalar(2.2);scene.add(f);flags.push(f);box(.08,big?6:3.5,.08,x,y-(big?2.5:1.7),z,M.pole);}
 const signTexCache=[];
-function signTex(t,fg,bg,w=512,h=128){return canvasTex(w,h,x=>{x.fillStyle=bg;x.fillRect(0,0,w,h);x.strokeStyle=fg;x.lineWidth=Math.max(4,h/20);x.strokeRect(h/14,h/14,w-h/7,h-h/7);x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';let s=h*.55;x.font=`800 ${s}px "Baloo 2", sans-serif`;while(x.measureText(t).width>w*.86&&s>12){s-=4;x.font=`800 ${s}px "Baloo 2", sans-serif`;}x.fillText(t,w/2,h*.56);},false);}
+function signTex(t,fg,bg,w=512,h=128){return canvasTex(w,h,x=>{x.fillStyle=bg;x.fillRect(0,0,w,h);x.strokeStyle=fg;x.lineWidth=Math.max(4,h/20);x.strokeRect(h/14,h/14,w-h/7,h-h/7);x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';const L=String(t).split('|').map(q=>q.trim()).filter(Boolean).slice(0,2);if(L.length>1){let s1=h*.4,s2=h*.24;const fit=(q,sz,wt)=>{x.font=`${wt} ${sz}px "Baloo 2", sans-serif`;while(x.measureText(q).width>w*.86&&sz>8){sz-=2;x.font=`${wt} ${sz}px "Baloo 2", sans-serif`;}return sz;};fit(L[0],s1,800);x.fillText(L[0],w/2,h*.38);fit(L[1],s2,700);x.fillText(L[1],w/2,h*.72);return;}t=L[0]||'';let s=h*.55;x.font=`800 ${s}px "Baloo 2", sans-serif`;while(x.measureText(t).width>w*.86&&s>12){s-=4;x.font=`800 ${s}px "Baloo 2", sans-serif`;}x.fillText(t,w/2,h*.56);},false);}
 function addSign(text,x,y,z,ry,w,h,fg,bg){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:signTex(text,fg,bg,512,Math.round(512*h/w)),side:THREE.DoubleSide}));m.position.set(x,y,z);m.rotation.y=ry;scene.add(m);return m;}
 const clockTex=canvasTex(128,128,x=>{x.fillStyle='#f6f1e3';x.beginPath();x.arc(64,64,60,0,6.29);x.fill();x.strokeStyle='#2a2420';x.lineWidth=6;x.stroke();x.lineWidth=5;x.beginPath();x.moveTo(64,64);x.lineTo(64,24);x.moveTo(64,64);x.lineTo(92,70);x.stroke();},false);
 
@@ -341,7 +316,8 @@ flushStatic();
 
 /* rooftop billboards near the player */
 const billboardMeshes=[];
-function activeBillboards(zid){const iso=istISO();return CFG.billboards.filter(b=>(b.zone==='all'||b.zone===zid)&&(!b.start||b.start<=iso)&&(!b.end||b.end>=iso));}
+function playerAge(){return IBCONF.ageFromDob(P&&P.dob);}
+function activeBillboards(zid){const iso=istISO(),age=playerAge();return CFG.billboards.filter(b=>(b.zone==='all'||b.zone===zid)&&(!b.start||b.start<=iso)&&(!b.end||b.end>=iso)&&IBCONF.ageOK(b.ages,age));}
 function refreshBillboards(){for(const m of billboardMeshes){scene.remove(m);m.material.map.dispose();m.material.dispose();}billboardMeshes.length=0;zoneBB.clear();}
 const zoneBB=new Map();
 function updBillboards(px,pz){for(const [id,zd] of zoneData){const z=zd.z;const cx=z.x0+z.nx*40,cz=z.z0+z.nz*40;const near=Math.hypot(cx-px,cz-pz)<900;const has=zoneBB.has(id);
@@ -552,7 +528,7 @@ function cycleWeapon(){const list=P.weapons.filter(w=>CFG.weapons||WEAP[w].melee
 function updWeap(){const Wp=WEAP[P.weapon]||WEAP.fist;$('#weap').textContent=Wp.ammo?`${Wp.name} · ${P.ammo[Wp.ammo]}`:Wp.name;for(const k in gunMeshes)gunMeshes[k].visible=k===P.weapon;}
 
 /* ================= events + hooks ================= */
-let started=false,startedOnce=false;
+let started=false,startedOnce=false;document.body.classList.add('pre');
 const bus={};function on(ev,fn){(bus[ev]=bus[ev]||[]).push(fn);}function emit(ev,d){for(const f of bus[ev]||[]){try{f(d);}catch(e){console.error(e);}}}
 const hooks={update:[],start:[],afterRender:[],key:{}};const poiHandlers={};const missions=[];const speedMods=[];const apps=[];
 
@@ -753,19 +729,26 @@ function garageSheet(){openSheet('🚗 Garage',`${P.cars.length} vehicle${P.cars
 function settingsSheet(){const rOff=!(P.extra.radio&&P.extra.radio.on);openSheet('⚙ Settings',P.name?`Playing on this device as ${esc(P.name)}`:'Playing solo',appGrid('settings')+rowHtml('sound','Sound',muted?'Off':'On',muted?'Turn on':'Turn off','ghost')+rowHtml('radio','Radio',rOff?'Off · stays off until you turn it on':'On · remembers your station · R switches',rOff?'Turn on':'Turn off','ghost')+rowHtml('help','Controls','Keyboard and touch','Show','ghost')+rowHtml('profile','Profile','Username and age','Edit','ghost')+rowHtml('suggest','Suggest a schedule change','Opening hours, festivals or events · goes to the admin','Write','ghost')+rowHtml('reset','Start a new game','Clears progress on this device','Reset','danger'),
   s=>s.onclick=e=>{if(appClick(e))return;const id=e.target.dataset.id;if(!id)return;if(id==='sound'){muted=!muted;emit('mute',muted);settingsSheet();}if(id==='radio'){emit('radioSetting',rOff);settingsSheet();}if(id==='help')helpSheet();if(id==='profile'){if(hooks.profileEdit)hooks.profileEdit();else profileSheet(false);}if(id==='suggest')suggestSheet();
     if(id==='reset'){if(e.target.dataset.sure){P=newSave();store.set('ib.save.v3',P);location.reload();}else{e.target.dataset.sure=1;e.target.textContent='Tap again';}}});}
-/* profile hub: the 👤 button. Online play adds account rows through api.addProfileRows. */
+/* profile hub: the 👤 button, in the game and on the start screen. Online play adds account rows through api.addProfileRows. */
 const profileRows=[];
-function setAvatar(){const n=(hooks.displayName&&hooks.displayName())||P.name;const el=$('#pAv');if(el)el.textContent=n?n[0].toUpperCase():'👤';}
-function hubSheet(){const n=(hooks.displayName&&hooks.displayName())||P.name||'Player';const extra=profileRows.map(f=>{try{return f();}catch(e){return null;}}).filter(Boolean);
-  const acct=extra.map(x=>x.sub).filter(Boolean)[0]||'Playing on this device';
-  openSheet('Profile','',`<div class="phead"><div class="pav">${esc(n[0].toUpperCase())}</div><div><b>${esc(n)}</b><small>${esc(acct)}</small><small>${inr(P.cash)} cash · ${inr(P.bank)} in bank · ${Object.keys(P.ach||{}).length} achievements</small></div></div>`+
-    extra.map(x=>(x.rows||[]).map(r=>rowHtml(r.id,r.label,r.sub||'',r.btn,r.cls||'ghost')).join('')).join('')+
-    rowHtml('h_set','⚙ Settings','Sound, radio, controls, achievements, admin','Open','ghost')+rowHtml('h_priv','🔒 Privacy policy','What we collect and why','Read','ghost')+rowHtml('h_sup','💬 Contact support','Problems, account help or ideas','Write','ghost'),
-    s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;if(id==='h_set')return settingsSheet();if(id==='h_priv')return window.open('privacy.html','_blank','noopener');if(id==='h_sup')return supportSheet();for(const x of extra)if(x.handle&&(x.rows||[]).some(r=>r.id===id)){x.handle(id,e);return;}});}
+function setAvatar(){const u=(hooks.displayName&&hooks.displayName())||P.name;const n=P.fullName||u;const el=$('#pAv');if(el)el.textContent=n?n[0].toUpperCase():'👤';
+  const ip=$('#introProf');if(ip){const lab=hooks.introLabel?hooks.introLabel():(u?u:'Profile');ip.innerHTML=`<span class="pav sm">${esc(n?n[0].toUpperCase():'👤')}</span><span>${esc(lab)}</span>`;}}
+function openApp(id){const a=apps.find(x=>x.id===id);if(a)a.fn();}
+function hubSheet(){const ex=profileRows.map(f=>{try{return f();}catch(e){return null;}}).filter(Boolean)[0]||null;
+  const u=(hooks.displayName&&hooks.displayName())||P.name||'',full=P.fullName||'',shown=full||u||'New player';
+  const row=r=>rowHtml(r.id,r.label,r.sub||'',r.btn,r.cls||'ghost');
+  const end=ex?(ex.end||[]):(P.name||hadSave?[{id:'h_wipe',label:'🗑 Delete my data',sub:'Erases your player and progress on this device',btn:'Delete',cls:'danger'}]:[]);
+  openSheet('Profile','',`<div class="phead"><div class="pav">${esc(shown[0].toUpperCase())}</div><div><b>${esc(shown)}</b><small>${u?'@'+esc(u)+' · ':''}${esc(ex&&ex.sub||'Playing on this device')}</small>${P.name?`<small>${inr(P.cash)} cash · ${inr(P.bank)} in bank · ${Object.keys(P.ach||{}).length} achievements</small>`:''}</div></div>`+
+    (ex&&ex.top||[]).map(row).join('')+
+    rowHtml('h_ach','🏆 Achievements','Goals you have reached and what is left','Open','ghost')+rowHtml('h_set','⚙ Settings','Sound, radio, controls and your profile details','Open','ghost')+rowHtml('h_priv','🔒 Privacy policy','What we collect and why','Read','ghost')+rowHtml('h_sup','💬 Contact support','support@indiabaygame.com','Write','ghost')+
+    end.map(row).join(''),
+    s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;if(id==='h_ach')return openApp('ach');if(id==='h_set')return settingsSheet();if(id==='h_priv')return window.open('privacy.html','_blank','noopener');if(id==='h_sup')return supportSheet();
+      if(id==='h_wipe'){if(!e.target.dataset.sure){e.target.dataset.sure=1;e.target.textContent='Tap again to delete';return;}P=newSave();store.set('ib.save.v3',P);location.reload();return;}
+      if(ex&&ex.handle&&(ex.top||[]).concat(ex.end||[]).some(r=>r.id===id))ex.handle(id,e);});}
 function supportSheet(){const SITE=window.SITE||{};const mail=SITE.supportEmail||'';const can=!!(cfgBackend&&cfgBackend.support);
   openSheet('Contact support',can?'Your message goes straight to the India Bay team':mail?'Opens your email app':'Send us a message',`<form class="form" id="sup" novalidate><label>Topic<select id="su_t"><option>Something is broken</option><option>Account or sign-in</option><option>Lost progress</option><option>Report a player</option><option>Delete my data</option><option>Idea or feedback</option><option>Other</option></select></label>
     <label>Message<textarea id="su_m" maxlength="1000" placeholder="What happened? Where in the game were you?"></textarea></label><label>Email for our reply (optional)<input type="email" id="su_e" maxlength="120" value="${esc((hooks.userEmail&&hooks.userEmail())||'')}" placeholder="you@example.com"></label>
-    <div class="btnrow"><button class="go" type="submit">Send</button></div><p class="note" id="su_msg">${can?'':mail?`Or write to <a href="mailto:${esc(mail)}">${esc(mail)}</a>.`:'Sign in to play online to send messages from the game.'}</p></form>`,s=>{
+    <div class="btnrow"><button class="go" type="submit">Send</button></div><p class="note" id="su_msg">${mail?`You can also email <a href="mailto:${esc(mail)}">${esc(mail)}</a>. Businesses: write to the same address to advertise on in-game billboards.`:can?'':'Sign in to play online to send messages from the game.'}</p></form>`,s=>{
     s.querySelector('#sup').onsubmit=async e=>{e.preventDefault();const m=s.querySelector('#su_msg');const row={topic:s.querySelector('#su_t').value,message:s.querySelector('#su_m').value.trim().slice(0,1000),reply_email:s.querySelector('#su_e').value.trim().slice(0,120),name:P.name||'',page:location.host+' · v'+VERSION+' · '+navigator.userAgent.slice(0,80)};
       if(row.message.length<5){m.textContent='Please write a little more so we can help.';m.className='note bad';return;}
       if(can){m.textContent='Sending…';m.className='note';try{await cfgBackend.support(row);closeSheet();toast('Sent · thank you, we will get back to you','#3ddc97');}catch(err){m.textContent='Could not send: '+(err&&err.message||'check your connection');m.className='note bad';}return;}
@@ -778,9 +761,14 @@ function helpSheet(){openSheet('Controls','',`<div class="note" style="font-size
   <b>Touch</b><br>Arrows turn · GO and BACK move · E enters, leaves and uses · FIRE attacks · GUN switches weapon · HORN honks · tap the minimap for the map<br><b>Tips</b><br>Keep cash in the bank. Fill up before long highway drives. Licences, PUC, insurance and a helmet keep traffic police happy.</div>`);}
 const BLOCK=['admin','police','mod','moderator','support','staff','claude','anthropic','root','system','sex','fuck','shit','bitch','chutiya','madarchod','bhenchod','gandu','randi','harami','kamina','bastard','asshole'];
 function nameOk(n){if(!/^[A-Za-z0-9]{1,10}$/.test(n))return 'Use 1 to 10 letters or numbers.';const l=n.toLowerCase();if(BLOCK.some(b=>l.includes(b)))return 'That name is not allowed. Try another.';return '';}
-function profileSheet(first,done){openSheet(first?'Welcome to India Bay':'Profile',first?'Pick a username to start':'Saved on this device',`<form class="form" id="pf"><label>Username<input type="text" id="pf_name" maxlength="10" autocomplete="off" value="${esc(P.name)}" placeholder="Raju2026"></label><div class="note" id="pf_msg">Letters and numbers, up to 10. Online play will check that it is unique.</div>
-  <label class="ck"><input type="checkbox" id="pf_age"${P.age18?' checked':''}> I am 18 or older</label><p class="note">Phone texts, DMs and relationships in the online world will need this.</p><div class="btnrow"><button class="go" type="submit" id="pf_go">${first?'Continue':'Save'}</button></div></form>`,s=>{const f=s.querySelector('#pf'),inp=s.querySelector('#pf_name'),msg=s.querySelector('#pf_msg');
-    inp.oninput=()=>{const m=nameOk(inp.value);msg.textContent=m||'Looks good.';msg.className='note '+(m?'bad':'ok');};f.onsubmit=e=>{e.preventDefault();const m=nameOk(inp.value);if(m){msg.textContent=m;msg.className='note bad';return;}P.name=inp.value;P.age18=s.querySelector('#pf_age').checked;save();closeSheet();done&&done();};});}
+function personErr(full,dob){full=String(full||'').trim();if(full.length<2)return 'Please type your name.';if(!/^[\p{L}\p{M} .'-]{2,60}$/u.test(full))return 'Use letters only in your name.';const age=IBCONF.ageFromDob(dob);if(age==null)return 'Please pick your date of birth.';if(age<3||age>120)return 'Please check your date of birth.';return '';}
+function personFields(pre){return `<label>Your name<input type="text" id="pf_full" maxlength="60" autocomplete="name" value="${esc(pre.fullName||'')}" placeholder="Raju Sharma"></label>
+  <label>Date of birth<input type="date" id="pf_dob" min="1900-01-01" max="${istISO()}" value="${esc(pre.dob||'')}"></label><p class="note">Your name and date of birth stay private. We use your age to show suitable billboard ads in the game. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>`;}
+function profileSheet(first,done){openSheet(first?'Welcome to India Bay':'Profile',first?'Create your player':'Saved on this device',`<form class="form" id="pf" novalidate><label>Username<input type="text" id="pf_name" maxlength="10" autocomplete="off" value="${esc(P.name)}" placeholder="Raju2026"></label><div class="note" id="pf_msg">Letters and numbers, up to 10. Other players see this name.</div>
+  ${personFields(P)}<p class="note bad" id="pf_err" aria-live="polite"></p><div class="btnrow"><button class="go" type="submit" id="pf_go">${first?'Continue':'Save'}</button></div></form>`,s=>{const f=s.querySelector('#pf'),inp=s.querySelector('#pf_name'),msg=s.querySelector('#pf_msg'),er=s.querySelector('#pf_err');
+    inp.oninput=()=>{const m=nameOk(inp.value);msg.textContent=m||'Looks good.';msg.className='note '+(m?'bad':'ok');};f.onsubmit=e=>{e.preventDefault();const m=nameOk(inp.value);if(m){msg.textContent=m;msg.className='note bad';return;}
+      const full=s.querySelector('#pf_full').value.trim(),dob=s.querySelector('#pf_dob').value;const pe=personErr(full,dob);if(pe){er.textContent=pe;return;}
+      P.name=inp.value;P.fullName=full;P.dob=dob;P.age18=IBCONF.ageFromDob(dob)>=18;save();refreshBillboards();setAvatar();closeSheet();done&&done();};});}
 function whatsNew(auto){const list=CFG.changelog.concat(CHANGELOG).sort((a,b)=>String(b.v).localeCompare(String(a.v),undefined,{numeric:true}));openSheet(auto?`What's new in ${list[0].v}`:"What's new",auto?'Since you last played':'Every version',list.slice(0,auto?1:20).map(c=>`<div class="cl"><b>${esc(c.v)}</b> <small>${esc(c.date||'')}</small>${String(c.notes||'').split('\n').map(l=>`<p>${esc(l)}</p>`).join('')}</div>`).join(''),null,()=>{P.seenVersion=list[0].v;dirty=true;});}
 
 /* ================= admin ================= */
@@ -791,10 +779,7 @@ function applyConfig(c){const prev=CFG;CFG=mergeCfg(DEFAULTS,c);applyTheme();doc
   if(JSON.stringify(prev.billboards)!==JSON.stringify(CFG.billboards))refreshBillboards();if(!CFG.weapons&&!WEAP[P.weapon].melee)P.weapon='fist';if(CFG.police==='off'&&player.stars){player.stars=0;renderStars();}updWeap();emit('config',CFG);}
 const getPath=(o,p)=>p.split('.').reduce((a,k)=>a==null?a:a[k],o);
 function setPath(o,p,v){const k=p.split('.');let a=o;for(let i=0;i<k.length-1;i++){a[k[i]]=Array.isArray(a[k[i]])?a[k[i]].slice():Object.assign({},a[k[i]]);a=a[k[i]];}a[k[k.length-1]]=v;}
-const LISTS={festivals:[['name','Name','text'],['type','Type',['navratri','diwali','uttarayan','holi','ganpati','durga','onam','other']],['where','States (MH,GJ,RJ,DD,DN or all)','text'],['start','Start','date'],['end','End','date'],['mult','Fare ×','number']],
-  events:[['name','Name','text'],['zone','City',W.zones.map(z=>z.id)],['start','Start','date'],['end','End','date'],['mult','Fare ×','number']],
-  billboards:[['text','Text','text'],['fg','Text colour','color'],['bg','Background','color'],['zone','City',['all'].concat(W.zones.map(z=>z.id))],['start','From','date'],['end','To','date']],
-  changelog:[['v','Version','text'],['date','Date','date'],['notes','Notes','text']]};
+const LISTS=IBCONF.lists(W.zones.map(z=>z.id));
 function adminSheet(){const C=JSON.parse(JSON.stringify(CFG));let work=C;
   const num=(p,label,min,max,step)=>`<label>${label}<input type="number" data-p="${p}" min="${min}" max="${max}" step="${step}" value="${getPath(C,p)}"></label>`;
   const txt=(p,label,max)=>`<label>${label}<input type="text" data-p="${p}" maxlength="${max}" value="${esc(getPath(C,p))}"></label>`;
@@ -837,7 +822,7 @@ function adminSheet(){const C=JSON.parse(JSON.stringify(CFG));let work=C;
       if(cfgBackend&&cfgBackend.admin){msg.textContent='Saving…';msg.className='note';try{await cfgBackend.save(c);savedCFG=CFG;store.set('ib.cfg',c);msg.textContent='Saved. Every player now gets these settings.';msg.className='note ok';}catch(err){msg.textContent='Could not save: '+(err&&err.message||'check your connection');msg.className='note bad';}}
       else if(db&&isOwner){msg.textContent='Saving…';msg.className='note';try{await db.doc('config/game').set(Object.assign({},c,{updatedAt:Date.now()}));savedCFG=CFG;store.set('ib.cfg',c);msg.textContent='Saved. Every player now gets these settings.';msg.className='note ok';}catch(err){msg.textContent='Could not save right now. Check your connection and try again.';msg.className='note bad';}}
       else{store.set('ib.cfg',c);savedCFG=CFG;msg.textContent='Saved on this device.';msg.className='note ok';}});}}
-(async()=>{if(!window.claude||typeof claude.use!=='function'){if(location.hash==='#admin'&&!(window.ONLINE&&window.ONLINE.supabaseUrl)){adminOK=true;adminLocal=true;}return;}
+(async()=>{if(!window.claude||typeof claude.use!=='function'){return;}
   try{const user=await claude.use('user');isOwner=user?await user.isOwner():false;}catch(e){}
   try{db=await claude.use('db');}catch(e){db=null;}
   if(db){db.doc('config/game').onSnapshot(s=>{if(s.exists){const d=Object.assign({},s.data());delete d.updatedAt;store.set('ib.cfg',d);savedCFG=mergeCfg(DEFAULTS,d);if(!$('#adm'))applyConfig(d);}},()=>{});}
@@ -941,7 +926,7 @@ $$('.pad button[data-act]').forEach(b=>{const a=b.dataset.act;b.addEventListener
   b.addEventListener('pointerdown',e=>{e.preventDefault();if(uiLock())return;b.classList.add('on');if(a==='use')useAction();if(a==='fire'){fireHeld=true;fire();}if(a==='gun')cycleWeapon();if(a==='horn')horn();});
   const off=()=>{b.classList.remove('on');if(a==='fire')fireHeld=false;};b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('pointerleave',off);});
 let camMode=0;const CAMS=['Chase camera','Far camera','First-person camera'];function cycleCam(){camMode=(camMode+1)%3;$('#camBtn').title=CAMS[camMode];toast(CAMS[camMode],'#d6c8e4');camSnap=true;camYaw=0;camPitch=0;}
-$('#camBtn').onclick=cycleCam;$('#menuBtn').onclick=()=>{if(started&&!uiLock())menuSheet();};$('#phoneBtn').onclick=()=>{if(started&&!uiLock())phoneSheet();};$('#setBtn').onclick=()=>{if(started&&!uiLock())hubSheet();};$('#supLink').onclick=e=>{e.preventDefault();supportSheet();};$('#mission').onclick=()=>{missionHide=performance.now()+5000;};$('#nav').onclick=()=>{missionHide=performance.now()+5000;};
+$('#camBtn').onclick=cycleCam;$('#menuBtn').onclick=()=>{if(started&&!uiLock())menuSheet();};$('#phoneBtn').onclick=()=>{if(started&&!uiLock())phoneSheet();};$('#setBtn').onclick=()=>{if(started&&!uiLock())hubSheet();};$('#supLink').onclick=e=>{e.preventDefault();supportSheet();};$('#introProf').onclick=()=>{if(hooks.introClick)hooks.introClick();else hubSheet();};$('#mission').onclick=()=>{missionHide=performance.now()+5000;};$('#nav').onclick=()=>{missionHide=performance.now()+5000;};
 $('#mini').addEventListener('click',()=>{if(started&&!uiLock()&&hooks.map)hooks.map();});
 let curPrompt=null;
 function useAction(){if(uiLock()||overT>0||player.knock>0)return;updPrompt();
@@ -1056,10 +1041,10 @@ function renderIntro(){$('#gName').textContent=CFG.name;$('#gTag').textContent=C
   const lines=[];if(CFG.announce)lines.push(esc(CFG.announce));if(fest.length)lines.push('Festival now: '+fest.map(f=>esc(f.name)).join(', '));if(ev.length)lines.push('Happening now: '+ev.map(e=>esc(e.name)).join(', '));a.hidden=!lines.length;a.innerHTML=lines.join('<br>');
   $('#today').textContent=`${istText()} · Bay time ${bayTime()}`;
   $('#cities').innerHTML=REGIONS.map(r=>r.map&&CFG.regions[r.id]?`<button class="city sel" data-r="${r.id}"><b>${r.name}</b><span>${r.states}</span><em>Play now · solo</em></button>`:`<button class="city" disabled><b>${r.name}</b><span>${r.states}</span><em>Coming soon</em></button>`).join('');
-  $('#go').textContent=hadSave?'Continue':'Start';$('#newGame').hidden=!hadSave;}
+  $('#go').textContent=hadSave?'Continue':'Start';$('#newGame').hidden=!hadSave;setAvatar();}
 $('#newGame').onclick=e=>{if(e.target.dataset.sure){P=newSave();store.set('ib.save.v3',P);location.reload();}else{e.target.dataset.sure=1;e.target.textContent='Tap again to reset';}};
 let camSnap=true;
-function begin(){setAvatar();$('#intro').hidden=true;initAudio();if(ac&&ac.state==='suspended')ac.resume();started=true;camSnap=true;$('#c').focus();applyOutfit();
+function begin(){setAvatar();document.body.classList.remove('pre');$('#intro').hidden=true;initAudio();if(ac&&ac.state==='suspended')ac.resume();started=true;camSnap=true;$('#c').focus();applyOutfit();
   if(!startedOnce){startedOnce=true;for(const c of P.cars){if(!(c.puc>0))c.puc=gameDay+30;if(!(c.ins>0))c.ins=gameDay+30;}
     P.cars.forEach((c,i)=>{if(c.x!=null)spawnOwned(i,c.x,c.z,c.h||0);});
     if(P.pos){if(P.inCar!=null&&P.cars[P.inCar]){const v=ownedVeh[P.inCar]||spawnOwned(P.inCar,P.pos.x,P.pos.z,P.pos.h);v.pos.set(P.pos.x,0,P.pos.z);v.h=P.pos.h;enterVehicle(v);}else{player.mode='foot';player.pos.set(P.pos.x,0,P.pos.z);player.h=P.pos.h;avatar.visible=true;}}
@@ -1079,7 +1064,7 @@ const api={THREE,scene,camera,renderer,player,vehicles,peds,pois,SPEC,WORLD:W,RE
   onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},get photo(){return hooks.photo;},
   PICON,PLABEL,findRoute,get route(){return nav.route;},menuSheet,settingsSheet,get curMission(){return curMission;},
   CONG,sigState,sigJunction,
-  blocks,get db(){return db;},get adminOK(){return adminOK;},buildVeh,nameOk,cloudConfig,hubSheet,supportSheet,setAvatar,addProfileRows(f){profileRows.push(f);},set profileEdit(f){hooks.profileEdit=f;},set displayName(f){hooks.displayName=f;setAvatar();},set userEmail(f){hooks.userEmail=f;},setCfgBackend(b){cfgBackend=b;adminOK=!!(b&&b.admin);adminLocal=false;},get hadSave(){return hadSave;},
+  blocks,get db(){return db;},get adminOK(){return adminOK;},buildVeh,nameOk,ageFromDob:IBCONF.ageFromDob,personErr,personFields,refreshBillboards,openApp,set introClick(f){hooks.introClick=f;},set introLabel(f){hooks.introLabel=f;setAvatar();},cloudConfig,hubSheet,supportSheet,setAvatar,addProfileRows(f){profileRows.push(f);},set profileEdit(f){hooks.profileEdit=f;},set displayName(f){hooks.displayName=f;setAvatar();},set userEmail(f){hooks.userEmail=f;},setCfgBackend(b){cfgBackend=b;adminOK=!!(b&&b.admin);adminLocal=false;},get hadSave(){return hadSave;},
   setDirty(){dirty=true;},MR,mpick,clamp,hash,canvasTex,EDGES,ROADS,laneRandom:randomLaneNear,lanePos,uiLock};
 window.BB=api;
 const queued=Array.isArray(window.BBFeatures)?window.BBFeatures:[];window.BBFeatures={push(f){try{f(api);}catch(e){console.error('Feature failed',e);}}};queued.forEach(f=>window.BBFeatures.push(f));

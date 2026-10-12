@@ -29,7 +29,8 @@ flushStatic();
 
 /* rooftop billboards near the player */
 const billboardMeshes=[];
-function activeBillboards(zid){const iso=istISO();return CFG.billboards.filter(b=>(b.zone==='all'||b.zone===zid)&&(!b.start||b.start<=iso)&&(!b.end||b.end>=iso));}
+function playerAge(){return IBCONF.ageFromDob(P&&P.dob);}
+function activeBillboards(zid){const iso=istISO(),age=playerAge();return CFG.billboards.filter(b=>(b.zone==='all'||b.zone===zid)&&(!b.start||b.start<=iso)&&(!b.end||b.end>=iso)&&IBCONF.ageOK(b.ages,age));}
 function refreshBillboards(){for(const m of billboardMeshes){scene.remove(m);m.material.map.dispose();m.material.dispose();}billboardMeshes.length=0;zoneBB.clear();}
 const zoneBB=new Map();
 function updBillboards(px,pz){for(const [id,zd] of zoneData){const z=zd.z;const cx=z.x0+z.nx*40,cz=z.z0+z.nz*40;const near=Math.hypot(cx-px,cz-pz)<900;const has=zoneBB.has(id);
