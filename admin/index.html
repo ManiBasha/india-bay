@@ -44,6 +44,7 @@ td.msg{white-space:pre-wrap;word-break:break-word;max-width:360px}
 code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px 6px}pre{padding:10px;text-align:left;white-space:pre-wrap}
 .pill{display:inline-block;font-size:12px;border-radius:999px;padding:1px 8px;background:var(--panel2)}
 [hidden]{display:none!important}
+.msl{position:relative}.ms summary{cursor:pointer;border:1px solid var(--edge,#3a3354);border-radius:10px;padding:8px 10px;margin-top:4px;background:var(--panel2,#2a2350);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;list-style:none}.ms[open] .msbox{position:absolute;z-index:5;left:0;right:0;max-height:260px;overflow:auto;background:var(--panel,#211a3a);border:1px solid var(--edge,#3a3354);border-radius:10px;padding:6px 8px;box-shadow:0 8px 24px rgba(0,0,0,.4)}.ms .ck{display:flex;gap:6px;margin:4px 0;font-weight:400}
 </style>
 </head>
 <body>
@@ -122,7 +123,7 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
   /* ---------- settings form ---------- */
   const ACT = { sleep: 'Full sleep', meal: 'Meal', snack: 'Snack', drink: 'Drink', cook: 'Cooking', tv: 'TV cricket', toilet: 'Toilet' };
   const QUE = { petrol: 'Petrol pump', cng: 'CNG pump', atm: 'ATM', toilet: 'Public toilet', ticket: 'Railway ticket counter', hospital: 'Hospital', checkin: 'Airport check-in' };
-  const TRV = { sleeper: 'Train sleeper', ac: 'Train AC', flight: 'Flight', bus: 'Bus', bottaxi: 'Bot taxi', ferry: 'Ferry', local: 'Mumbai local' };
+  const TRV = { sleeper: 'Train sleeper', ac: 'Train AC', flight: 'Flight', bus: 'Bus', bottaxi: 'Bot taxi', ferry: 'Ferry', local: 'Mumbai local', metro: 'Metro' };
   const CHL = { signal: 'Red light', licence: 'No licence', helmet: 'No helmet', puc: 'No PUC', insurance: 'No insurance', speeding: 'Speeding', queue: 'Queue jumping' };
   const num = (p, l, min, max, step) => `<label>${l}<input type="number" data-p="${p}" min="${min}" max="${max}" step="${step || 1}"></label>`;
   const txt = (p, l, max) => `<label>${l}<input type="text" data-p="${p}" maxlength="${max}"></label>`;
@@ -172,13 +173,19 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
     $('#save').onclick = () => saveCfg($('#msg'));
     $('#preset').onclick = () => { if (!confirm('Put every item back to its default price? You still need to press Save.')) return; c.prices = {}; pricesTab(); };
   }
+  // Multi-select: a drop-down of checkboxes; the value is saved as 'all' or a comma list like 'MH,GJ'.
+  function msel(i, k, l, opts, val) { const on = String(val || 'all').split(',').map(x => x.trim()).filter(Boolean); const all = on.includes('all');
+    const sum = all ? opts[0][1] : opts.filter(o => on.includes(o[0])).map(o => o[1]).join(', ') || 'None';
+    return `<label class="msl">${esc(l)}<details class="ms"><summary>${esc(sum)}</summary><div class="msbox">${opts.map(([v, t]) => `<label class="ck"><input type="checkbox" data-i="${i}" data-k="${k}" data-mv="${esc(v)}"${(all ? v === 'all' : on.includes(v)) ? ' checked' : ''}> ${esc(t)}</label>`).join('')}</div></details></label>`; }
   function listEditor(box, name) {
-    const cols = K.lists(W.zones.map(z => z.id))[name];
+    const cols = K.lists(W.zones.map(z => [z.id, z.name]))[name];
     const draw = () => {
-      box.innerHTML = `<div class="list">${(cfg[name] || []).map((row, i) => `<div class="lrow">${cols.map(([k, l, t, o]) => Array.isArray(t) ? `<label>${esc(l)}<select data-i="${i}" data-k="${k}">${t.map(o => `<option${o === (row[k] || (k === 'ages' ? 'all' : '')) ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>` : `<label>${esc(l)}<input type="${t}" data-i="${i}" data-k="${k}" value="${esc(row[k] == null ? '' : row[k])}"${t === 'number' ? ` step="${(o || {}).step || 0.1}" min="${(o || {}).min != null ? o.min : 0.5}" max="${(o || {}).max || 3}"` : ''}></label>`).join('')}<button type="button" class="del danger" data-del="${i}">Remove</button></div>`).join('') || '<p class="note">None yet.</p>'}</div><button type="button" data-add="1">+ Add</button>`;
+      box.innerHTML = `<div class="list">${(cfg[name] || []).map((row, i) => `<div class="lrow">${cols.map(([k, l, t, o]) => t === 'multi' ? msel(i, k, l, o, row[k]) : Array.isArray(t) ? `<label>${esc(l)}<select data-i="${i}" data-k="${k}">${t.map(o => `<option${o === (row[k] || (k === 'ages' ? 'all' : '')) ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>` : `<label>${esc(l)}<input type="${t}" data-i="${i}" data-k="${k}" value="${esc(row[k] == null ? '' : row[k])}"${t === 'number' ? ` step="${(o || {}).step || 0.1}" min="${(o || {}).min != null ? o.min : 0.5}" max="${(o || {}).max || 3}"` : ''}></label>`).join('')}<button type="button" class="del danger" data-del="${i}">Remove</button></div>`).join('') || '<p class="note">None yet.</p>'}</div><button type="button" data-add="1">+ Add</button>`;
     };
     draw();
-    box.oninput = box.onchange = e => { const el = e.target; if (el.dataset.k == null) return; const i = +el.dataset.i; cfg[name] = cfg[name].slice(); cfg[name][i] = Object.assign({}, cfg[name][i], { [el.dataset.k]: el.type === 'number' ? +el.value : el.value }); };
+    box.oninput = box.onchange = e => { const el = e.target; if (el.dataset.k == null) return; const i = +el.dataset.i;
+      if (el.dataset.mv != null) { const boxes = [...box.querySelectorAll(`input[data-i="${i}"][data-k="${el.dataset.k}"]`)]; if (el.dataset.mv === 'all' && el.checked) boxes.forEach(b => { if (b !== el) b.checked = false; }); else if (el.checked) boxes.forEach(b => { if (b.dataset.mv === 'all') b.checked = false; });
+        let v = boxes.filter(b => b.checked).map(b => b.dataset.mv); if (!v.length) v = ['all']; cfg[name] = cfg[name].slice(); cfg[name][i] = Object.assign({}, cfg[name][i], { [el.dataset.k]: v.join(',') }); const det = el.closest('details'); const sm = det.querySelector('summary'); const opts = boxes.map(b => [b.dataset.mv, b.parentNode.textContent.trim()]); sm.textContent = v.includes('all') ? opts[0][1] : opts.filter(o => v.includes(o[0])).map(o => o[1]).join(', '); return; } cfg[name] = cfg[name].slice(); cfg[name][i] = Object.assign({}, cfg[name][i], { [el.dataset.k]: el.type === 'number' ? +el.value : el.value }); };
     box.onclick = e => {
       if (e.target.dataset.del != null) { cfg[name] = cfg[name].filter((_, i) => i !== +e.target.dataset.del); draw(); }
       if (e.target.dataset.add) { const row = {}; for (const [k, , t] of cols) row[k] = Array.isArray(t) ? t[0] : t === 'number' ? (k === 'gift' ? 0 : 1) : t === 'color' ? '#ffffff' : t === 'date' ? new Date().toISOString().slice(0, 10) : ''; if (name === 'billboards') { row.fg = '#1d1433'; row.start = ''; row.end = ''; } cfg[name] = (cfg[name] || []).concat([row]); draw(); }

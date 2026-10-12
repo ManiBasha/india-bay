@@ -109,7 +109,7 @@
     { id: 'mapusa', name: 'Mapusa', st: 'GA', x0: 3560, z0: 11290, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: { '1,0': 'marketBlock:Mapusa Friday Market' } },
     { id: 'calangute', name: 'Calangute–Baga', st: 'GA', x0: 3370, z0: 11400, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: { '0,0': 'beachBlock' } },
     { id: 'panaji', name: 'Panaji', st: 'GA', x0: 3410, z0: 11540, nx: 4, nz: 2, style: 'goa', size: 'mid', food: 'GA',
-      specials: { '1,0': 'goaChurch', '2,0': 'fontainhas', '0,1': 'maidan', '3,1': 'marketBlock:Panaji Market' } },
+      specials: { '1,0': 'goaChurch', '2,0': 'fontainhas', '0,1': 'maidan', '3,1': 'marketBlock:Panaji Market', '2,1': 'mall:Mall De Goa' } },
     { id: 'oldgoa', name: 'Old Goa', st: 'GA', x0: 3780, z0: 11540, nx: 1, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: { '0,0': 'bomJesus' } },
     { id: 'ponda', name: 'Ponda', st: 'GA', x0: 3940, z0: 11590, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', specials: {} },
     { id: 'vasco', name: 'Vasco da Gama', st: 'GA', x0: 3440, z0: 11780, nx: 2, nz: 1, style: 'goa', size: 'small', food: 'GA', station: true, specials: {} },
@@ -131,14 +131,14 @@
     { id: 'tumakuru', name: 'Tumakuru', st: 'KA', x0: 6180, z0: 13600, nx: 2, nz: 2, style: 'town', size: 'mid', food: 'KA', specials: {} },
     // Karnataka: Bengaluru and the south
     { id: 'bengaluru', name: 'Bengaluru', st: 'KA', x0: 6440, z0: 13880, nx: 7, nz: 6, style: 'metro', size: 'big', food: 'KA', tall: true,
-      specials: { '3,0': 'bangalorePalace', '3,1': 'vidhanaSoudha', '3,2': 'maidan', '4,1': 'wankhede', '5,1': 'lakePark', '4,2': 'biz', '4,3': 'biz', '5,2': 'biz',
+      specials: { '3,0': 'bangalorePalace', '3,1': 'vidhanaSoudha', '3,2': 'maidan', '4,1': 'wankhede:rcb', '5,1': 'lakePark', '4,2': 'biz', '4,3': 'mall:Orion Mall', '5,2': 'biz',
         '2,4': 'lalbagh', '2,2': 'policeHQ', '1,1': 'hospitalBlock', '0,3': 'marketBlock:KR Market', '6,2': 'techPark:Whitefield Tech Park', '5,5': 'techPark:Electronic City', '6,0': 'techPark:Manyata Tech Park' } },
     { id: 'shivamogga', name: 'Shivamogga', st: 'KA', x0: 4880, z0: 13020, nx: 3, nz: 2, style: 'town', size: 'mid', food: 'KA', specials: {} },
     { id: 'chikkamagaluru', name: 'Chikkamagaluru', st: 'KA', x0: 5060, z0: 13640, nx: 2, nz: 1, style: 'hill', size: 'small', food: 'KA', specials: {} },
     { id: 'hassan', name: 'Hassan', st: 'KA', x0: 5340, z0: 13960, nx: 2, nz: 2, style: 'town', size: 'mid', food: 'KA', specials: {} },
     { id: 'madikeri', name: 'Madikeri (Coorg)', st: 'KA', x0: 5040, z0: 14540, nx: 2, nz: 1, style: 'hill', size: 'small', food: 'KA', specials: {} },
     { id: 'mysuru', name: 'Mysuru', st: 'KA', x0: 5740, z0: 14600, nx: 5, nz: 4, style: 'mid', size: 'big', food: 'KA',
-      specials: { '2,1': 'mysorePalace', '1,2': 'marketBlock:Devaraja Market', '3,2': 'maidan', '0,0': 'hospitalBlock', '4,3': 'goaChurch:St Philomena\'s Church' } },
+      specials: { '2,1': 'mysorePalace', '1,2': 'marketBlock:Devaraja Market', '3,2': 'maidan', '0,0': 'hospitalBlock', '4,3': 'goaChurch:St Philomena\'s Church', '4,0': 'mall:Mall of Mysore' } },
     { id: 'mandya', name: 'Mandya', st: 'KA', x0: 6040, z0: 14400, nx: 2, nz: 1, style: 'town', size: 'small', food: 'KA', station: true, specials: {} },
     // Karnataka coast
     { id: 'karwar', name: 'Karwar', st: 'KA', x0: 3770, z0: 12330, nx: 2, nz: 1, style: 'town', size: 'small', food: 'KA', station: true, specials: {} },
@@ -146,18 +146,18 @@
     { id: 'murudeshwar', name: 'Murudeshwar', st: 'KA', x0: 4040, z0: 12880, nx: 1, nz: 1, style: 'town', size: 'small', food: 'KA', station: true, specials: {} },
     { id: 'udupi', name: 'Udupi–Manipal', st: 'KA', x0: 4230, z0: 13620, nx: 3, nz: 2, style: 'town', size: 'mid', food: 'KA', specials: { '1,0': 'krishnaMatha', '2,1': 'hospitalBlock' } },
     { id: 'mangaluru', name: 'Mangaluru', st: 'KA', x0: 4320, z0: 14030, nx: 4, nz: 3, style: 'mid', size: 'big', food: 'KA',
-      specials: { '0,1': 'beachBlock', '2,1': 'keralaTemple:Kadri Temple', '1,2': 'hospitalBlock', '3,0': 'biz', '2,0': 'goaChurch:St Aloysius Chapel' } },
+      specials: { '0,1': 'beachBlock', '2,1': 'keralaTemple:Kadri Temple', '1,2': 'hospitalBlock', '3,0': 'mall:Forum Fiza Mall', '2,0': 'goaChurch:St Aloysius Chapel' } },
     // Kerala
     { id: 'kasaragod', name: 'Kasaragod', st: 'KL', x0: 4440, z0: 14460, nx: 2, nz: 1, style: 'kerala', size: 'small', food: 'KL', station: true, specials: {} },
     { id: 'kannur', name: 'Kannur', st: 'KL', x0: 4830, z0: 15080, nx: 3, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: {} },
     { id: 'kalpetta', name: 'Kalpetta (Wayanad)', st: 'KL', x0: 5330, z0: 15360, nx: 2, nz: 1, style: 'hill', size: 'small', food: 'KL', specials: {} },
     { id: 'kozhikode', name: 'Kozhikode', st: 'KL', x0: 5140, z0: 15700, nx: 4, nz: 3, style: 'mid', size: 'big', food: 'KL',
-      specials: { '1,1': 'tankPark:Mananchira Square', '2,0': 'marketBlock:SM Street', '3,2': 'hospitalBlock' } },
+      specials: { '1,1': 'tankPark:Mananchira Square', '2,0': 'marketBlock:SM Street', '3,2': 'hospitalBlock', '0,2': 'mall:HiLITE Mall' } },
     { id: 'palakkad', name: 'Palakkad', st: 'KL', x0: 5800, z0: 16180, nx: 2, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: { '1,1': 'fortWalls:Palakkad Fort' } },
     { id: 'guruvayur', name: 'Guruvayur', st: 'KL', x0: 5330, z0: 16330, nx: 1, nz: 1, style: 'kerala', size: 'small', food: 'KL', station: true, specials: { '0,0': 'keralaTemple:Guruvayur Temple' } },
     { id: 'thrissur', name: 'Thrissur', st: 'KL', x0: 5440, z0: 16440, nx: 3, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: { '1,0': 'keralaTemple:Vadakkunnathan Temple' } },
     { id: 'kochi', name: 'Kochi', st: 'KL', x0: 5510, z0: 16980, nx: 4, nz: 3, style: 'metro', size: 'big', food: 'KL', tall: true,
-      specials: { '0,0': 'fontainhas:Fort Kochi', '1,1': 'biz', '2,1': 'biz', '3,2': 'hospitalBlock', '2,2': 'marketBlock:Lulu-style Mall', '3,0': 'techPark:Infopark' } },
+      specials: { '0,0': 'fontainhas:Fort Kochi', '1,1': 'biz', '2,1': 'biz', '3,2': 'hospitalBlock', '2,2': 'mall:Lulu Mall', '3,0': 'techPark:Infopark' } },
     { id: 'munnar', name: 'Munnar', st: 'KL', x0: 6160, z0: 16880, nx: 2, nz: 1, style: 'hill', size: 'small', food: 'KL', specials: {} },
     { id: 'thekkady', name: 'Thekkady', st: 'KL', x0: 6250, z0: 17360, nx: 1, nz: 1, style: 'hill', size: 'small', food: 'KL', specials: {} },
     { id: 'kottayam', name: 'Kottayam', st: 'KL', x0: 5850, z0: 17380, nx: 2, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: {} },
@@ -165,7 +165,7 @@
     { id: 'kollam', name: 'Kollam', st: 'KL', x0: 5810, z0: 18020, nx: 3, nz: 2, style: 'kerala', size: 'mid', food: 'KL', specials: {} },
     { id: 'varkala', name: 'Varkala', st: 'KL', x0: 5900, z0: 18260, nx: 1, nz: 1, style: 'kerala', size: 'small', food: 'KL', station: true, specials: {} },
     { id: 'thiruvananthapuram', name: 'Thiruvananthapuram', st: 'KL', x0: 6090, z0: 18290, nx: 4, nz: 3, style: 'mid', size: 'big', food: 'KL',
-      specials: { '2,1': 'padmanabhaswamy', '1,0': 'maidan', '3,0': 'techPark:Technopark', '0,1': 'hospitalBlock', '2,2': 'policeHQ' } }
+      specials: { '2,1': 'padmanabhaswamy', '1,0': 'maidan', '3,0': 'techPark:Technopark', '0,1': 'hospitalBlock', '2,2': 'policeHQ', '1,2': 'mall:Lulu Mall Thiruvananthapuram' } }
   ]);
 
   add('highways', [

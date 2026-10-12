@@ -53,23 +53,38 @@ window.BBFeatures.push(function (bb) {
     if (t === 'bus') { let sx = pp.x, sz = pp.z; timer = 0; for (const st of extra.stops) { timer += legTime(t, sx, sz, st.x, st.z).secs; sx = st.x; sz = st.z; } }
     else timer = legTime(t, pp.x, pp.z, from.x, from.z).secs;
     pay = t === 'bus' ? 0 : t === 'baycart' ? payFor(dist * 2.4, t, from.x, from.z) : payFor(dist, t, from.x, from.z);
-    J = { t, stage: t === 'bus' ? 'route' : 'pickup', from, to, timer, total: timer, pay, dist, crashes: 0, agent: !freelance, extra, started: performance.now() };
-    if (t === 'truck' || t === 'bus') companyVehicle(t);
-    bb.toast(`${JOBS[t].name}: ${J.stage === 'route' ? 'drive your route · ' + fmt(timer) + ' for all stops' : 'pick up at ' + from.name + ' · ' + fmt(timer)}`, '#ffc93c'); bb.emit('jobStart', J); }
+    const job = { t, stage: t === 'bus' ? 'route' : 'pickup', from, to, timer, total: timer, pay, dist, crashes: 0, agent: !freelance, extra, started: performance.now() };
+    showOffer(job); }
+  // Every job is offered first: accept it or decline it. Declining or missing an offer costs nothing.
+  let offer = null; const offerEl = document.createElement('div'); offerEl.id = 'offer'; offerEl.className = 'pill'; offerEl.hidden = true; document.body.appendChild(offerEl);
+  function showOffer(job) { offer = { job, left: 20 }; const j = JOBS[job.t]; const pp = bb.ppos(); const toPick = Math.hypot(job.from.x - pp.x, job.from.z - pp.z);
+    const km = m => (m * 2.4 / 1000).toFixed(1) + ' km';
+    offerEl.innerHTML = `<div class="ok"><b>${j.icon} ${bb.esc(j.app ? j.app + ' order' : j.name)}</b><span>${bb.inr(job.pay)}${job.t === 'bus' ? ' fares on the way' : ''}</span></div>
+      <div class="od">${job.t === 'bus' ? `${job.extra.stops.length} stops · ${fmt(job.timer)} for the route` : `Pick up: ${bb.esc(job.from.name)} · ${km(toPick)} away<br>Drop: ${bb.esc(job.to.name)}${job.t === 'baycart' ? ' + 2 more' : ''} · trip ${km(job.dist)}`}</div>
+      <div class="obtn"><button class="go" data-of="y">Accept <kbd>Y</kbd></button><button class="buy ghost" data-of="n">Decline <kbd>X</kbd></button><i id="ofbar"></i></div>`;
+    offerEl.hidden = false; bb.hornSfx && bb.hornSfx(); }
+  function acceptOffer() { if (!offer) return; const job = offer.job; offer = null; offerEl.hidden = true; if (J) return; J = job; const pp = bb.ppos();
+    if (J.t !== 'bus') { J.timer = legTime(J.t, pp.x, pp.z, J.from.x, J.from.z).secs; J.total = J.timer; }
+    if (J.t === 'truck' || J.t === 'bus') companyVehicle(J.t);
+    bb.toast(`${JOBS[J.t].name}: ${J.stage === 'route' ? 'drive your route · ' + fmt(J.timer) + ' for all stops' : 'pick up at ' + J.from.name + ' · ' + fmt(J.timer)}`, '#ffc93c'); bb.emit('jobStart', J); }
+  function declineOffer(missed) { if (!offer) return; offer = null; offerEl.hidden = true; hail = null; nextOfferT = bb.MR(10, 25); bb.toast(missed ? 'Offer missed · no effect on your rating' : 'Offer declined · no effect on your rating', '#d6c8e4'); }
+  offerEl.addEventListener('click', e => { const b = e.target.closest('[data-of]'); if (!b) return; if (b.dataset.of === 'y') acceptOffer(); else declineOffer(false); });
+  bb.onKey('KeyY', () => acceptOffer()); bb.onKey('KeyX', () => declineOffer(false));
+  bb.onUpdate(dt => { if (!offer) return; offer.left -= dt; const bar = offerEl.querySelector('#ofbar'); if (bar) bar.style.width = Math.max(0, offer.left / 20 * 100) + '%'; if (offer.left <= 0) declineOffer(true); });
   function companyVehicle(t) { const v0 = bb.player.veh; if (v0 && v0.type === t) return; const pp = bb.ppos(); const r = bb.nearestRoadPoint(pp.x, pp.z, 300); if (!r) return; const e = r.e; const nx = e.dz, nz = -e.dx;
     const v = bb.makeVeh(t, r.x + nx * (e.w / 2 + 2.4), r.z + nz * (e.w / 2 + 2.4), Math.atan2(e.dx, e.dz), 'parked', { fuel: 100, company: true }); J.company = v; bb.toast(`Your company ${bb.SPEC[t].label.toLowerCase()} is parked on the road nearby`, '#ffc93c'); }
-  function finish(ok, why) { const t = J.t; const p = P(); let r = rating(t); if (ok) r = Math.min(5, r + (J.crashes ? .05 : .15)); else r = Math.max(1, r - .25); p.ratings[t] = Math.round(r * 100) / 100;
+  function finish(ok, why) { const t = J.t; const p = P(); let r = rating(t); if (ok) r = Math.min(5, r + (J.crashes ? .05 : .15)); else r = Math.max(1, r - .15); p.ratings[t] = Math.round(r * 100) / 100;
     bag(false); if (ok) { let pay = J.pay; const bonus = J.late ? 0 : Math.max(0, Math.round(J.timer * 1.5)); pay += bonus; let extraNote = '';
       if (t === 'delivery') { streak++; if (streak % 3 === 0) { const sb = bb.price(40); pay += sb; extraNote = ` · Swiggy streak bonus ${bb.inr(sb)}`; } } else if (t !== 'zomato') streak = 0;
       if (t === 'zomato' && Math.random() < .45) { const tip = bb.price(10 + Math.floor(Math.random() * 5) * 10); pay += tip; extraNote = ` · customer tipped ${bb.inr(tip)}`; } if (J.agent) pay = Math.round(pay * .95); bb.earn(pay, 'job'); p.trips++; p.stats.trips++; p.jobs[t] = (p.jobs[t] || 0) + 1;
       bb.toast(`+${bb.inr(pay)}${J.agent ? ' · agent kept 5%' : ''}${extraNote}<br><span style="font-size:15px;font-weight:600">${JOBS[t].name} · rating ${r.toFixed(1)}★</span>`, '#3ddc97'); bb.emit('job', { type: t, pay, agent: J.agent }); }
     else bb.toast(`${why} · rating ${r.toFixed(1)}★`, '#ff5d73');
     if (J.company && bb.player.veh !== J.company) bb.removeVeh(J.company); const t2 = t, comp = J.company; J = null; hail = null; bb.setDirty();
-    if (ok && !freelance) setTimeout(() => { if (!J && bb.started && !bb.inside) { newJob(t2); if (comp && bb.player.veh === comp) J.company = comp; } }, 2500); else nextOfferT = bb.MR(15, 40); }
+    if (ok && !freelance) setTimeout(() => { if (!J && !offer && bb.started && !bb.inside) newJob(t2); }, 2500); else nextOfferT = bb.MR(15, 40); }
   bb.on('crash', () => { if (J) J.crashes++; });
   bb.on('travel', () => { if (J) { if (J.company) bb.removeVeh(J.company); J = null; hail = null; bb.toast('You left town · current job cancelled', '#d6c8e4'); } });
   bb.onUpdate(dt => {
-    if (!J) { if (freelance && JOBS[freelanceType] && !bb.inside && needVeh(freelanceType)) { nextOfferT -= dt; if (nextOfferT <= 0 && !hail) { const z = zoneHere(); if (['auto', 'cab'].includes(freelanceType)) { hail = Object.assign(spotIn(z), { name: 'Waving customer' }); } else { newJob(freelanceType); } } }
+    if (!J) { if (offer) return; if (freelance && JOBS[freelanceType] && !bb.inside && needVeh(freelanceType)) { nextOfferT -= dt; if (nextOfferT <= 0 && !hail) { const z = zoneHere(); if (['auto', 'cab'].includes(freelanceType)) { hail = Object.assign(spotIn(z), { name: 'Waving customer' }); } else { newJob(freelanceType); } } }
       if (hail) { const pp = bb.ppos(); const v = bb.player.veh; if (v && Math.hypot(pp.x - hail.x, pp.z - hail.z) < 9 && Math.abs(v.v) < 4) newJob(freelanceType); } return; }
     J.timer -= dt; const pp = bb.ppos(); const v = bb.player.veh; const slow = !v || Math.abs(v.v) < 6;
     if (J.timer <= 0 && J.t !== 'bus') return finish(false, J.stage === 'pickup' ? (JOBS[J.t].kind === 'food' ? 'Too late · the restaurant gave the order to another rider' : J.t === 'baycart' ? 'Too late · the hub gave the parcels to another agent' : J.t === 'truck' ? 'Too late · the depot sent another truck' : 'Too late · the customer cancelled') : JOBS[J.t].kind === 'food' ? 'Too late · the food went cold, order cancelled' : J.t === 'baycart' ? 'Too late · the customer returned the parcel' : J.t === 'dabba' ? 'Too late · lunch hour is over' : J.t === 'truck' ? 'Too late · the warehouse refused the cargo' : 'Too late · the rider got out and left');

@@ -1,0 +1,129 @@
+// Adventure activities in each region: paragliding, parasailing, jet skis, scuba diving and snorkelling,
+// surfing, kayaking, rafting, coracles, houseboats, dolphin trips, hot-air balloons, ziplines, dune bashing,
+// treks, tea estates and elephant camps. Each one is a spot on the map; book it and watch your ride.
+window.BBFeatures.push(function (bb) {
+  const T = bb.THREE, W = bb.WORLD, P = () => bb.P, esc = bb.esc;
+  const mats = {}; const mat = c => (mats[c] = mats[c] || bb.LMat(c)); const gm = c => new T.MeshBasicMaterial({ color: c });
+  const ll = (lat, lon) => [3250 + (lon - 73.6) * 850, 11000 + (16 - lat) * 1000];
+  const ACTS = [
+    { id: 'paraglide', name: 'Paragliding', at: ['Tiger Point', 'Arambol Beach', 'Nandi Hills', 'Varkala Cliff'], price: 2500, kind: 'glide', dur: 32, desc: 'Tandem flight with a pilot: launch from the hilltop and glide down' },
+    { id: 'parasail', name: 'Parasailing', at: ['Calangute Beach', 'Colva Beach', 'Juhu Beach'], price: 1200, kind: 'tow', dur: 26, desc: 'A speedboat pulls your parachute high over the sea' },
+    { id: 'jetski', name: 'Jet ski ride', at: ['Calangute Beach', 'Kovalam Beach', 'Panambur Beach'], price: 800, kind: 'ski', dur: 20, desc: 'Ten fast minutes on the waves' },
+    { id: 'scuba', name: 'Scuba diving', at: ['Grande Island', 'Murudeshwar Shiva Statue'], price: 4500, kind: 'dive', dur: 34, desc: 'Dive with an instructor among coral, fish and turtles' },
+    { id: 'snorkel', name: 'Snorkelling', at: ["St Mary's Island", 'Kovalam Beach'], price: 1000, kind: 'dive', dur: 24, shallow: true, desc: 'Float over the reef with a mask and fins' },
+    { id: 'surf', name: 'Surfing lesson', at: ['Kovalam Beach', 'Panambur Beach', 'Arambol Beach'], price: 1500, kind: 'surf', dur: 22, desc: 'Catch a wave back to the beach' },
+    { id: 'kayak', name: 'Kayaking', at: ['Kumarakom Backwaters', 'Mayem Lake', 'Ulsoor Lake'], price: 600, kind: 'boat', boat: 'kayak', speed: 4, dur: 26, desc: 'Paddle through calm water' },
+    { id: 'raft', name: 'White-water rafting', at: [{ name: 'Dandeli rafting camp', p: ll(15.25, 74.62) }, { name: 'Barapole rafting, Coorg', p: ll(12.2, 75.8) }], price: 1800, kind: 'boat', boat: 'raft', speed: 7, dur: 26, rough: true, desc: 'Grade 2 and 3 rapids with a guide · helmets on' },
+    { id: 'coracle', name: 'Coracle ride', at: ['Hampi Stone Chariot'], price: 300, kind: 'boat', boat: 'coracle', speed: 1.4, dur: 22, spin: true, desc: 'Spin across the river in a round basket boat' },
+    { id: 'houseboat', name: 'Houseboat cruise', at: ['Alappuzha Houseboats', 'Ashtamudi Lake'], price: 3500, kind: 'boat', boat: 'houseboat', speed: 3, dur: 36, frame: 'ferry', desc: 'Lunch on a kettuvallam through the backwaters' },
+    { id: 'dolphin', name: 'Dolphin-spotting boat trip', at: ['Palolem Beach', 'Fort Aguada'], price: 500, kind: 'boat', boat: 'boat', speed: 6, dur: 28, dolphins: true, desc: 'Dolphins jump around the boat in the morning' },
+    { id: 'bamboo', name: 'Bamboo rafting', at: ['Periyar Tiger Reserve'], price: 1500, kind: 'boat', boat: 'raft', speed: 2.5, dur: 26, desc: 'Drift on Periyar lake, watch for elephants on the bank' },
+    { id: 'balloon', name: 'Hot-air balloon ride', at: ['Amber Fort', 'Pushkar Lake'], price: 12000, kind: 'balloon', dur: 34, desc: 'Sunrise flight over forts and lakes' },
+    { id: 'zip', name: 'Zipline (flying fox)', at: ['Mehrangarh Fort'], price: 1600, kind: 'zip', dur: 14, desc: 'Fly over the fort walls on a steel cable' },
+    { id: 'dunes', name: 'Dune bashing in a jeep', at: ['Sam Sand Dunes'], price: 1500, kind: 'dunes', dur: 22, desc: 'Up and over the sand dunes · hold on' },
+    { id: 'trek', name: 'Trek to the top', at: ['Kudremukh', 'Chamundi Hill', 'Guru Shikhar', 'Nandi Hills'], price: 200, kind: 'trek', dur: 30, desc: 'A guided climb to the viewpoint' },
+    { id: 'teatour', name: 'Tea estate tour', at: ['Munnar Tea Gardens'], price: 600, kind: 'tour', minutes: 90, desc: 'Walk the slopes, see the factory, taste fresh tea', fx: { energy: 12 }, done: 'Fresh Munnar tea · you feel wide awake' },
+    { id: 'elephant', name: 'Elephant camp: bath time', at: [{ name: 'Dubare Elephant Camp', p: ll(12.37, 75.9) }], price: 900, kind: 'tour', minutes: 60, desc: 'Help the mahouts scrub the elephants in the river', fx: { energy: -6 }, done: 'Soaked and smiling · the elephants loved it' }
+  ];
+  const placeAt = n => (W.places || []).find(p => p[0] === n);
+  const pr = a => bb.cost('adv.' + a.id, a.price);
+  // one spot on the map for every activity location, next to the nearest road
+  const used = {};
+  for (const a of ACTS) for (const at of a.at) { const pl = typeof at === 'string' ? placeAt(at) : [at.name, at.p[0], at.p[1]]; if (!pl) continue; const [x, z, h] = bb.roadSpotNear({ x: pl[1], z: pl[2] }); const k = Math.round(x / 20) + ',' + Math.round(z / 20); const n = used[k] = (used[k] || 0) + 1;
+    const ox = Math.sin(h) * (n - 1) * 7, oz = Math.cos(h) * (n - 1) * 7; bb.addPoi({ type: 'activity', name: `${a.name} · ${pl[0]}`, x: x + ox, z: z + oz, rot: h + Math.PI / 2, extra: a.id, act: a, spot: { x: pl[1], z: pl[2], name: pl[0] } }); }
+
+  bb.poiHandlers.activity = poi => { const a = poi.act; const p = P(); const ex = p.extra = p.extra || {}; const done = (ex.adv = ex.adv || {})[a.id];
+    bb.openSheet(`${{ glide: '🪂', tow: '🪂', ski: '🌊', dive: '🤿', surf: '🏄', boat: a.boat === 'houseboat' ? '🛶' : '🚣', balloon: '🎈', zip: '🧗', dunes: '🏜', trek: '🥾', tour: a.id === 'elephant' ? '🐘' : '🍃' }[a.kind] || '⭐'} ${esc(a.name)}`, `${esc(poi.spot.name)} · ${done ? 'done ' + done + ' time' + (done > 1 ? 's' : '') : 'first time gets an adventure bonus'}`,
+      bb.rowHtml('go', a.name, `${esc(a.desc)}${a.minutes ? ' · ' + a.minutes + ' game minutes' : ''}`, bb.inr(pr(a))) + `<p class="note">${P().health < 25 ? 'You are hurt · get better at a hospital first.' : 'Safety briefing, life jacket or harness included. You can skip to the end at any time.'}</p>`,
+      s => s.onclick = e => { if (e.target.dataset.id !== 'go') return; if (P().health < 25) return bb.toast('Too hurt for this · see a doctor first', '#ff5d73'); if (a.kind !== 'dive' && a.kind !== 'tour' && (bb.clock < 6 || bb.clock > 18.5)) return bb.toast(`${a.name} runs from 6 am to 6:30 pm · come back in daylight`, '#ff9f1c'); if (bb.player.stars) return bb.toast('Lose the police first', '#ff5d73'); if (!bb.spend(pr(a), true)) return; bb.closeSheet(); start(a, poi); }); };
+
+  function finish(a, poi) { const ex = P().extra; ex.adv = ex.adv || {}; const first = !ex.adv[a.id]; ex.adv[a.id] = (ex.adv[a.id] || 0) + 1; P().energy = Math.max(0, P().energy - 8);
+    if (first) { const b = bb.price(250); bb.earn(b, 'adventure'); bb.toast(`${a.name} done! First-time adventure bonus +${bb.inr(b)}`, '#3ddc97'); } else bb.toast(`${a.name} done · what a rush!`, '#3ddc97');
+    bb.setDirty(); bb.emit('adventure', { id: a.id, place: poi.spot.name }); }
+
+  /* ---------- meshes ---------- */
+  function rider(g, x, y, z, sit) { const p = bb.buildPerson(mat((P().outfit && P().outfit.topCol) || '#ffc93c')); p.position.set(x, y, z); if (sit && p.userData.legs) { p.userData.legs[0].rotation.x = p.userData.legs[1].rotation.x = -1.4; p.position.y -= .5; } g.add(p); return p; }
+  function canopy(col, r) { const g = new T.Group(); const c = new T.Mesh(new T.TorusGeometry(r, r * .14, 4, 18, Math.PI), new T.MeshLambertMaterial({ color: col, side: T.DoubleSide })); c.scale.set(1, .45, 2.4); g.add(c);
+    for (const s of [-1, 1]) { const ln = new T.Mesh(new T.CylinderGeometry(.02, .02, r * 1.3, 3), mat('#dddddd')); ln.position.set(s * r * .45, -r * .55, 0); ln.rotation.z = s * .5; g.add(ln); } return g; }
+  function craft(kind) { const g = new T.Group(); const B = (w, h, d, x, y, z, c) => { const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); g.add(m); return m; };
+    if (kind === 'kayak') { B(.8, .35, 3.8, 0, .1, 0, '#ffb000'); rider(g, 0, .25, 0, true); }
+    if (kind === 'raft') { B(2.4, .55, 4.6, 0, .15, 0, '#e8473a'); for (let i = 0; i < 6; i++) rider(g, (i % 2 ? .7 : -.7), .35, -1.5 + Math.floor(i / 2) * 1.5, true); }
+    if (kind === 'coracle') { const c = new T.Mesh(new T.CylinderGeometry(1.4, 1.1, .6, 18, 1, true), new T.MeshLambertMaterial({ color: '#7a5a3a', side: T.DoubleSide })); c.position.y = .2; g.add(c); rider(g, .4, .1, 0, true); rider(g, -.5, .3, .2, false); }
+    if (kind === 'houseboat') { B(4.4, 1.2, 16, 0, .3, 0, '#6b4a32'); const roof = new T.Mesh(new T.CylinderGeometry(2.4, 2.4, 10, 12, 1, true, -Math.PI / 2, Math.PI), new T.MeshLambertMaterial({ color: '#c9a46a', side: T.DoubleSide })); roof.rotation.x = Math.PI / 2; roof.position.set(0, 1.5, -1); g.add(roof); rider(g, 1.2, .9, 6, false); }
+    if (kind === 'boat') { B(2.6, 1, 7, 0, .3, 0, '#f4f1ea'); B(1.8, 1.2, 2, 0, 1.3, -.5, '#2d6cdf'); rider(g, .6, .8, 2.2, false); }
+    if (kind === 'jetski') { B(1, .6, 2.8, 0, .2, 0, '#ffd23a'); B(.5, .4, .8, 0, .7, .4, '#2b2b30'); rider(g, 0, .5, -.2, true); }
+    if (kind === 'board') { B(.65, .12, 2.6, 0, .05, 0, '#ff6fa8'); const r = rider(g, 0, .1, 0, false); r.rotation.y = Math.PI / 2; }
+    if (kind === 'jeep') { B(2.2, 1.1, 4.2, 0, 1.1, 0, '#4b5320'); B(2, .8, 2, 0, 2, -.4, '#2b2b30'); for (const [x, z] of [[-1.1, 1.4], [1.1, 1.4], [-1.1, -1.4], [1.1, -1.4]]) { const w = new T.Mesh(new T.CylinderGeometry(.5, .5, .4, 10), mat('#1b1b1b')); w.rotation.z = Math.PI / 2; w.position.set(x, .5, z); g.add(w); } }
+    bb.scene.add(g); return g; }
+  function balloon() { const g = new T.Group(); const cols = ['#d62f4b', '#ffd04a', '#2d6cdf', '#1e8a4c']; for (let i = 0; i < 8; i++) { const s = new T.Mesh(new T.SphereGeometry(7, 4, 12, i / 8 * Math.PI * 2, Math.PI / 4), mat(cols[i % 4])); s.scale.y = 1.25; s.position.y = 11; g.add(s); }
+    const bk = new T.Mesh(new T.BoxGeometry(2.4, 1.3, 2.4), mat('#8d6e4a')); bk.position.y = .65; g.add(bk); rider(g, .4, 1, 0, false); const fl = new T.Mesh(new T.ConeGeometry(.4, 1.4, 6), gm('#ffb347')); fl.position.y = 2.6; g.add(fl); bb.scene.add(g); return g; }
+  function dolphins() { const g = new T.Group(); const list = []; for (let i = 0; i < 5; i++) { const d = new T.Group(); const b = new T.Mesh(new T.SphereGeometry(.5, 10, 6), mat('#6f8796')); b.scale.set(.7, .6, 2.6); d.add(b); const fin = new T.Mesh(new T.ConeGeometry(.25, .7, 4), mat('#5c7280')); fin.position.set(0, .45, -.1); d.add(fin); g.add(d); list.push({ d, ph: i * 1.3, r: 8 + i * 2.5 }); } bb.scene.add(g); g.userData.list = list; return g; }
+
+  /* ---------- paths ---------- */
+  const waterY = (x, z) => bb.isLand(x, z) ? .08 : -1.05;
+  function waterDir(x, z) { for (const r of [30, 60, 110, 180, 260, 360]) for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; const px = x + Math.sin(a) * r, pz = z + Math.cos(a) * r; if (bb.isWater(px, pz)) return { a, x: px, z: pz }; } return null; }
+  function waterPath(x, z, len, wig) { const wd = waterDir(x, z); if (!wd) return null; let px = wd.x, pz = wd.z, h = wd.a; const pts = [[px, pz]]; for (let s = 0; s < len; s += 5) { h += (Math.random() - .5) * (wig || .25); let ok = false;
+      for (const dh of [0, .3, -.3, .7, -.7, 1.2, -1.2, 2, -2, Math.PI]) { const nx = px + Math.sin(h + dh) * 5, nz = pz + Math.cos(h + dh) * 5; if (bb.isWater(nx, nz) && bb.isWater(px + Math.sin(h + dh) * 14, pz + Math.cos(h + dh) * 14)) { h += dh; px = nx; pz = nz; ok = true; break; } }
+      if (!ok) break; pts.push([px, pz]); } return pts.length > 3 ? pts : null; }
+  function poly(pts) { return bb.CINE.poly(pts); }
+
+  /* ---------- the rides ---------- */
+  function start(a, poi) { if (a.kind === 'tour') return bb.startActivity({ kind: a.name, title: `${a.name} · ${poi.spot.name}`, sub: a.desc, minutes: a.minutes, effects: a.fx || {}, onDone: () => { bb.toast(a.done, '#ffc93c'); finish(a, poi); } });
+    if (!bb.CINE) return bb.toast('Not available here', '#ff9f1c'); const S = poi.spot; const meshes = []; const keep = m => (meshes.push(m), m); const base = { label: a.name, title: S.name, lookToggle: false, skipLabel: 'Skip ⏭', cancel: 'Stop', onStop: () => meshes.forEach(m => bb.scene.remove(m)), onDone: () => finish(a, poi), onCancel: st => bb.teleport(poi.x, poi.z, poi.rot) };
+    const back = () => bb.teleport(poi.x, poi.z, poi.rot); base.onDone = () => { back(); finish(a, poi); };
+    const wd = waterDir(S.x, S.z); const seaA = wd ? wd.a : 0;
+    if (a.kind === 'glide' || a.kind === 'zip') { const zip = a.kind === 'zip'; const g = keep(new T.Group()); bb.scene.add(g); if (!zip) { const c = canopy('#ff4f6a', 5); c.position.y = 7; g.add(c); } rider(g, 0, 0, 0, false); rider(g, .5, -.2, -.6, false);
+      const L = zip ? 320 : 620, h0 = zip ? 55 : 95, h1 = zip ? 8 : 4; const h = seaA; const sx = S.x - Math.sin(h) * (zip ? 0 : 60), sz = S.z - Math.cos(h) * (zip ? 0 : 60);
+      if (zip) { const ln = new T.Mesh(new T.CylinderGeometry(.06, .06, Math.hypot(L, h0 - h1), 4), mat('#cccccc')); ln.position.set(sx + Math.sin(h) * L / 2, (h0 + h1) / 2 + 2.3, sz + Math.cos(h) * L / 2); ln.lookAt(sx + Math.sin(h) * L, h1 + 2.3, sz + Math.cos(h) * L); ln.rotateX(Math.PI / 2); keep(ln); bb.scene.add(ln); }
+      return bb.CINE.play(Object.assign(base, { kind: 'open', dur: a.dur, sub: zip ? 'Clip in · 3 · 2 · 1 · GO!' : 'Run, run, run… and you are flying', lines: zip ? null : ['Run, run, run… and you are flying', 'The wind lifts you higher', 'Look down at the coast', 'Lining up to land on the beach'],
+        cam: (f) => { const u = zip ? f * f : f; const lat = zip ? 0 : Math.sin(f * Math.PI * 2.2) * 70; const x = sx + Math.sin(h) * L * u + Math.cos(h) * lat, z = sz + Math.cos(h) * L * u - Math.sin(h) * lat; const y = h0 + (h1 - h0) * (zip ? u : Math.pow(f, 1.4));
+          const nx = sx + Math.sin(h) * L * Math.min(1, u + .02) + Math.cos(h) * (zip ? 0 : Math.sin((f + .02) * Math.PI * 2.2) * 70), nz = sz + Math.cos(h) * L * Math.min(1, u + .02) - Math.sin(h) * (zip ? 0 : Math.sin((f + .02) * Math.PI * 2.2) * 70); const hd = Math.atan2(nx - x, nz - z);
+          g.position.set(x, y, z); g.rotation.y = hd; g.rotation.z = zip ? 0 : -Math.cos(f * Math.PI * 2.2) * .25; const bk = zip ? 5 : 15; return { x: x - Math.sin(hd) * bk, y: y + (zip ? 2.5 : 9), z: z - Math.cos(hd) * bk, lx: x + Math.sin(hd) * 20, ly: y - (zip ? 6 : 1), lz: z + Math.cos(hd) * 20 }; } })); }
+    if (a.kind === 'balloon') { const g = keep(balloon()); const drift = Math.random() * 6.28;
+      return bb.CINE.play(Object.assign(base, { kind: 'ferry', dur: a.dur, sub: 'The burner roars · you lift off', lines: ['The burner roars · you lift off', 'Rooftops shrink below', 'The fort glows in the morning sun', 'Gently down into a field'],
+        cam: (f, dt, st) => { const y = 2 + Math.sin(Math.min(1, f * 1.15) * Math.PI) * 140; const x = S.x + Math.sin(drift) * f * 260, z = S.z + Math.cos(drift) * f * 260; g.position.set(x, y, z); g.rotation.y += dt * .05; const a2 = st.t * .08;
+          return { x: x + Math.sin(a2) * .6, y: y + 1.9, z: z + Math.cos(a2) * .6, lx: x + Math.sin(a2) * 60, ly: y * .4, lz: z + Math.cos(a2) * 60 }; } })); }
+    if (a.kind === 'dunes' || a.kind === 'trek') { const jeep = a.kind === 'dunes'; const g = jeep ? keep(craft('jeep')) : null; const h = Math.random() * 6.28; const L = jeep ? 300 : 220;
+      return bb.CINE.play(Object.assign(base, { kind: jeep ? 'open' : 'none', dur: a.dur, sub: jeep ? 'Over the first dune · whoaaa!' : 'The trail starts in the trees', lines: jeep ? ['Over the first dune · whoaaa!', 'Sand flies everywhere', 'Down the steep side', 'Camels watch from the ridge'] : ['The trail starts in the trees', 'Steep steps · take a breath', 'Clouds roll across the hills', 'At the top · what a view!'],
+        cam: (f, dt, st) => { if (!jeep && f > .78) { const a2 = (f - .78) * 9; const top = { x: S.x, y: 62, z: S.z }; return { x: top.x, y: top.y, z: top.z, lx: top.x + Math.sin(a2) * 100, ly: 20, lz: top.z + Math.cos(a2) * 100 }; }
+          const u = jeep ? f : f / .78; const x = S.x - Math.sin(h) * L * (1 - u) + Math.cos(h) * Math.sin(u * 9) * 14, z = S.z - Math.cos(h) * L * (1 - u) - Math.sin(h) * Math.sin(u * 9) * 14; const y = jeep ? 1.5 + Math.abs(Math.sin(u * 22)) * 6 : 2 + u * 58;
+          if (g) { g.position.set(x, y - 1.5, z); g.rotation.y = h; g.rotation.x = Math.cos(u * 22) * .3; } return jeep ? { x: x - Math.sin(h) * 9, y: y + 3.5, z: z - Math.cos(h) * 9, lx: x + Math.sin(h) * 30, ly: y, lz: z + Math.cos(h) * 30 } : { x, y: y + 1.7, z, lx: x + Math.sin(h) * 40, ly: y + 4, lz: z + Math.cos(h) * 40 }; } })); }
+    if (a.kind === 'dive') return dive(a, poi, base);
+    // on the water: tow (parasail), ski, surf, boats
+    const path = waterPath(S.x, S.z, (a.speed || 10) * a.dur * 1.1 + 60, a.rough ? .5 : .25); if (!path) { bb.earn(pr(a), 'refund'); return bb.toast('The water is too rough today · money refunded', '#ff9f1c'); }
+    const PL = poly(path); const kindM = a.kind === 'ski' || a.kind === 'tow' ? (a.kind === 'tow' ? 'boat' : 'jetski') : a.kind === 'surf' ? 'board' : a.boat; const g = keep(craft(kindM)); const sp = a.kind === 'ski' ? 14 : a.kind === 'tow' ? 10 : a.kind === 'surf' ? 6 : a.speed;
+    let chute = null; if (a.kind === 'tow') { chute = keep(new T.Group()); const c = canopy('#ffd04a', 4); c.position.y = 5; chute.add(c); rider(chute, 0, 0, 0, false); bb.scene.add(chute); }
+    const dg = a.dolphins ? keep(dolphins()) : null; let spin = 0;
+    const L = { tow: ['The rope tightens · up you go!', 'The beach looks tiny from here', 'Wave to the boat!', 'Gently back down'], ski: ['Full throttle!', 'Bouncing over the waves', 'A sharp turn · spray everywhere', 'Back to the beach'], surf: ['Paddle, paddle… stand up!', 'You are riding a wave!', 'Wipe-out… try again', 'One more good wave'],
+      boat: a.dolphins ? ['The boat heads out at dawn', 'There! Dolphins!', 'They jump right next to the boat', 'Back to the jetty'] : a.boat === 'houseboat' ? ['Coconut palms along the canal', 'Lunch: karimeen fry and red rice', 'Kingfishers on the banks', 'A village church floats past'] : a.rough ? ['Paddle forward!', 'Rapid ahead · hold on!', 'Splash! Everyone is soaked', 'Calm water · you made it'] : ['Smooth, quiet water', 'Birds call from the trees', 'The paddle dips and splashes', 'Back to the start'] }[a.kind === 'boat' ? 'boat' : a.kind];
+    return bb.CINE.play(Object.assign(base, { kind: a.frame || 'open', dur: a.dur, sub: L[0], lines: L,
+      cam: (f, dt, st) => { const s = Math.min(PL.len, f * sp * a.dur); const p = PL.at(s), q = PL.at(Math.min(PL.len, s + 8)); const hd = Math.atan2(q.x - p.x, q.z - p.z) || p.h; const wy = waterY(p.x, p.z); const bob = Math.sin(st.t * (a.rough ? 5 : 2)) * (a.rough ? .45 : .15);
+        g.position.set(p.x, wy + bob, p.z); g.rotation.y = a.spin ? (spin += dt * 1.2) : hd; g.rotation.z = a.kind === 'ski' ? Math.sin(st.t * 1.5) * .25 : Math.sin(st.t * 1.7) * .05;
+        if (dg) dg.userData.list.forEach(o => { const ph = st.t * 1.6 + o.ph; o.d.position.set(p.x + Math.sin(ph) * o.r, wy - .6 + Math.max(0, Math.sin(ph * 2.3)) * 2.4, p.z + Math.cos(ph) * o.r); o.d.rotation.y = ph + Math.PI / 2; o.d.rotation.x = -Math.cos(ph * 2.3) * .7; });
+        if (chute) { const up = Math.sin(Math.min(1, f * 1.1) * Math.PI); const cy = wy + 3 + up * 40; const cx = p.x - Math.sin(hd) * (8 + up * 30), cz = p.z - Math.cos(hd) * (8 + up * 30); chute.position.set(cx, cy, cz); chute.rotation.y = hd;
+          return { x: cx - Math.sin(hd) * 6, y: cy + 4, z: cz - Math.cos(hd) * 6, lx: p.x + Math.sin(hd) * 70, ly: wy + 4, lz: p.z + Math.cos(hd) * 70, lookK: 3 }; }
+        if (a.spin) { const a2 = spin * .7; return { x: p.x, y: wy + 1.9, z: p.z, lx: p.x + Math.sin(a2) * 40, ly: wy + 1, lz: p.z + Math.cos(a2) * 40 }; }
+        if (a.boat === 'houseboat') return { x: p.x + Math.cos(hd) * 1.2, y: wy + 3, z: p.z - Math.sin(hd) * 1.2, lx: p.x - Math.cos(hd) * 50 + Math.sin(hd) * 20, ly: wy + 1, lz: p.z + Math.sin(hd) * 50 + Math.cos(hd) * 20 };
+        const bk = a.kind === 'ski' ? 7 : a.kind === 'surf' ? 5 : 9, up = a.kind === 'boat' ? 4 : 2.6; return { x: p.x - Math.sin(hd) * bk, y: wy + up, z: p.z - Math.cos(hd) * bk, lx: p.x + Math.sin(hd) * 25, ly: wy + .5, lz: p.z + Math.cos(hd) * 25 }; } })); }
+
+  /* ---------- under the sea ---------- */
+  function dive(a, poi, base) { const sc = bb.interScene; const baseStop = base.onStop; const W2 = 90; let fishes = [], bubbles = null;
+    const venue = { poi: { x: poi.x, z: poi.z, rot: poi.rot, name: poi.spot.name }, name: a.name, w: W2, d: W2, bg: a.shallow ? '#1b88a8' : '#0d4f6e',
+      build: g => { sc.fog = new T.Fog(a.shallow ? 0x1b88a8 : 0x0d4f6e, 6, a.shallow ? 60 : 42); const lt = new T.DirectionalLight(0xbfe9ff, .9); lt.position.set(10, 40, 5); g.add(lt);
+        const sand = new T.Mesh(new T.PlaneGeometry(W2 * 2, W2 * 2, 30, 30), mat('#c9b98a')); const pa = sand.geometry.attributes.position; for (let i = 0; i < pa.count; i++) pa.setZ(i, Math.sin(pa.getX(i) * .15) * Math.cos(pa.getY(i) * .12) * 1.2); sand.geometry.computeVertexNormals(); sand.rotation.x = -Math.PI / 2; g.add(sand);
+        const CC = ['#ff6f61', '#ffb347', '#c38bff', '#ff8fd0', '#ffd04a', '#3fd0c9', '#7fd858']; for (let i = 0; i < 70; i++) { const c = CC[i % CC.length]; const x = (Math.random() - .5) * W2 * 1.4, z = (Math.random() - .5) * W2 * 1.4; const k = i % 3;
+          const m = k === 0 ? new T.Mesh(new T.ConeGeometry(.4 + Math.random() * .6, 1.5 + Math.random() * 3, 6), mat(c)) : k === 1 ? new T.Mesh(new T.SphereGeometry(.6 + Math.random() * 1.4, 8, 6), mat(c)) : new T.Mesh(new T.CylinderGeometry(.15, .25, 2 + Math.random() * 2, 5), mat(c)); m.position.set(x, k === 1 ? .3 : 1, z); if (k === 2) m.rotation.z = (Math.random() - .5) * .8; g.add(m); }
+        for (let i = 0; i < 18; i++) { const r = new T.Mesh(new T.DodecahedronGeometry(1.5 + Math.random() * 3, 0), mat('#6b6458')); r.position.set((Math.random() - .5) * W2 * 1.4, .5, (Math.random() - .5) * W2 * 1.4); g.add(r); }
+        const FC = ['#ffd23a', '#2d6cdf', '#ff7a1a', '#f4f1ea', '#3fd0c9']; fishes = []; for (let s = 0; s < 7; s++) { const cx = (Math.random() - .5) * 50, cz = (Math.random() - .5) * 50, cy = 2 + Math.random() * 5, r = 4 + Math.random() * 6; for (let i = 0; i < 12; i++) { const f = new T.Mesh(new T.ConeGeometry(.18, .6, 4), mat(FC[s % FC.length])); f.rotation.x = Math.PI / 2; const w = new T.Group(); w.add(f); g.add(w); fishes.push({ w, cx, cy: cy + (Math.random() - .5) * 1.5, cz, r: r + (Math.random() - .5) * 2, ph: i / 12 * 6.28 + Math.random() * .3, sp: .5 + s * .05 }); } }
+        if (!a.shallow) { const tt = new T.Group(); const sh = new T.Mesh(new T.SphereGeometry(1.2, 10, 6), mat('#5f7d3a')); sh.scale.set(1, .4, 1.3); tt.add(sh); for (const [x, z] of [[-1, .6], [1, .6], [-.8, -.8], [.8, -.8]]) { const fl = new T.Mesh(new T.BoxGeometry(.9, .1, .4), mat('#6f8a40')); fl.position.set(x, 0, z); tt.add(fl); } const hd = new T.Mesh(new T.SphereGeometry(.35, 8, 6), mat('#6f8a40')); hd.position.z = 1.6; tt.add(hd); g.add(tt); fishes.push({ w: tt, cx: 0, cy: 4, cz: 0, r: 14, ph: 0, sp: .12, turtle: true }); }
+        const bp = new Float32Array(60 * 3); const bg2 = new T.BufferGeometry(); bg2.setAttribute('position', new T.BufferAttribute(bp, 3)); bubbles = new T.Points(bg2, new T.PointsMaterial({ color: 0xe6fbff, size: .25, transparent: true, opacity: .7 })); g.add(bubbles); return []; },
+      onExit: () => { sc.fog = null; } };
+    return bb.CINE.play(Object.assign(base, { kind: 'none', venue, dur: a.dur, sub: a.shallow ? 'Face down, breathe slowly through the snorkel' : 'Thumbs up · descending to 8 metres', lines: a.shallow ? ['Face down, breathe slowly', 'A school of yellow fish', 'Coral in every colour', 'Back to the boat'] : ['Thumbs up · descending', 'Coral gardens all around', 'A sea turtle glides past!', 'Slowly back up to the surface'],
+      onStop: () => { sc.fog = null; baseStop(); },
+      cam: (f, dt, st) => { const t = st.t; for (const q of fishes) { const ph = t * q.sp + q.ph; q.w.position.set(q.cx + Math.cos(ph) * q.r, q.cy + Math.sin(t * 1.3 + q.ph) * .3, q.cz + Math.sin(ph) * q.r); q.w.rotation.y = -ph; }
+        const a2 = f * Math.PI * 1.6 - .8; const x = Math.sin(a2) * 26, z = Math.cos(a2) * 22 - 4, y = a.shallow ? 9 : 4 + Math.sin(t * .5) * 1.2;
+        if (bubbles) { const pa = bubbles.geometry.attributes.position; for (let i = 0; i < 60; i++) { let by = pa.getY(i) + dt * 2; if (by > y + 8 || by < y - 1) { pa.setXYZ(i, x + (Math.random() - .5) * 1.2, y - .5, z + (Math.random() - .5) * 1.2); } else pa.setY(i, by); } pa.needsUpdate = true; }
+        const lx = Math.sin(a2 + .6) * 26, lz = Math.cos(a2 + .6) * 22 - 4; return { x, y, z, lx, ly: a.shallow ? 1 : 2, lz, lookK: 1.5 }; } })); }
+
+  bb.ACTIVITIES = ACTS;
+});

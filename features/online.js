@@ -440,4 +440,11 @@ window.BBFeatures.push(function (bb) {
   bb.introClick = () => { if (session && profile) return bb.hubSheet(); offline = false; next = () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); };
 
   bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, connect, disconnect };
+
+  // Bot people and bot traffic make room for real players: the more players online near you, the fewer bots.
+  // No players = 100% bots. Every player near you removes 8% and every 20 players online in the region remove 5% more,
+  // never below 25%. Checked every 10 seconds; going offline brings all the bots back.
+  setInterval(() => { if (!bb.started) return; const pp = bb.ppos(); let n = 0;
+    if (status === 'on') for (const r of remotes.values()) if (Math.hypot(r.x - pp.x, r.z - pp.z) < 600) n++;
+    const all = status === 'on' ? Math.max(0, online - 1) : 0; bb.setBotScale(Math.max(.25, 1 - n * .08 - Math.floor(all / 20) * .05)); }, 10000);
 });

@@ -70,26 +70,8 @@ window.BBFeatures.push(function (bb) {
     for (let i = fw.length - 1; i >= 0; i--) { const f = fw[i]; f.life -= dt; const a = f.pt.geometry.attributes.position; for (let k = 0; k < f.vel.length; k++) { const v = f.vel[k]; v[1] -= 6 * dt; v[0] *= .985; v[2] *= .985; a.array[k * 3] += v[0] * dt; a.array[k * 3 + 1] += v[1] * dt; a.array[k * 3 + 2] += v[2] * dt; } a.needsUpdate = true; f.pt.material.opacity = Math.max(0, f.life / 1.8);
       if (f.life <= 0) { bb.scene.remove(f.pt); f.pt.geometry.dispose(); f.pt.material.dispose(); fw.splice(i, 1); } } }
 
-  /* ---------- watching a match ---------- */
-  const LINES = { chance: ['shoots from distance · just wide!', 'hits the post!', 'a brilliant save from the keeper', 'a header goes over the bar', 'a corner swings in, cleared', 'a long ball over the top, offside'],
-    crowd: ['The stands bounce to the drums', 'Mexican wave around the stadium', 'Phone torches light up the stands', 'The fan club unfurls a giant flag', 'Chants roll down from the upper tier'] };
-  function watch(poi, f, vip) { const team = f.home; const { mc } = now(); if (mc.state === 'ft') return bb.toast('The match is over', '#d6c8e4');
-    const endH = L.kick + L.len / 60; const secs = Math.max(10, Math.ceil((endH - bb.clock) * 60 / ((bb.CFG.timeSpeed) || 1)));
-    const res = F.result(f); let shownGoals = 0, lineT = 0, over = false, ended = false; const fb = ex(); const mine = fb.club === team.id || P().outfit.topCol === team.col;
-    if (bb.player.mode === 'drive') bb.exitVehicle(true);
-    bb.openWait({ kind: (vip ? 'VIP box · ' : 'Stands · ') + poi.name, title: `${f.home.name} v ${f.away.name}`, sub: 'Finding your seat…', total: secs, cancel: 'Leave the stadium',
-      buttons: [{ id: 'chant', label: '📣 Chant', fn: () => { bb.toast(`${team.chant || 'Come on!'} · the stands join in`, team.col); roar(.18, 1.6); } }, { id: 'snack', label: '🍿 Snack ' + bb.inr(bb.cost('fb.snack', 80)), fn: () => { if (bb.spend(bb.cost('fb.snack', 80))) { P().hunger = Math.min(100, P().hunger + 18); bb.toast('Samosa and chai in the stands', '#ffc93c'); } } }],
-      timeText: () => { const c = F.clock(bb.clock); const [h, a] = F.scoreAt(res, f, c.state === 'pre' ? 0 : c.min); return c.state === 'pre' ? `Kick-off in ${Math.ceil(c.toKick)} min · ${bayClock()}` : c.state === 'ht' ? `Half-time · ${f.home.short} ${h}–${a} ${f.away.short}` : `${c.min}' · ${f.home.short} ${h}–${a} ${f.away.short}`; },
-      onTick: (dt) => { const c = F.clock(bb.clock); if (c.state === 'ft' && !over) { over = true; setTimeout(() => { bb.closeWait(); fullTime(); }, 1500); } const min = c.state === 'pre' ? 0 : c.min; const el = document.querySelector('#wsub');
-        while (shownGoals < res.goals.length && res.goals[shownGoals].m <= min) { const g = res.goals[shownGoals++]; const t = F.byId(g.team); const home = g.team === f.home.id;
-          bb.big(home ? 'GOAL!' : 'Goal…', home ? team.col : '#d6c8e4'); roar(home ? .45 : .12, home ? 3 : 1.4); if (el) el.textContent = `${g.m}' · ${t.name} score through ${g.by}`; lineT = 6; }
-        lineT -= dt; if (lineT <= 0 && el) { lineT = 5 + Math.random() * 4; el.textContent = c.state === 'pre' ? 'Teams warm up · the fan club sings' : c.state === 'ht' ? 'Half-time · dhol players in the stands' : Math.random() < .5 ? `${Math.random() < .55 ? f.home.short : f.away.short} ${LINES.chance[Math.floor(Math.random() * 6)]}` : LINES.crowd[Math.floor(Math.random() * 5)]; }
-        P().energy = Math.max(0, P().energy - dt * .01); },
-      onDone: () => fullTime(),
-      onCancel: () => placeOutside(poi) });
-    function fullTime() { if (ended) return; ended = true; const [h, a] = [res.hg, res.ag]; fb.matches++; bb.setDirty(); bb.emit('football', { kind: 'watched', team: team.id, win: h > a });
-        const msg = h > a ? `Full time · ${f.home.short} ${h}–${a} ${f.away.short} · home win! Fans are celebrating outside` : h < a ? `Full time · ${f.home.short} ${h}–${a} ${f.away.short} · a quiet walk home` : `Full time · ${f.home.short} ${h}–${a} ${f.away.short} · honours even`;
-        bb.toast(msg, h > a ? team.col : '#d6c8e4'); if (h > a && mine) { bb.earn(bb.price(150), 'football'); bb.toast(`Fan bonus · +${bb.inr(bb.price(150))}`, '#3ddc97'); } placeOutside(poi); } }
+  /* ---------- watching a match: inside the stadium (features/sports.js) ---------- */
+  function watch(poi, f, vip) { if (bb.SPORTS) return bb.SPORTS.enter(poi, 'football', f, vip); bb.toast('The stands are closed today', '#d6c8e4'); }
   function placeOutside(poi) { bb.teleport(poi.x + Math.sin(poi.rot || 0) * 3, poi.z + Math.cos(poi.rot || 0) * 3, poi.rot || 0); }
   const bayClock = () => bb.bayTime();
 
@@ -104,31 +86,23 @@ window.BBFeatures.push(function (bb) {
       else { const disc = fb.club === team.id ? .5 : 1; rows += bb.rowHtml('stands', 'Ticket · stands', `${st.text}${disc < 1 ? ' · fan club half price' : ''}`, bb.inr(bb.cost('fb.stands', 300) * disc)) + bb.rowHtml('vip', 'Ticket · VIP box', 'Padded seats, snacks included', bb.inr(bb.cost('fb.vip', 1500) * disc), 'ghost'); }
     } else if (champ && champ.id === team.id) rows += `<p class="note">🏆 ${bb.esc(team.name)} are the champions! The trophy celebration starts at 7:30 pm outside the stadium.</p>`;
     else rows += `<p class="note">${f ? `Today: ${bb.esc(st.text)}. ` : ''}${nx ? `Next home match: ${bb.esc(nx.f.away.name)} in ${nx.inDays} Bay day${nx.inDays > 1 ? 's' : ''}, 7:30 pm.` : 'No more home matches this season.'}</p>`;
+    if (!f || st.mc.state === 'ft') rows += bb.rowHtml('tour', 'Stadium tour', 'Walk in, see the pitch and the stands', bb.inr(bb.cost('st.tour', 150)), 'ghost');
+    else if (st.mc.state === 'pre' && bb.SPORTS) rows += bb.rowHtml('bet', 'Bet on this match', `${team.short} v ${f.away.short} · 18+ · bets close at kick-off`, 'Bet', 'ghost');
     const jersey = p.outfit.topCol === team.col;
     rows += bb.rowHtml('jersey', `${team.short} home jersey`, jersey ? 'You are wearing it' : 'Wear your team colours · fans notice', jersey ? 'Worn' : bb.inr(bb.cost('fb.jersey', 999)), jersey ? 'ghost' : '');
     rows += bb.rowHtml('club', `${team.fans} fan club`, fb.club === team.id ? 'Member · half-price tickets, fan marches, match alerts' : fb.club ? `You support ${F.byId(fb.club).name} · switching costs the fee again` : 'Half-price tickets, fan marches and match alerts', fb.club === team.id ? 'Member' : bb.inr(bb.cost('fb.club', 500)), fb.club === team.id ? 'ghost' : '');
-    rows += bb.rowHtml('table', 'League table and fixtures', `${L.name} · season ${d.season % 100 + 1}`, 'Open', 'ghost');
+    rows += bb.rowHtml('table', 'League table and fixtures', `${L.name} · in the Sports app`, 'Open', 'ghost');
     bb.openSheet(`⚽ ${bb.esc(poi.name)}`, `${bb.esc(team.name)} · ${f ? `${bb.esc(f.home.short)} v ${bb.esc(f.away.short)} today` : champDays ? 'Season over · champions\' celebrations' : 'No match today'}`, rows, s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return;
-      if (id === 'table') return leagueSheet();
+      if (id === 'table') return bb.SPORTS ? bb.SPORTS.open('football') : null;
+      if (id === 'bet') return bb.SPORTS.betSheet('football', f, () => stadiumSheet(poi));
+      if (id === 'tour') { if (!bb.spend(bb.cost('st.tour', 150), true)) return; bb.closeSheet(); return bb.SPORTS.enter(poi, 'football', null, false); }
       if (id === 'stands' || id === 'vip') { const disc = fb.club === team.id ? .5 : 1; if (!bb.spend((id === 'vip' ? bb.cost('fb.vip', 1500) : bb.cost('fb.stands', 300)) * disc, true)) return; fb.tickets = { [key]: id === 'vip' ? 'vip' : 'stand' }; bb.setDirty(); bb.toast(`Ticket booked · ${f.home.short} v ${f.away.short}`, '#3ddc97'); bb.emit('football', { kind: 'ticket' }); return stadiumSheet(poi); }
       if (id === 'enter') { const s2 = status(f); if (s2.mc.state === 'pre' && s2.mc.toKick > 30) return bb.toast('Gates open at 7:00 pm', '#ff9f1c'); bb.closeSheet(); return watch(poi, f, fb.tickets[key] === 'vip'); }
       if (id === 'jersey' && !jersey) { if (!bb.spend(bb.cost('fb.jersey', 999), true)) return; p.outfit.topCol = team.col; bb.applyOutfit(); bb.setDirty(); bb.toast(`You're in ${team.short} colours`, team.col); bb.emit('football', { kind: 'jersey' }); return stadiumSheet(poi); }
       if (id === 'club' && fb.club !== team.id) { if (!bb.spend(bb.cost('fb.club', 500), true)) return; fb.club = team.id; bb.setDirty(); bb.toast(`Welcome to the ${team.fans}! Match alerts are on`, team.col); bb.emit('football', { kind: 'club', team: team.id }); return stadiumSheet(poi); } }); }
   bb.poiHandlers.stadium = stadiumSheet;
 
-  /* ---------- league app ---------- */
-  function leagueSheet() { const d = F.day(bb.gameDay); const { mc } = now(); const played = d.matchday ? d.round + (mc.state === 'ft' ? 1 : 0) : L.rounds; const tab = F.table(d.season, played); const fb = ex();
-    const fx = d.matchday ? F.fixtures(d.season, d.round) : []; const pp = bb.ppos();
-    const fixtures = fx.map((f, i) => { const s = status(f); const here = f.home.stadium; return bb.rowHtml('f' + i, `${f.home.short} v ${f.away.short}`, `${here ? f.home.stadium + ' · ' : ''}${s.text}`, here ? 'Directions' : 'Away', here ? 'ghost' : 'ghost'); }).join('');
-    const rows = tab.map((r, i) => `<tr${fb.club === r.team.id ? ' class="me"' : ''}><td>${i + 1}</td><td><b style="color:${r.team.col}">■</b> ${bb.esc(r.team.short)}</td><td>${r.P}</td><td>${r.W}</td><td>${r.D}</td><td>${r.L}</td><td>${r.GF - r.GA > 0 ? '+' : ''}${r.GF - r.GA}</td><td><b>${r.Pts}</b></td></tr>`).join('');
-    const champ = !d.matchday ? champion(d.season) : null;
-    bb.openSheet(`⚽ ${bb.esc(L.name)}`, d.matchday ? `Season ${d.season % 100 + 1} · round ${d.round + 1} of ${L.rounds} · matches at 7:30 pm Bay time` : `Season ${d.season % 100 + 1} is over · champions: ${bb.esc(champ.name)}`,
-      (champ ? `<p class="note">🏆 ${bb.esc(champ.name)} won the league.${champ.stadium ? ` Trophy celebrations at ${bb.esc(champ.stadium)} tonight from 7:30 pm.` : ''} The next season starts in ${L.seasonDays - d.round} Bay day${L.seasonDays - d.round > 1 ? 's' : ''}.</p>` : `<h3 class="sub">Today</h3>${fixtures}`) +
-      `<h3 class="sub">Table</h3><table class="ltab"><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr>${rows}</table>` +
-      `<h3 class="sub">Stadiums on the map</h3>${F.homeTeams.map(t => { const p = stadiumOf(t.id); return bb.rowHtml('s' + t.id, `${bb.esc(t.stadium)}`, `${bb.esc(t.name)} · ${p ? Math.round(Math.hypot(p.x - pp.x, p.z - pp.z) * 2.4 / 100) / 10 + ' km' : ''}${fb.club === t.id ? ' · your club' : ''}`, 'Directions', 'ghost'); }).join('')}` +
-      `<p class="note">Buy tickets, jerseys and fan club membership at the stadium gate. Fan club members get alerts for every goal and a fan march before home matches.</p>`,
-      s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return; let t = null; if (id[0] === 'f') t = fx[+id.slice(1)].home; if (id[0] === 's') t = F.byId(id.slice(1)); if (!t || !t.stadium) return; const p = stadiumOf(t.id); if (p && bb.TRAVEL) bb.TRAVEL.go(p.x, p.z, p.name); }); }
-  bb.addApp({ id: 'football', label: 'Football', icon: '⚽', fn: leagueSheet });
+  // League table, fixtures and bets live in the Sports app (features/sports.js).
 
   /* ---------- fan march before home matches ---------- */
   let march = null;
