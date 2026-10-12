@@ -10,7 +10,7 @@ SUPABASE_URL = "https://uljtvpecjibatqbihmql.supabase.co"
 # Supabase → Project Settings → API Keys → Publishable key (or the legacy anon key). This key is public.
 SUPABASE_KEY = "sb_publishable_KdKpKgsZjkZ783CmVA-sRA_Ht4-s7W1"
 # Websites allowed to join, separated by commas (no slash at the end).
-ALLOWED_ORIGINS = "https://manibasha.github.io,http://localhost:8000"
+ALLOWED_ORIGINS = "https://indiabaygame.com,https://www.indiabaygame.com,http://indiabaygame.com,https://manibasha.github.io,http://localhost:8000"
 
 [[durable_objects.bindings]]
 name = "REGION"

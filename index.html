@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#1a1430">
+<meta name="description" content="India Bay: a free open-world India game in your browser. Drive autos, take jobs and explore Mumbai, Gujarat and Rajasthan with other players.">
 <title>India Bay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +34,7 @@
   <div class="btns">
     <button class="ibtn ic" id="menuBtn" aria-label="Menu" title="Menu: garage, jobs, wardrobe, business">☰</button>
     <button class="ibtn ic" id="phoneBtn" aria-label="Phone" title="Phone">📱</button>
-    <button class="ibtn ic" id="setBtn" aria-label="Settings" title="Settings">⚙</button>
+    <button class="ibtn ic pbtn" id="setBtn" aria-label="Profile and settings" title="Profile and settings"><span id="pAv">👤</span></button>
     <button class="ibtn ic" id="camBtn" aria-label="Switch camera" title="Chase camera">🎥</button>
   </div>
   <div class="pill" id="nav" hidden></div>
@@ -73,6 +74,7 @@
     <div class="cities" id="cities"></div>
     <div class="btnrow"><button class="go" id="go">Start</button><button class="go alt" id="newGame" hidden>New game</button></div>
     <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>E</kbd> use · <kbd>J</kbd> attack · <kbd>M</kbd> phone · <kbd>I</kbd> menu · <kbd>N</kbd> map · <kbd>R</kbd> radio · <kbd>C</kbd> camera · <kbd>P</kbd> photo</div>
+    <div class="legal"><a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="#" id="supLink">Contact support</a></div>
   </div>
 </div>
 
@@ -84,6 +86,7 @@
 <script src="js/world-west.js"></script>
 <script src="js/landmarks.js"></script>
 <script src="js/india-states.js"></script>
+<script src="js/site-config.js"></script>
 <script src="js/online-config.js"></script>
 <!-- Feature files: one line per file in features/ -->
 <script src="features/jobs.js"></script>

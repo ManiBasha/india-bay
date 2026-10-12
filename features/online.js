@@ -42,6 +42,7 @@ window.BBFeatures.push(function (bb) {
     admin,
     async save(c) { const { error } = await sb.from('game_config').upsert({ id: 1, data: c, updated_at: new Date().toISOString() }); if (error) throw error; },
     async suggest(row) { const { error } = await sb.from('suggestions').insert({ name: row.name, region: row.region, text: row.text }); if (error) throw error; },
+    async support(row) { const { error } = await sb.from('support_messages').insert(row); if (error) throw error; },
     async listSuggestions() { const { data, error } = await sb.from('suggestions').select('name,region,text,created_at').order('created_at', { ascending: false }).limit(50); if (error) throw error; return data.map(r => ({ name: r.name, region: r.region, text: r.text, date: String(r.created_at).slice(0, 10) })); }
   });
   async function loadConfig() { try { const { data } = await sb.from('game_config').select('data').eq('id', 1).maybeSingle(); if (data && data.data) bb.cloudConfig(data.data); } catch (e) {} }
@@ -54,7 +55,7 @@ window.BBFeatures.push(function (bb) {
     isAdmin = !!(ad.data);
     bb.setCfgBackend(backend(isAdmin));
     if (profile && profile.is_guest && !isAnon()) { await sb.from('profiles').update({ is_guest: false }).eq('id', uid); profile.is_guest = false; }
-    renderIntro();
+    renderIntro(); bb.setAvatar();
   }
   const ready = (async () => {
     try {
@@ -325,5 +326,42 @@ window.BBFeatures.push(function (bb) {
     });
   }
   bb.addApp({ id: 'online', label: 'Online', icon: '🌐', fn: sheet });
+
+  /* ---------- profile button (👤): account rows ---------- */
+  bb.displayName = () => (profile ? profile.username : '');
+  bb.userEmail = () => (session && session.user && !isAnon() ? session.user.email || '' : '');
+  bb.profileEdit = () => (session && profile ? renameSheet() : bb.profileSheet(false));
+  function sure(e, text) { if (e && e.target && !e.target.dataset.sure) { e.target.dataset.sure = 1; e.target.textContent = text; return false; } return true; }
+  bb.addProfileRows(() => {
+    if (!session || !profile) return { sub: offline ? 'Playing offline on this device' : 'Not signed in', rows: [{ id: 'p_on', label: '🌐 Play online', sub: 'See other players and keep your progress in the cloud', btn: 'Go online', cls: '' }],
+      handle: id => { if (id === 'p_on') { offline = false; next = () => { bb.closeSheet(); connect(); }; flow(); } } };
+    const rows = [{ id: 'p_on', label: status === 'on' ? '🌐 Online' : '🌐 Offline', sub: status === 'on' ? `${online} playing in West India · ${remotes.size} near you` : 'Not connected to the West India server', btn: status === 'on' ? 'Players' : 'Connect' }];
+    if (isAnon() && googleOn) rows.push({ id: 'p_link', label: '🔗 Save this player to Google', sub: 'Keep your progress on any device', btn: 'Link Google', cls: '' });
+    rows.push({ id: 'p_name', label: '✏ Change username', sub: 'Letters and numbers, must be unique', btn: 'Change' });
+    rows.push({ id: 'p_out', label: '🚪 Sign out', sub: isAnon() ? 'A guest account cannot be recovered after signing out' : 'Sign in again any time with Google', btn: 'Sign out', cls: 'danger' });
+    rows.push({ id: 'p_del', label: '🗑 Delete my online account', sub: 'Removes your username, cloud save and messages for good', btn: 'Delete', cls: 'danger' });
+    return { sub: isAnon() ? 'Guest account · this browser only' : 'Google · ' + (session.user.email || ''), rows, handle: async (id, e) => {
+      if (id === 'p_on') { if (status === 'on') return sheet(); offline = false; connect(); bb.closeSheet(); return; }
+      if (id === 'p_link') { const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
+      if (id === 'p_name') return renameSheet();
+      if (id === 'p_out') { if (isAnon() && !sure(e, 'Tap again to sign out')) return; return signOut(); }
+      if (id === 'p_del') { if (!sure(e, 'Tap again to delete for good')) return; const { error } = await sb.rpc('delete_my_account'); if (error) return bb.toast(niceErr(error), '#ff8b8b'); disconnect(true); try { await sb.auth.signOut(); } catch (er) {} localStorage.removeItem('ib.save.v3'); bb.toast('Your online account was deleted', '#d6c8e4'); setTimeout(() => location.reload(), 1200); }
+    } };
+  });
+  function renameSheet() {
+    bb.openSheet('Change username', 'Everyone online will see the new name', `<form class="form" id="rn" novalidate><label>New username<input type="text" id="rn_n" maxlength="10" autocomplete="off" value="${bb.esc(profile.username)}"></label><div class="note" id="rn_m">Letters and numbers, up to 10.</div><div class="btnrow"><button class="go" type="submit">Save</button></div></form>`, s => {
+      const n = s.querySelector('#rn_n'), m = s.querySelector('#rn_m');
+      n.oninput = () => { const er = bb.nameOk(n.value); m.textContent = er || 'Looks good.'; m.className = 'note ' + (er ? 'bad' : 'ok'); };
+      s.querySelector('#rn').onsubmit = async e => {
+        e.preventDefault(); const name = n.value.trim(); const er = bb.nameOk(name); if (er) { m.textContent = er; m.className = 'note bad'; return; }
+        if (name === profile.username) return bb.closeSheet();
+        m.textContent = 'Checking…'; m.className = 'note';
+        const { error } = await sb.from('profiles').update({ username: name }).eq('id', session.user.id);
+        if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; }
+        profile.username = name; bb.P.name = name; bb.setDirty(); bb.save(); bb.setAvatar(); renderIntro(); bb.closeSheet(); bb.toast('Username changed to ' + name, '#3ddc97');
+        if (ws) { disconnect(true); setTimeout(connect, 300); }
+      };
+    });
+  }
   bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, connect, disconnect };
 });
