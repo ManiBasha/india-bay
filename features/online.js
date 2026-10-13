@@ -53,8 +53,8 @@ window.BBFeatures.push(function (bb) {
     profile = pr.data || null;
     const ad = await sb.from('admins').select('user_id').eq('user_id', uid).maybeSingle();
     isAdmin = !!(ad.data);
-    try { const ts = await sb.rpc('is_tester'); isTester = isAdmin || ts.data === true; } catch (e) { isTester = isAdmin; }
-    if (bb.testMode && !isTester) { bb.toast('Test play is only for testers', '#ff8b8b'); setTimeout(() => bb.setTestMode(false), 1500); }
+    let known = false; try { const ts = await sb.rpc('is_tester'); if (!ts.error) { known = true; isTester = isAdmin || ts.data === true; } else isTester = isAdmin; } catch (e) { isTester = isAdmin; }
+    if (bb.testMode && known && !isTester && !(bb.canTestPlay && bb.canTestPlay())) { bb.toast('Test play is only for testers · ask the admin to add you in Admin → Testers', '#ff8b8b'); setTimeout(() => bb.setTestMode(false), 2500); }
     bb.setCfgBackend(backend(false));   // admin settings live on the /admin page only
     const pv = await sb.from('profile_private').select('full_name,dob,parent_ok').eq('user_id', uid).maybeSingle();
     priv = pv.data || null;
@@ -100,13 +100,13 @@ window.BBFeatures.push(function (bb) {
   }
 
   function signInSheet() {
-    bb.openSheet('Play online', 'Play India with everyone', `<div class="stack">${googleOn ? '<button class="go" data-id="google">Sign in with Google</button>' : ''}<button class="go${googleOn ? ' alt' : ''}" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
-      <p class="note">${googleOn ? 'Google keeps your progress on every device. A guest account lives in this browser only; you can link Google later from Phone → Online.' : 'A guest account keeps your progress in this browser.'}</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
+    bb.openSheet('Play online', 'Play India with everyone', `<div class="stack"><button class="go gbtn" data-id="google"><b>G</b> Sign in with Google</button><button class="go alt" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
+      <p class="note">Google keeps your progress on every device and lets you post on BayGram, call and text friends. A guest account lives in this browser only; you can link Google later from 👤 Profile.</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
       s.onclick = async e => {
         const id = e.target.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
         const bad = t => { msg.textContent = t; msg.className = 'note bad'; };
         if (id === 'offline') { offline = true; bb.closeSheet(); return next(); }
-        if (id === 'google') { msg.textContent = 'Opening Google…'; msg.className = 'note'; const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here() } }); if (error) bad(niceErr(error)); return; }
+        if (id === 'google') { if (!googleOn) return bad('Google sign-in is switched off on the server. Admin: Supabase → Authentication → Providers → Google → Enable, then add the Client ID and secret.'); msg.textContent = 'Opening Google…'; msg.className = 'note'; const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here() } }); if (error) bad(niceErr(error)); return; }
         if (id === 'guest') {
           msg.textContent = 'Creating your guest account…'; msg.className = 'note';
           const { data, error } = await sb.auth.signInAnonymously(); if (error) return bad(niceErr(error));
@@ -131,7 +131,7 @@ window.BBFeatures.push(function (bb) {
       f.onsubmit = async e => {
         e.preventDefault(); er.textContent = '';
         const name = n.value.trim(), e1 = bb.nameOk(name); if (e1) { m.textContent = e1; m.className = 'note bad'; return; }
-        const full = s.querySelector('#pf_full').value.trim(), dob = dobI.value, pe = bb.personErr(full, dob); if (pe) { er.textContent = pe; return; }
+        const full = s.querySelector('#pf_full').value.trim(), dob = (priv && priv.dob) || dobI.value, pe = bb.personErr(full, dob); if (pe) { er.textContent = pe; return; }
         const parentOk = s.querySelector('#un_par').checked; if (minor() && !parentOk) { er.textContent = 'Players under 18 need a parent or guardian to agree before playing online.'; return; }
         m.textContent = 'Saving…'; m.className = 'note';
         if (!has) { const { error } = await sb.from('profiles').insert({ id: session.user.id, username: name, is_guest: isAnon() }); if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; } profile = { username: name, is_guest: isAnon() }; }
@@ -194,6 +194,7 @@ window.BBFeatures.push(function (bb) {
     else if (d.t === 'slow') bb.toast('Wait a moment before sending again', '#ffc93c');
     else if (d.t === 'chat') chat(d);
     else if (d.t === 'v') onV(d);
+    else if (d.t === 'call') bb.emit('call', d);
     else if (d.t === 'vc' || d.t === 'vcoff') bb.emit('voice', Object.assign({ self: d.id === myId }, d));
     else if (d.t === 'kick') { kicked = true; if (/idle/i.test(d.msg)) idleOff = true; bb.toast(d.msg + (idleOff ? ' · press any key to rejoin' : ''), '#ffc93c'); }
     else if (d.t === 'err') {
@@ -435,11 +436,13 @@ window.BBFeatures.push(function (bb) {
     if (!session || !profile) return { sub: offline ? 'Playing offline on this device' : 'Not signed in', top: [{ id: 'p_in', label: '🌐 Sign in to play online', sub: 'See other players and keep your progress in the cloud', btn: 'Sign in', cls: '' }], end: [],
       handle: id => { if (id === 'p_in') { offline = false; next = passed ? () => { bb.closeSheet(); connect(); } : () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); } } };
     const top = isAdmin ? [{ id: 'p_admin', label: '🔑 Admin panel', sub: 'Game settings, billboards, reports and support', btn: 'Open', cls: '' }] : [];
+    if (isAnon()) top.unshift({ id: 'p_google', label: '🔗 Sign in with Google', sub: 'Keep this player on every device, post on BayGram, call and text friends', btn: 'Link Google', cls: '' });
     if (isTester || bb.testMode) top.unshift(bb.testMode ? { id: 'p_mode', label: '🧪 Play mode: TEST PLAY', sub: 'Separate test save · everything unlocked · Phone → Test tools', btn: 'Back to real play', cls: '' } : { id: 'p_mode', label: '🧪 Play mode: real play', sub: 'Testers can switch to a separate test save with everything unlocked', btn: 'Switch to test play', cls: 'ghost' });
     const end = [{ id: 'p_out', label: '🚪 Log out', sub: isAnon() ? 'A guest account cannot be recovered after logging out' : 'Sign in again any time with Google', btn: 'Log out', cls: 'danger' },
       { id: 'p_del', label: '🗑 Delete account', sub: 'Removes your player, name, date of birth and cloud save for good', btn: 'Delete', cls: 'danger' }];
     return { sub: isAnon() ? 'Guest account' : 'Google · ' + (session.user.email || ''), top, end, handle: async (id, e) => {
       if (id === 'p_admin') return window.open('admin/', '_blank', 'noopener');
+      if (id === 'p_google') { if (!googleOn) return bb.toast('Google sign-in is switched off on the server (Supabase → Authentication → Providers → Google)', '#ff9f1c'); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error) + (/manual linking/i.test(error.message || '') ? ' · Admin: turn on "Allow manual linking" in Supabase → Authentication → Sign In / Providers' : ''), '#ff8b8b'); return; }
       if (id === 'p_mode') return bb.setTestMode(!bb.testMode);
       if (id === 'p_out') { if (isAnon() && !sure(e, 'Tap again to log out')) return; return signOut(); }
       if (id === 'p_del') { if (!sure(e, 'Tap again to delete for good')) return; const { error } = await sb.rpc('delete_my_account'); if (error) return bb.toast(niceErr(error), '#ff8b8b'); disconnect(true); try { await sb.auth.signOut(); } catch (er) {} localStorage.removeItem('ib.save.v3'); bb.toast('Your account was deleted', '#d6c8e4'); setTimeout(() => location.reload(), 1200); }
@@ -452,7 +455,7 @@ window.BBFeatures.push(function (bb) {
   // bubble over a player (or yourself) without adding a chat line; used by voice messages
   function bubble(id, text) { if (id === myId) { freeSprite(selfBub); selfBub = tag(text, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 5000; return; }
     const r = remotes.get(id); if (r) { freeSprite(r.bub); r.bub = tag(text, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 5000; } }
-  bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
+  bb.ONLINE = { get client() { return sb; }, get uid() { return session && session.user ? session.user.id : null; }, get username() { return profile ? profile.username : ""; }, signOut, get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
     send(o) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); return true; } return false; }, isMuted: n => muted.has(String(n).toLowerCase()), openChat: () => openBar(),
     rpc: (n, a) => (sb ? sb.rpc(n, a) : Promise.resolve({ error: { message: 'offline' } })), get signedIn() { return !!(session && profile); }, get isTester() { return isTester; }, get isAdmin() { return isAdmin; }, get guest() { return !!(session && isAnon()); } };
 

@@ -227,14 +227,34 @@ body.cine .hud,body.cine .pad,body.cine #offer{display:none!important}
 #cine .cwin{position:absolute;inset:0;overflow:hidden}
 #cine .hole{position:absolute;inset:12% 6% 30% 6%;border-radius:18px;box-shadow:0 0 0 300vmax var(--wall,#3b4a5a),inset 0 0 0 10px var(--frame,#8a96a3),inset 0 0 40px rgba(0,0,0,.35)}
 #cine .hole i{position:absolute;display:block}
-#cine.k-train{--wall:#34495e;--frame:#9aa6b2}#cine.k-train .hole i{left:0;right:0;top:46%;height:8px;background:var(--frame);opacity:.9}
-#cine.k-metro{--wall:#c9cfd6;--frame:#7d8791}#cine.k-metro .hole{inset:9% 3% 30% 3%;border-radius:12px}#cine.k-metro .hole i{top:-20%;bottom:-60%;left:31%;width:7px;background:#e6c64a;border-radius:4px}
-#cine.k-bus{--wall:#5d4630;--frame:#c9b48a}#cine.k-bus .hole{inset:15% 5% 31% 5%;border-radius:10px}#cine.k-bus .hole i{top:0;bottom:0;left:50%;width:10px;background:var(--frame)}
+/* Beta v1.01.03: cabins with big windows and interior details (seats, rails, poles at the side, route strips) */
+#cine .cab{position:absolute;inset:0;pointer-events:none}#cine .cab b{position:absolute;display:block}
+#cine.k-train{--wall:#3c5166;--frame:#a9b4bf}#cine.k-train .hole{inset:9% 4% 33% 4%;border-radius:16px}#cine.k-train .hole i{left:0;right:0;top:-6px;height:14px;background:linear-gradient(#cfd6dc,#97a3ae);opacity:.95}
+#cine.k-train .cab .c1{left:0;right:0;bottom:0;height:30%;background:linear-gradient(#2b3a49,#1d2833)}#cine.k-train .cab .c2{left:6%;right:6%;bottom:18%;height:9%;border-radius:10px 10px 0 0;background:#6b4a33;box-shadow:inset 0 6px 0 #835b40}
+#cine.k-train .cab .c3{left:0;right:0;top:2%;height:5%;background:repeating-linear-gradient(90deg,#8d99a5 0 3px,transparent 3px 60px)}
+/* metro: wide panoramic windows, poles only at the edges, a route strip above and seats below */
+#cine.k-metro{--wall:#d9dee4;--frame:#9aa4ae}#cine.k-metro .hole{inset:12% 2% 27% 2%;border-radius:14px}#cine.k-metro .hole i{top:0;bottom:0;left:calc(50% - 4px);width:8px;background:linear-gradient(90deg,#aeb7c0,#e9edf1,#aeb7c0);border-radius:3px}
+#cine.k-metro .cab .c1{left:4%;right:4%;top:3%;height:6%;border-radius:6px;background:linear-gradient(90deg,#7a3d9a 0 8%,#f4f4f4 8% 92%,#7a3d9a 92%);box-shadow:inset 0 0 0 1px #c6ccd2}
+#cine.k-metro .cab .c1:after{content:'● ─── ● ─── ● ─── ● ─── ●';position:absolute;inset:0;display:grid;place-items:center;color:#7a3d9a;font-size:12px;letter-spacing:2px}
+#cine.k-metro .cab .c2{left:0;right:0;bottom:0;height:26%;background:linear-gradient(#c3cad1,#9ea7b0)}#cine.k-metro .cab .c3{left:3%;right:3%;bottom:13%;height:10%;border-radius:14px 14px 4px 4px;background:linear-gradient(#5f84b8,#3f5f8c)}
+#cine.k-metro .cab .c4{left:0.6%;width:1.1%;top:0;bottom:0;background:linear-gradient(90deg,#b8c0c8,#f1f3f5,#b8c0c8);box-shadow:calc(100vw - 1.8vw) 0 0 #d6dbe0}
+#cine.k-metro.lookfwd .hole{inset:8% 8% 24% 8%;border-radius:40px 40px 12px 12px}#cine.k-metro.lookfwd .hole i,#cine.k-metro.lookfwd .cab .c3{display:none}
+#cine.k-bus{--wall:#5d4630;--frame:#c9b48a}#cine.k-bus .hole{inset:12% 4% 31% 4%;border-radius:10px}#cine.k-bus .hole i{top:0;bottom:0;left:calc(50% - 4px);width:8px;background:var(--frame)}
+#cine.k-bus .cab .c1{left:0;right:0;bottom:0;height:30%;background:#3d2e20}#cine.k-bus .cab .c2{left:8%;right:52%;bottom:16%;height:12%;border-radius:10px;background:#8a2a2a}#cine.k-bus .cab .c3{left:52%;right:8%;bottom:16%;height:12%;border-radius:10px;background:#8a2a2a}
 #cine.k-taxi{--wall:#1f1f24;--frame:#2f2f36}#cine.k-taxi .hole{inset:5% 3% 33% 3%;border-radius:38px 38px 14px 14px}#cine.k-taxi .hole i{top:4%;left:44%;width:12%;height:9%;background:#2f2f36;border-radius:6px}
-#cine.k-plane{--wall:#ece8e0;--frame:#d3cdc2}#cine.k-plane .hole{inset:auto;left:50%;top:40%;width:min(54vmin,420px);height:min(70vmin,540px);transform:translate(-50%,-50%);border-radius:46%/40%;box-shadow:0 0 0 300vmax var(--wall),inset 0 0 0 18px var(--frame),inset 0 0 0 22px #b8b1a5,inset 0 0 60px rgba(0,0,0,.25)}
-#cine.k-heli{--wall:#1b1e23;--frame:#2a2e35}#cine.k-heli .hole{inset:3% 2% 22% 2%;border-radius:44% 44% 14% 14%/40% 40% 12% 12%}#cine.k-heli .hole i{top:0;bottom:0;left:calc(50% - 6px);width:12px;background:var(--frame)}
+#cine.k-taxi .cab .c1{left:0;right:0;bottom:0;height:32%;background:linear-gradient(#26262c,#121216)}#cine.k-taxi .cab .c2{left:16%;width:20%;bottom:6%;aspect-ratio:1;border-radius:50%;border:14px solid #34343b}
+/* flight: a big oval window with the wing, seat backs and the overhead bins */
+#cine.k-plane{--wall:#ece8e0;--frame:#d3cdc2}#cine.k-plane .hole{inset:auto;left:50%;top:42%;width:min(70vmin,560px);height:min(78vmin,600px);transform:translate(-50%,-50%);border-radius:46%/40%;box-shadow:0 0 0 300vmax var(--wall),inset 0 0 0 16px var(--frame),inset 0 0 0 20px #b8b1a5,inset 0 0 60px rgba(0,0,0,.2)}
+#cine.k-plane .cab .c1{left:0;right:0;top:0;height:7%;background:linear-gradient(#f6f3ee,#d9d3c8);box-shadow:0 3px 0 #c9c2b6}#cine.k-plane .cab .c2{left:2%;width:15%;bottom:0;height:46%;border-radius:20px 20px 0 0;background:linear-gradient(#2d4d7a,#1e3556)}
+#cine.k-plane .cab .c3{right:2%;width:15%;bottom:0;height:46%;border-radius:20px 20px 0 0;background:linear-gradient(#2d4d7a,#1e3556)}
+#cine.k-plane.lookfwd .hole{left:50%;top:40%;width:min(96vw,1100px);height:min(46vh,420px);border-radius:46% 46% 18% 18%/60% 60% 20% 20%;box-shadow:0 0 0 300vmax #22262c,inset 0 0 0 10px #3a3f47}
+#cine.k-plane.lookfwd .cab .c1{background:linear-gradient(#2a2f36,#22262c)}#cine.k-plane.lookfwd .cab .c2,#cine.k-plane.lookfwd .cab .c3{display:none}#cine.k-plane.lookfwd .cab .c4{left:0;right:0;bottom:0;height:30%;background:repeating-linear-gradient(90deg,#2b3139 0 40px,#3a414b 40px 44px);border-top:4px solid #4a525c}
+/* helicopter: a wide bubble canopy, the frame posts at the sides */
+#cine.k-heli{--wall:#1b1e23;--frame:#2a2e35}#cine.k-heli .hole{inset:2% 1% 20% 1%;border-radius:46% 46% 16% 16%/44% 44% 12% 12%}#cine.k-heli .hole i{top:0;bottom:0;left:calc(50% - 3px);width:6px;background:var(--frame)}
+#cine.k-heli .cab .c1{left:0;right:0;bottom:0;height:20%;background:linear-gradient(#262a31,#14171b)}#cine.k-heli .cab .c2{left:38%;right:38%;bottom:4%;height:12%;border-radius:8px;background:#0e1013;box-shadow:inset 0 0 0 2px #3a3f47}
 #cine.k-ferry .hole,#cine.k-none .hole,#cine.k-open .hole{display:none}
 #cine.k-ferry .cwin:after{content:'';position:absolute;left:0;right:0;bottom:24%;height:12px;background:#e9e2d0;box-shadow:0 22px 0 #e9e2d0,0 -1px 0 #9b8f78}
+#cine.k-ferry .cab .c1{left:0;right:0;bottom:0;height:22%;background:repeating-linear-gradient(90deg,#8a6a44 0 46px,#7a5c3a 46px 50px)}
 #cine .cfade{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .1s}
 #cine .ccap{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 70px);width:min(520px,calc(100% - 32px));text-align:center;color:var(--ink);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #cine .ccap .ck{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);font-weight:700}
@@ -334,3 +354,74 @@ body.navon #mini{width:140px;height:140px}
 #howto .hdots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.25)}
 #howto .hdots i.on{background:#ffc93c;width:18px;border-radius:4px}
 #howto .btnrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+/* ‹ Back on every sheet */
+.shead .stt{flex:1;min-width:0}
+.shead .back{flex:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--panel-edge);background:var(--sheet-2);color:var(--ink);font:800 24px/1 "Baloo 2",sans-serif;display:grid;place-items:center;cursor:pointer;padding:0 0 3px}
+/* BayGram */
+.bgpost{border:1px solid var(--panel-edge);border-radius:14px;padding:10px;margin:10px 0;background:var(--sheet-2)}
+.bghead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}.bghead b{font-family:var(--f-display)}.bghead small{color:var(--muted);font-size:12px;text-align:right}
+.bgmedia img,.bgmedia video{display:block;width:100%;max-height:52vh;object-fit:contain;border-radius:10px;background:#000}
+.bgcap{margin:8px 2px 4px;font-size:14px;line-height:1.45}.bgbar{display:flex;gap:6px;margin-top:6px}.bgbar .chip.on{background:#d62f4b;color:#fff;border-color:#d62f4b}
+.bggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:8px 0}
+.bgitem{position:relative;border:1px solid var(--panel-edge);border-radius:12px;overflow:hidden;background:var(--sheet-2)}
+.bgitem img,.bgitem video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#000}
+.bgitem i{position:absolute;top:6px;left:6px;font:700 11px "Baloo 2",sans-serif;background:rgba(0,0,0,.6);color:#fff;padding:1px 7px;border-radius:999px;font-style:normal}
+.bgitem small{display:block;padding:4px 7px 0;font-size:11px;color:var(--muted)}.bgacts{display:flex;gap:4px;padding:6px;flex-wrap:wrap}.bgacts .chip{padding:3px 8px;font-size:12px}
+label.fl{display:block;margin:8px 0;font-size:13px;color:var(--muted)}label.fl input{display:block;width:100%;margin-top:4px;box-sizing:border-box}
+/* BayGram, Instagram style */
+.bgstories{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}.bgstories button{background:none;border:0;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex:none;width:62px}
+.bgstories small{font-size:11px;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bgav{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;padding:2px;background:conic-gradient(#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75);flex:none}
+.bgav i{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;border:2px solid var(--sheet);background:hsl(var(--h) 55% 45%);color:#fff;font:800 15px/1 "Baloo 2",sans-serif;font-style:normal}
+.bgstories .bgav{width:56px;height:56px}.bgstories .bgav i{font-size:20px}
+.bgpost{border:0;border-top:1px solid var(--panel-edge);border-radius:0;padding:0 0 10px;margin:0;background:none}
+.bgpost header{display:flex;align-items:center;gap:10px;padding:10px 2px}.bgpost header div{flex:1;min-width:0;line-height:1.2}.bgpost header b{font:700 14px "Baloo 2",sans-serif;display:block}.bgpost header small{font-size:11px;color:var(--muted)}
+.bgx{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px}
+.bgpost .bgmedia{position:relative;margin:0 -18px;background:#000;user-select:none}.bgpost .bgmedia img,.bgpost .bgmedia video{width:100%;aspect-ratio:4/5;max-height:62vh;object-fit:cover;border-radius:0;display:block}
+.bgsnd{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:2px 8px;border-radius:999px;pointer-events:none}
+.bgheart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(0);color:#fff;font-size:96px;text-shadow:0 4px 18px rgba(0,0,0,.4);pointer-events:none;opacity:0}
+.bgmedia.pop .bgheart{animation:bgpop .8s ease-out}
+@keyframes bgpop{0%{transform:translate(-50%,-50%) scale(0);opacity:0}15%{transform:translate(-50%,-50%) scale(1.15);opacity:.95}30%{transform:translate(-50%,-50%) scale(.95)}70%{opacity:.95}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+.bgacts2{display:flex;gap:6px;padding:6px 0 0}.bgacts2 button{background:none;border:0;color:var(--ink);font-size:26px;line-height:1;cursor:pointer;padding:2px 6px}.bglk.on{color:#ed4956}.bgsh{font-size:22px!important;transform:rotate(-20deg)}
+.bgtxt{padding:2px 4px}.bgtxt>b{font-size:14px}.bgtxt p{margin:3px 0;font-size:14px;line-height:1.4}.bgtxt small{font-size:10px;letter-spacing:.04em;color:var(--muted)}
+.gbtn{background:#fff!important;color:#1f1f1f!important;border:1px solid #dadce0!important}.gbtn b{color:#4285f4;font:800 18px/1 Arial,sans-serif;margin-right:8px}
+input.locked{opacity:.65;pointer-events:none}
+/* steering styles and the Bay Time clock */
+body.steer-alt .pad.l{display:none!important}
+#steerWheel{position:fixed;z-index:3;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:150px;height:150px;touch-action:none;pointer-events:auto}
+#steerWheel svg{width:100%;height:100%;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
+#steerSlider{position:fixed;z-index:3;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:min(46vw,260px);height:58px;border-radius:29px;background:rgba(20,16,36,.62);border:1px solid rgba(255,244,226,.35);touch-action:none;pointer-events:auto}
+#steerSlider i{position:absolute;left:50%;top:12px;bottom:12px;width:2px;background:rgba(255,244,226,.35)}
+#steerSlider b{position:absolute;top:6px;left:50%;width:46px;height:46px;margin-left:-23px;border-radius:50%;background:#ffc93c;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#steerSlider b:after{content:'◀ ▶';position:absolute;inset:0;display:grid;place-items:center;color:#1a1430;font-size:12px;font-weight:800}
+#bayClock{font-family:var(--f-display);font-weight:800;font-size:13px;padding:2px 10px;width:max-content;cursor:pointer;pointer-events:auto;letter-spacing:.02em}
+@media (max-width:760px){#bayClock{font-size:11px;padding:1px 8px}}
+/* the phone (Beta v1.01.03): a handset with a notch, status bar, wallpaper, app icons and a dock */
+#sheetWrap.phonemode #sheet{max-width:370px;height:min(760px,90vh);max-height:none;border-radius:44px;border:9px solid #0c0c10;box-shadow:0 0 0 2px #3a3a44,0 24px 60px rgba(0,0,0,.55);padding:0 16px 14px;
+  background:radial-gradient(120% 70% at 20% 0%,#5b3aa0 0%,transparent 60%),radial-gradient(120% 80% at 100% 100%,#0f6f6f 0%,transparent 55%),linear-gradient(160deg,#241a44,#120f24);display:flex;flex-direction:column;overflow:hidden}
+#sheetWrap.phonemode #sbody{flex:1;overflow:auto;scrollbar-width:none;padding-bottom:6px}
+#sheetWrap.phonemode .pstat{display:flex;justify-content:space-between;align-items:center;height:30px;margin:0 -2px 2px;font:700 12px/1 "Baloo 2",sans-serif;color:#fff;flex:none;position:relative}
+#sheetWrap.phonemode .pstat .notch{position:absolute;left:50%;top:6px;width:96px;height:22px;margin-left:-48px;border-radius:14px;background:#0c0c10}
+#sheetWrap.phonemode .shead{flex:none}#sheetWrap.phonemode .shead h2{font-size:18px}
+#sheetWrap.phonemode .pclock{text-align:center;color:#fff;margin:4px 0 14px}#sheetWrap.phonemode .pclock b{display:block;font:800 46px/1 "Baloo 2",sans-serif;letter-spacing:.02em}#sheetWrap.phonemode .pclock small{opacity:.8;font-size:12px}
+#sheetWrap.phonemode .apps{gap:14px 8px}
+#sheetWrap.phonemode .app{background:none;border:0;color:#fff;font-size:11px;font-weight:600;padding:0;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+#sheetWrap.phonemode .app span{display:grid;place-items:center;width:54px;height:54px;border-radius:15px;font-size:27px;background:linear-gradient(150deg,hsl(var(--h,220) 75% 58%),hsl(var(--h,220) 70% 38%));box-shadow:0 3px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25)}
+#sheetWrap.phonemode .app.locked span{filter:grayscale(1) brightness(.7)}
+#sheetWrap.phonemode .pdock{display:flex;justify-content:space-around;margin-top:auto;padding:10px 8px;border-radius:26px;background:rgba(255,255,255,.14);backdrop-filter:blur(8px);position:sticky;bottom:0}
+#sheetWrap.phonemode .pdock .app{font-size:0}#sheetWrap.phonemode .pdock .app span{width:52px;height:52px}
+#sheetWrap.phonemode #sheet:after{content:'';display:block;width:120px;height:4px;border-radius:2px;background:rgba(255,255,255,.6);margin:8px auto 0;flex:none}
+#sheetWrap.phonemode .row{background:rgba(255,255,255,.07);border-radius:12px;padding:8px 10px;margin:6px 0}
+@media (max-width:480px){#sheetWrap.phonemode{padding-inline:8px}#sheetWrap.phonemode #sheet{height:min(720px,86vh);border-width:7px;border-radius:36px}}
+#phoneBtn{position:relative}#phoneBtn .nb{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:#e23744;color:#fff;font:800 11px/18px "Baloo 2",sans-serif;text-align:center;font-style:normal;padding:0 4px}
+/* calls and texts */
+.cav{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#3ddc97,#1f8a8a);color:#fff;font:800 15px/1 "Baloo 2",sans-serif;margin-right:8px;vertical-align:middle}
+.cav.big{width:96px;height:96px;font-size:42px;margin:0 auto 10px;display:grid}
+#callUI{position:fixed;inset:0;z-index:12;display:grid;place-items:center;background:linear-gradient(170deg,rgba(20,40,60,.92),rgba(10,8,22,.96));color:#fff;font-family:var(--f-display)}
+#callUI[hidden]{display:none}#callUI .ccard{text-align:center;display:grid;gap:4px;justify-items:center}#callUI .ccard b{font-size:24px}#callUI .ccard small{opacity:.8}
+.cbtns2{display:flex;gap:22px;margin-top:40px}.cb{display:grid;justify-items:center;gap:6px;width:76px;height:76px;border-radius:50%;border:0;font-size:28px;background:#3a3f4a;color:#fff;cursor:pointer;place-content:center;position:relative}
+.cb span{position:absolute;top:84px;font-size:12px;white-space:nowrap}.cb.ok{background:#2ecc71}.cb.no{background:#e74c3c}.cb.talk{background:#2f7bff;width:96px;height:96px;font-size:36px;touch-action:none}.cb.talk.on{background:#ff4757;transform:scale(1.08)}
+.trow{display:flex;align-items:center;gap:6px;width:100%;background:rgba(255,255,255,.06);border:0;border-radius:12px;padding:8px 10px;margin:6px 0;color:var(--ink);text-align:left;cursor:pointer}
+.trow .tm{flex:1;min-width:0}.trow .tm b{display:block;font-family:var(--f-display)}.trow .tm small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trow .tt{font-size:11px;color:var(--muted);display:grid;justify-items:end;gap:3px}.trow .tt i{background:#2ecc71;color:#fff;border-radius:9px;padding:0 6px;font-style:normal;font-weight:800}
+.chat2{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto;padding:4px 2px 8px}.bub{max-width:78%;align-self:flex-start;background:rgba(255,255,255,.1);padding:7px 11px;border-radius:16px 16px 16px 4px;font-size:14px;line-height:1.4}
+.bub.me{align-self:flex-end;background:#2f7bff;color:#fff;border-radius:16px 16px 4px 16px}.bub small{display:block;font-size:10px;opacity:.65;margin-top:2px;text-align:right}

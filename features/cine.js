@@ -33,15 +33,15 @@ window.BBFeatures.push(function (bb) {
     if (cur.o.keys) { if (cur.o.keys(e.code, true) === true) { e.stopImmediatePropagation(); e.preventDefault(); return; } }
     if (e.code === 'Escape') { finish(true); } else if (e.code === 'KeyV' && cur.o.lookToggle !== false) toggleLook(); e.stopImmediatePropagation(); }, true);
   addEventListener('keyup', e => { keys[e.code] = false; if (cur && cur.o.keys) cur.o.keys(e.code, false); }, true);
-  function toggleLook() { if (!cur) return; cur.look = cur.look === 'side' ? 'fwd' : 'side'; const b = el.querySelector('[data-c="look"]'); if (b) b.textContent = cur.look === 'side' ? '👀 Look ahead' : '🪟 Window view'; }
+  function toggleLook() { if (!cur) return; cur.look = cur.look === 'side' ? 'fwd' : 'side'; el.classList.toggle('lookfwd', cur.look === 'fwd'); const b = el.querySelector('[data-c="look"]'); if (b) b.textContent = cur.look === 'side' ? '👀 Look ahead' : '🪟 Window view'; }
 
   function play(o) { if (cur) stop(); if (bb.player.mode === 'drive') bb.exitVehicle(true); for (const k in keys) keys[k] = false;
     const pp = bb.ppos(); cur = { o, t: 0, li: -1, look: o.look || 'side', start: { x: pp.x, z: pp.z, h: bb.player.h }, cp: new T.Vector3(), cl: new T.Vector3(), snap: true, seg: 0 };
     if (o.venue) bb.enterVenue(o.venue);
     if (o.clouds) addClouds(o.clouds);
-    document.body.classList.add('cine'); el.hidden = false; el.className = 'k-' + (o.kind || 'none') + (o.hud ? ' hudless' : '');
+    document.body.classList.add('cine'); el.hidden = false; el.className = 'k-' + (o.kind || 'none') + (o.hud ? ' hudless' : '') + ((o.look || 'side') === 'fwd' ? ' lookfwd' : '');
     const btn = (o.buttons || []).map(b => `<button class="buy ghost" data-c="b:${b.id}">${esc(b.label)}</button>`).join('');
-    el.innerHTML = `<div class="cwin"><div class="hole"><i></i></div></div><div class="cfade"></div>${o.top ? `<div class="ctop" id="ctop"></div>` : ''}
+    el.innerHTML = `<div class="cwin"><div class="hole"><i></i></div><div class="cab"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></div></div><div class="cfade"></div>${o.top ? `<div class="ctop" id="ctop"></div>` : ''}
       <div class="ccap"><div class="ck">${esc(o.label || '')}</div><b>${esc(o.title || '')}</b><span id="csub">${esc(o.sub || '')}</span>${o.dur ? '<div class="cbar"><i id="cfill"></i></div>' : ''}<small id="ctime"></small></div>
       <div class="cbtns">${btn}${o.lookToggle === false ? '' : '<button class="buy ghost" data-c="look">👀 Look ahead</button>'}<button class="go" data-c="skip">${esc(o.skipLabel || 'Skip ⏭')}</button>${o.cancel ? `<button class="buy danger" data-c="cancel">${esc(o.cancel)}</button>` : ''}</div>${o.extraHtml || ''}`;
     el.onclick = e => { const c = e.target.closest('[data-c]'); if (!c) return; const k = c.dataset.c; if (k === 'skip') return finish(true); if (k === 'look') return toggleLook(); if (k === 'cancel') return cancel();

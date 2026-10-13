@@ -160,6 +160,19 @@ window.BBFeatures.push(function (bb) {
   bb.poiHandlers.metro = poi => { const zid = String(poi.extra).split(':')[0]; const dests = bb.pois.filter(p => p.type === 'metro' && p !== poi && String(p.extra).split(':')[0] === zid)
       .map(p => ({ key: p.extra, name: p.name, x: p.x, z: p.z, arrive: { x: p.x + Math.sin(p.rot) * 2, z: p.z + Math.cos(p.rot) * 2, rot: p.rot, name: p.name, zoneName: p.name } }));
     bookSheet(Object.assign({}, poi, { name: `${poi.name} · ${MLINE[zid] || 'Metro'}`, zone: null }), ['metro'], dests); };
+  // ferries you can see crossing (Beta v1.01.03): a two-deck passenger ferry with a blue hull, a white cabin with
+  // windows, an open upper deck with railings, a funnel and life rings, going back and forth on each route
+  function ferryBoat() { const g = new T3.Group(); const L = (c) => bb.LMat(c); const m = (geo, mt, x, y, z) => { const o = new T3.Mesh(geo, mt); o.position.set(x, y, z); g.add(o); return o; };
+    m(new T3.BoxGeometry(4.6, 1.6, 14), L('#1f5fa8'), 0, .3, 0); const bow = m(new T3.CylinderGeometry(0, 2.3, 3.4, 3), L('#1f5fa8'), 0, .3, 8.6); bow.rotation.x = Math.PI / 2; bow.rotation.y = Math.PI;
+    m(new T3.BoxGeometry(4.7, .25, 14.2), L('#f4f1ea'), 0, 1.15, 0); m(new T3.BoxGeometry(4.2, 1.8, 9), L('#f4f1ea'), 0, 2.1, -.8);
+    for (const s of [-1, 1]) { m(new T3.BoxGeometry(.05, .7, 8), L('#24323d'), s * 2.11, 2.3, -.8); for (let k = 0; k < 4; k++) { const r = m(new T3.TorusGeometry(.28, .07, 5, 10), L('#ff5a1f'), s * 2.15, 1.7, -4 + k * 2.4); r.rotation.y = Math.PI / 2; } }
+    m(new T3.BoxGeometry(4.2, .12, 9), L('#c9c2b2'), 0, 3.05, -.8); for (const s of [-1, 1]) m(new T3.BoxGeometry(.06, .6, 9), L('#9aa4ae'), s * 2.08, 3.4, -.8);
+    m(new T3.BoxGeometry(2, 1.2, 2), L('#f4f1ea'), 0, 3.7, 2.4); m(new T3.BoxGeometry(2.05, .4, .05), L('#24323d'), 0, 3.9, 3.42);
+    m(new T3.CylinderGeometry(.35, .4, 1.6, 10), L('#d62f2f'), 0, 4, -4); bb.scene.add(g); return g; }
+  const FERRY = W.ferries.map(f => ({ f, g: ferryBoat(), s: Math.random(), dir: 1, wait: 0 }));
+  bb.onUpdate(dt => { const pp = bb.ppos(); for (const q of FERRY) { const f = q.f; const L = Math.hypot(f.bx - f.ax, f.bz - f.az) || 1; const near = !bb.inside && Math.min(Math.hypot(f.ax - pp.x, f.az - pp.z), Math.hypot(f.bx - pp.x, f.bz - pp.z)) < 1400; q.g.visible = near; if (!near) continue;
+      if (q.wait > 0) q.wait -= dt; else { q.s += q.dir * 7 * dt / L; if (q.s > .96 || q.s < .04) { q.s = Math.max(.04, Math.min(.96, q.s)); q.dir *= -1; q.wait = 12; } }
+      const x = f.ax + (f.bx - f.ax) * q.s, z = f.az + (f.bz - f.az) * q.s; q.g.position.set(x, (bb.isLand(x, z) ? .04 : -1.1) + .45 + Math.sin(bb.clock * 40) * .05, z); q.g.rotation.y = Math.atan2((f.bx - f.ax) * q.dir, (f.bz - f.az) * q.dir); q.g.rotation.z = Math.sin(performance.now() / 900) * .02; } });
   W.ferries.forEach((f, i) => { bb.addPoi({ type: 'ferry', name: f.a, x: f.ax, z: f.az, rot: -Math.PI / 2, extra: i + 'b' }); bb.addPoi({ type: 'ferry', name: f.b, x: f.bx, z: f.bz, rot: Math.PI / 2, extra: i + 'a' }); });
   bb.poiHandlers.ferry = poi => { const ex = String(poi.extra); const i = ex.length > 1 ? +ex.slice(0, -1) : 0, side = ex.slice(-1); const f = W.ferries[i]; const zn = id => { const q = W.zones.find(z => z.id === id); return q ? q.name : ''; };
     const toB = side === 'b'; const d = toB ? { key: 'b', name: f.b, x: f.bx, z: f.bz, arrive: { x: f.bx, z: f.bz, rot: Math.PI / 2, name: f.b, zoneName: f.zb ? zn(f.zb) : 'Alibaug' } } : { key: 'a', name: f.a, x: f.ax, z: f.az, arrive: { x: f.ax, z: f.az, rot: -Math.PI / 2, name: f.a, zoneName: f.za ? zn(f.za) : 'Mumbai' } };

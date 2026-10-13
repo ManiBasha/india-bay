@@ -56,7 +56,7 @@ async function verifyLocal(env, token) {
   if (!ok) return { bad: 'signature did not match' };
   if (body.exp && body.exp * 1000 < Date.now() - 30_000) return { bad: 'expired' };
   if (!body.sub) return { bad: 'no user in token' };
-  return { uid: body.sub };
+  return { uid: body.sub, anon: !!body.is_anonymous };
 }
 async function whoIs(env, token) {
   let v = await verifyLocal(env, token);
@@ -64,7 +64,7 @@ async function whoIs(env, token) {
     const u = await fetch(env.SUPABASE_URL + '/auth/v1/user', { headers: { apikey: env.SUPABASE_KEY, authorization: 'Bearer ' + token } });
     if (!u.ok) return { bad: 'Supabase said ' + u.status + ' ' + (await u.text()).slice(0, 80) };
     const user = await u.json();
-    v = user && user.id ? { uid: user.id } : { bad: 'no user' };
+    v = user && user.id ? { uid: user.id, anon: !!user.is_anonymous } : { bad: 'no user' };
   }
   if (v.bad) return v;
   const url = env.SUPABASE_URL + '/rest/v1/profiles?select=username&id=eq.' + encodeURIComponent(v.uid);
@@ -72,7 +72,7 @@ async function whoIs(env, token) {
   if (!p.ok) p = await fetch(url, { headers: { apikey: env.SUPABASE_KEY } });
   if (!p.ok) return { uid: v.uid, dbErr: p.status + ' ' + (await p.text()).slice(0, 80) };
   const rows = await p.json();
-  return { uid: v.uid, name: rows[0] ? rows[0].username : null };
+  return { uid: v.uid, anon: !!v.anon, name: rows[0] ? rows[0].username : null };
 }
 
 export default {
@@ -101,7 +101,7 @@ export default {
       if (who.bad) return refuse('auth', 'Sign-in not accepted: ' + who.bad + '. Sign out and play as guest again.');
       if (who.dbErr) return refuse('db', 'Server could not read usernames (' + who.dbErr + '). Check SUPABASE_KEY in wrangler.toml.');
       if (!who.name) return refuse('name', 'Pick a username first.');
-      const h = new Headers(req.headers); h.set('x-uid', who.uid); h.set('x-name', who.name);
+      const h = new Headers(req.headers); h.set('x-uid', who.uid); h.set('x-name', who.name); h.set('x-anon', who.anon ? '1' : '0');
       return env.REGION.get(env.REGION.idFromName(region)).fetch(new Request('https://region/ws', { headers: h }));
     }
     return json({ error: 'Not found' }, 404);
@@ -137,7 +137,7 @@ export class Region extends DurableObject {
     if (this.players.size >= MAX_PLAYERS) return refuse('full', 'This region is full right now. Try again in a few minutes.');
     const [c, s] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(s);
-    const p = { id: crypto.randomUUID().slice(0, 8), uid, name, x: 0, z: 0, y: 0, h: 0, m: 'f', v: '', c: '', s: 0, seen: Date.now(), chatAt: 0, ready: false };
+    const p = { id: crypto.randomUUID().slice(0, 8), uid, name, anon: req.headers.get('x-anon') === '1', x: 0, z: 0, y: 0, h: 0, m: 'f', v: '', c: '', s: 0, seen: Date.now(), chatAt: 0, ready: false };
     s.serializeAttachment(p);
     this.players.set(s, p);
     s.send(JSON.stringify({ t: 'hello', id: p.id, name, online: this.players.size }));
@@ -172,7 +172,7 @@ export class Region extends DurableObject {
   async webSocketMessage(ws, raw) {
     let p = this.players.get(ws);
     if (!p) { p = ws.deserializeAttachment(); if (!p) { try { ws.close(4003, 'Unknown'); } catch (e) {} return; } this.players.set(ws, p); }
-    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') ? VOICE_MAX + 300 : 600)) return;
+    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') || raw.startsWith('{"t":"call"') ? VOICE_MAX + 300 : 600)) return;
     let d; try { d = JSON.parse(raw); } catch (e) { return; }
     const now = Date.now();
     p.seen = now;
@@ -183,7 +183,7 @@ export class Region extends DurableObject {
       p.r = p.m === 'r' && /^[0-9a-f]{8}$/.test(d.r) ? d.r : ''; p.rs = num(d.rs, 0, 40) | 0; p.o = p.m === 'd' ? num(d.o, 0, 40) | 0 : 0;
       p.v = p.m === 'd' && VEH.has(d.v) ? d.v : '';
       p.c = /^#[0-9a-fA-F]{6}$/.test(d.c) ? d.c : '';
-      p.l = typeof d.l === 'string' && /^[mf][0-9]{7}$/.test(d.l) ? d.l : '';   // the player's look (Beta v1.0.0): gender and 7 digits
+      p.l = typeof d.l === 'string' && /^[mf][0-9]{7,12}$/.test(d.l) ? d.l : '';   // the player's look (Beta v1.0.0): gender and 7 digits
       // The vehicle this player last got out of, so others see it parked where they left it.
       p.pv = p.m !== 'd' && VEH.has(d.pv) ? d.pv : '';
       p.px = num(d.px, -1e5, 1e5); p.pz = num(d.pz, -1e5, 1e5); p.py = num(d.py, -50, 500); p.ph = num(d.ph, -100, 100);
@@ -220,6 +220,20 @@ export class Region extends DurableObject {
       p.vcAt = now;
       const out = JSON.stringify({ t: 'vc', id: p.id, n: p.name, a: d.a, ms, mime });
       for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, CHAT_NEAR))) this.send(w, out);
+    } else if (d.t === 'call') {
+      // Phone calls and text pings between players by username, anywhere on the map (Beta v1.01.03).
+      // Only Google accounts (not guests) can call; the person called sees who it is and can decline or block.
+      // During a call, push-to-talk clips go only to the other person. Nothing is recorded or stored.
+      if (p.anon) return this.send(ws, JSON.stringify({ t: 'call', k: 'noguest' }));
+      const K = new Set(['ring', 'accept', 'decline', 'busy', 'end', 'vc', 'text']); if (!K.has(d.k) || typeof d.to !== 'string' || !/^[A-Za-z0-9]{1,10}$/.test(d.to)) return;
+      if (d.k === 'ring' && now - (p.ringAt || 0) < 8000) return this.send(ws, JSON.stringify({ t: 'slow' }));
+      if (d.k === 'vc') { if (!(await this.voiceOn())) return this.send(ws, JSON.stringify({ t: 'vcoff' })); if (now - (p.cvAt || 0) < 1500) return this.send(ws, JSON.stringify({ t: 'slow' })); if (typeof d.a !== 'string' || d.a.length < 200 || d.a.length > VOICE_MAX || !/^[A-Za-z0-9+/=]+$/.test(d.a)) return; p.cvAt = now; }
+      if (d.k === 'ring') p.ringAt = now;
+      let target = null; for (const [w, q] of this.players) if (q.ready && q.name.toLowerCase() === d.to.toLowerCase()) { target = w; break; }
+      if (!target) { if (d.k === 'ring') this.send(ws, JSON.stringify({ t: 'call', k: 'offline', n: d.to })); return; }
+      const out = { t: 'call', k: d.k, n: p.name };
+      if (d.k === 'vc') Object.assign(out, { a: d.a, ms: num(d.ms, 300, 10000) | 0, mime: VOICE_MIME.has(d.mime) ? d.mime : 'audio/webm' });
+      this.send(target, JSON.stringify(out));
     } else if (d.t === 'ping') {
       this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size }));
     }

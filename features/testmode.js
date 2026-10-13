@@ -2,11 +2,14 @@
 // uploads to the cloud, unlocks everything, skips opening hours and age locks, and adds Phone → Test tools.
 // Only accounts in the testers table (online/supabase-update-5.sql) or admins can stay in test play.
 window.BBFeatures.push(function (bb) {
+  // Who may use test play: testers and admins (checked by the server), or the owner of the private Claude build.
+  let ownerOK = false; (async () => { try { if (window.claude && claude.use) { const u = await claude.use('user'); ownerOK = !!(u && await u.isOwner()); } } catch (e) {} })();
+  bb.canTestPlay = () => ownerOK || !!(bb.ONLINE && (bb.ONLINE.isTester || bb.ONLINE.isAdmin));
   if (!bb.testMode) return;
   const W = bb.WORLD;
   const badge = document.createElement('div'); badge.id = 'testBadge'; badge.textContent = '🧪 TEST PLAY'; document.body.appendChild(badge);
   // only verified testers stay in test play
-  bb.onStart(() => { let n = 0; const t = setInterval(() => { n++; const O = bb.ONLINE; if (O && O.signedIn && O.isTester) return clearInterval(t); if (n > 20) { clearInterval(t); bb.toast('Test play needs a tester account · back to real play', '#ff8b8b'); setTimeout(() => bb.setTestMode(false), 1800); } }, 1000); });
+  // test play stays on until you switch it off; only the server saying "not a tester" (online.js) turns it off
   // everything unlocked, once per test save
   bb.onStart(() => { const p = bb.P; p.extra = p.extra || {}; if (p.extra.testInit) return; p.extra.testInit = bb.istISO();
     p.cash = Math.max(p.cash, 1e7); p.bank = Math.max(p.bank, 1e7); p.lic = Object.assign(p.lic || {}, { two: true, three: true, lmv: true, heavy: true }); p.helmet = true; p.phone = 'smart'; p.health = 100; p.hunger = p.energy = p.bladder = 100;

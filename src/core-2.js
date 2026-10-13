@@ -46,10 +46,14 @@ function buildSlots(){SLOTS=[];
       const edge=Math.min(Math.abs(mx-z.x0),Math.abs(mx-x1),Math.abs(mz-z.z0),Math.abs(mz-z1));if(hash(e.id*1.7)>(edge>12?.25:.6))continue;
       const o=e.w/2+6,sx=mx-e.dz*o,sz=mz+e.dx*o;if(isWater(sx,sz)||roadAt(sx,sz,4)||collide(new THREE.Vector3(sx,0,sz),5,false))continue;SLOTS.push({id:`c:${e.id}`,x:sx,y:0,z:sz,rot:Math.atan2(e.dx,e.dz),kind:'road',road:'city road',zone:id,bw:9,bh:4.5});n++;}}
   for(const e of EDGES){if(e.kind!=='hw'||e.len<200)continue;const step=1600,cnt=Math.max(1,Math.floor(e.len/step));for(let j=0;j<cnt;j++){if(hash(e.id*7.31+j)>.6)continue;const t=Math.min(e.len-60,60+(j+.5)*(e.len-120)/cnt),side=hash(e.id+j*3.3)<.5?1:-1;const mx=e.ax+e.dx*t,mz=e.az+e.dz*t,o=(e.w/2+13)*side,sx=mx-e.dz*o,sz=mz+e.dx*o;if(isWater(sx,sz)||roadAt(sx,sz,6)||zoneAt(sx,sz,10))continue;
-    const zz=zoneAt(sx,sz,8000);SLOTS.push({id:`h:${e.id}:${j}`,x:sx,y:0,z:sz,rot:Math.atan2(e.dx,e.dz),kind:'road',road:/express/i.test(e.road&&e.road.name||'')?'expressway':'highway',zone:zz?zz.id:null,bw:10,bh:5});}}}
+    const zz=zoneAt(sx,sz,8000);SLOTS.push({id:`h:${e.id}:${j}`,x:sx,y:0,z:sz,rot:Math.atan2(e.dx,e.dz),kind:'road',road:/express/i.test(e.road&&e.road.name||'')?'expressway':'highway',zone:zz?zz.id:null,bw:10,bh:5});}}
+  // street flex boards: small banners on two bamboo poles by the footpath near junctions (local shops, events)
+  for(const [id,zd] of zoneData){const z=zd.z;let n=0;const maxN=z.size==='big'?10:z.size==='mid'?6:3;for(const e of EDGES){if(n>=maxN)break;if(e.kind!=='city'||e.len<60||hash(e.id*3.9)>.3)continue;const mx=e.ax+e.dx*12,mz=e.az+e.dz*12;if(zoneAt(mx,mz,2)!==z)continue;
+      const o=e.w/2+2.2,sx=mx-e.dz*o,sz=mz+e.dx*o;if(isWater(sx,sz)||roadAt(sx,sz,.5)||collide(new THREE.Vector3(sx,0,sz),2,false))continue;SLOTS.push({id:`f:${e.id}`,x:sx,y:0,z:sz,rot:Math.atan2(e.dx,e.dz),kind:'flex',road:'city road',zone:id,bw:3.6,bh:1.6,y0:2.2});n++;}}
+  for(const s of FLY_ADS)SLOTS.push(s);for(const s of EXTRA_SLOTS)SLOTS.push(s);}
 /* India Bay's own ads, made from real places near the board */
 const HOUSE=[
-  ['realty',p=>{const h=W.homes.find(q=>q.zone===p.zone&&!(P.homes||[]).includes(q.id)&&p.extra===q.id);return h?{title:'FOR SALE: '+h.name.toUpperCase(),line2:inr(cost('home.'+h.id,h.price))+' · ready to move in',desc:`${h.name} is for sale. Visit it to buy and move in.`,cat:'Homes',fg:'#ffffff',bg:'#2f6b4f'}:null},'home'],
+  ['realty',p=>{const h=W.homes.find(q=>!q.starter&&q.zone===p.zone&&!(P.homes||[]).includes(q.id)&&p.extra===q.id);return h?{title:'FOR SALE: '+h.name.toUpperCase(),line2:inr(cost('home.'+h.id,h.price))+' · ready to move in',desc:`${h.name} is for sale. Visit it to buy and move in.`,cat:'Homes',fg:'#ffffff',bg:'#2f6b4f'}:null},'home'],
   ['cars',p=>({title:'NEW SEDANS FROM '+inr(cost('veh.sedan',VALUE.sedan)),line2:p.name,desc:`Cars, SUVs and sports cars at ${p.name}. Test drive today.`,cat:'Vehicles',fg:'#ffffff',bg:'#1f4fa8'})],
   ['bikes',p=>({title:'BIKES FROM '+inr(cost('veh.bike',VALUE.bike)),line2:p.name,desc:`Motorbikes, sports bikes and helmets at ${p.name}.`,cat:'Vehicles',fg:'#1d1433',bg:'#ffc93c'})],
   ['food',p=>({title:'HUNGRY? EAT HERE',line2:p.name,desc:`Hot local food at ${p.name}. Filling up keeps your health up.`,cat:'Food',fg:'#ffffff',bg:'#d9483b'})],
@@ -80,13 +84,20 @@ function adBg(c){const col=new THREE.Color();try{col.set(c||'#ffffff');}catch(e)
 function adFg(bg,fg){const col=new THREE.Color(bg);const L=.2126*col.r+.7152*col.g+.0722*col.b;const f=new THREE.Color(fg||'#ffffff');const Lf=.2126*f.r+.7152*f.g+.0722*f.b;return Math.abs(L-Lf)<.35?(L>.5?'#1d1433':'#ffffff'):fg;}
 const postMat=LMat('#3b3a40'),frameMat=LMat('#202226');
 function buildBoard(slot,n){const ad=slot.ad||(slot.ad=chooseAd(slot,n));if(!ad.safe){ad.safe=1;const nb=adBg(ad.bg);if(nb!==ad.bg){ad.bg=nb;ad.fg=adFg(nb,ad.fg);}}const g=new THREE.Group();g.position.set(slot.x,slot.y,slot.z);g.rotation.y=slot.rot;
-  const tex=signTex(ad.text||(ad.line2?ad.title+'|'+ad.line2:ad.title),ad.fg,ad.bg,512,256);const board=new THREE.Mesh(new THREE.PlaneGeometry(slot.bw,slot.bh),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+  const small=slot.kind==='pillar'||slot.kind==='flex',tall=slot.kind==='pillar';const tex=signTex(ad.text||(ad.line2?ad.title+'|'+ad.line2:ad.title),ad.fg,ad.bg,tall?160:small?320:512,tall?256:small?144:256);const board=new THREE.Mesh(new THREE.PlaneGeometry(slot.bw,slot.bh),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
   board.userData.ad=ad;board.userData.slot=slot;g.add(board);billboardMeshes.push(board);
   // v1.0: the two legs stop at the bottom edge of the board and stand well behind both faces, so they never show over the ad
   if(slot.kind==='road'){const top=6+slot.bh/2;board.position.set(0,top,.3);board.material.side=THREE.FrontSide;board.material.polygonOffset=true;board.material.polygonOffsetFactor=-2;board.material.polygonOffsetUnits=-2;
     const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));back.position.set(0,top,-.3);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
     const bottom=top-slot.bh/2-.3;for(const sx of [-slot.bw*.3,slot.bw*.3])part(G.box,postMat,.24,bottom,.24,sx,bottom/2,0,g);part(G.box,frameMat,slot.bw+.4,slot.bh+.4,.3,0,top,0,g);part(G.box,frameMat,slot.bw*.7,.25,.25,0,bottom-.12,0,g);}
+  // v1.01.03 local ads: flex wraps on metro and flyover pillars, banners along flyover parapets and street flex boards on two poles
+  if(slot.kind==='pillar'){board.position.set(0,slot.y0,slot.off);board.material.side=THREE.FrontSide;const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex}));back.position.set(0,slot.y0,-slot.off);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
+    for(const s of [-1,1])part(G.box,frameMat,slot.bw+.1,.08,.06,0,slot.y0+s*slot.bh/2,slot.off,g);}
+  if(slot.kind==='parapet'){board.position.set(0,slot.y0,0);board.material.side=THREE.FrontSide;board.material.polygonOffset=true;board.material.polygonOffsetFactor=-2;}
+  if(slot.kind==='flex'){board.position.set(0,slot.y0,.06);const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex}));back.position.set(0,slot.y0,-.06);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
+    for(const sx of [-slot.bw/2-.06,slot.bw/2+.06])part(G.box,postMat,.07,slot.y0+slot.bh/2+.2,.07,sx,(slot.y0+slot.bh/2+.2)/2,0,g);for(const s of [-1,1])part(G.cyl,LMat('#d9d2c4'),.03,slot.bw+.1,.03,0,slot.y0+s*slot.bh/2,0,g).rotation.z=Math.PI/2;}
   scene.add(g);return g;}
+const EXTRA_SLOTS=[];function addAdSlot(s){EXTRA_SLOTS.push(s);if(SLOTS)SLOTS.push(s);}
 function freeBoard(g){scene.remove(g);g.traverse(o=>{if(o.isMesh&&o.material.map){o.material.map.dispose();o.material.dispose();const i=billboardMeshes.indexOf(o);if(i>=0)billboardMeshes.splice(i,1);if(o.geometry.dispose)o.geometry.dispose();}});}
 const boardOf=new Map();
 function refreshBillboards(){for(const g of boardOf.values())freeBoard(g);boardOf.clear();adShown.clear();houseCount.clear();if(SLOTS)for(const s of SLOTS)s.ad=null;}
@@ -236,10 +247,11 @@ const PG={torsoM:lathe([[0,.87],[.216,.87],[.214,.98],[.198,1.06],[.222,1.24],[.
   saree:lathe([[0,.05],[.29,.05],[.262,.4],[.226,.76],[.204,.98],[0,1.0]]),mundu:lathe([[0,.12],[.215,.12],[.218,.5],[.212,.96],[0,.97]]),
   neck:new THREE.CylinderGeometry(.05,.056,.14,10),head:new THREE.SphereGeometry(1,12,9),cap:new THREE.SphereGeometry(1,12,7,0,Math.PI*2,0,Math.PI*.4),
   eye:new THREE.SphereGeometry(1,6,4),box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,6),leg:new THREE.CylinderGeometry(.088,.062,.8,10),
-  sleeve:new THREE.CylinderGeometry(.072,.062,.3,10),fore:new THREE.CylinderGeometry(.054,.044,.31,9),hand:new THREE.SphereGeometry(1,9,7),cyl:new THREE.CylinderGeometry(1,1,1,10),bun:new THREE.SphereGeometry(1,9,7)};
+  sleeve:new THREE.CylinderGeometry(.072,.062,.3,10),fore:new THREE.CylinderGeometry(.054,.044,.31,9),hand:new THREE.SphereGeometry(1,9,7),ring:new THREE.TorusGeometry(1,.14,5,14),ring4:new THREE.TorusGeometry(1,.14,4,4).rotateZ(Math.PI/4),cyl:new THREE.CylinderGeometry(1,1,1,10),bun:new THREE.SphereGeometry(1,9,7)};
 const SKIN=['#5c3a24','#7b4a2e','#8d5524','#a0673f','#b97a4f','#c68642','#d19a6a','#e3b98f'],HAIRC=['#141010','#1e1612','#2b1d14','#3a2a20','#5a3a24','#8a8580','#d8d4cc','#7a2e1a'],SHOES=['#2a1d14','#1b1b1d','#5a3b22','#6b6b6b','#f1f1f1'];
 const PANTS=['#2d3142','#4a4e57','#3b3024','#1f3a5f','#e9e4d6','#2c4a7a'],SAREE=['#c2185b','#f57c00','#1565c0','#2e7d32','#f9a825','#6a1b9a','#00838f','#d84315','#e9e0c8'];
-const LOOKS={male:{hair:['short','side','curly','spiky','buzz','long','bald']},female:{hair:['braid','bun','ponytail','open','bob','short']},face:['oval','round','square'],beard:['none','stubble','moustache','full'],build:['slim','average','broad'],height:['short','average','tall']};
+const LOOKS={male:{hair:['short','side','curly','spiky','buzz','long','bald']},female:{hair:['braid','bun','ponytail','open','bob','short']},face:['oval','round','square','long','heart'],beard:['none','stubble','moustache','full','goatee','handlebar'],build:['slim','average','athletic','broad','heavy'],height:['short','average','tall'],specs:['none','round','square','sun'],hat:['none','cap','turban','topi'],nose:['small','medium','big'],brows:['thin','normal','thick']};
+const BUILDK=b=>b==='slim'?.92:b==='broad'?1.1:b==='heavy'?1.16:b==='athletic'?1.04:1;
 const shade=(c,k)=>{const C=new THREE.Color(c);C.multiplyScalar(k);return '#'+C.getHexString();};
 const mixc=(a,b,t)=>{const A=new THREE.Color(a);A.lerp(new THREE.Color(b),t);return '#'+A.getHexString();};
 function cgeo(geo,col,sx,sy,sz,x,y,z,rx=0,rz=0){const g=geo.clone();g.scale(sx,sy,sz);if(rx)g.rotateX(rx);if(rz)g.rotateZ(rz);g.translate(x,y,z);const n=g.attributes.position.count,c=new Float32Array(n*3),C=new THREE.Color(col);for(let i=0;i<n;i++){c[i*3]=C.r;c[i*3+1]=C.g;c[i*3+2]=C.b;}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;}
@@ -251,10 +263,10 @@ const PEDMAT=new THREE.MeshLambertMaterial({vertexColors:true});const PMAT=new M
 // The head: skull and jaw (face shape), ears, nose, eyes with irises, eyebrows, lips, hair style and beard.
 function headParts(L,skin,hair,female){const H=1.71,o=[];const s=(r,g,c,sx,sy,sz,x,y,z,rx,rz)=>o.push([r,g,c,sx,sy,sz,x,y,z,rx||0,rz||0]);const lip=mixc(shade(skin,.78),'#a0404a',.35);
   s('skin',PG.neck,skin,1,1,1,0,1.535,0);s('skin',PG.head,skin,.106,.12,.114,0,H+.012,-.006);
-  if(L.face==='round')s('skin',PG.head,skin,.1,.078,.1,0,H-.048,.012);else if(L.face==='square')s('skin',PG.head,skin,.1,.07,.098,0,H-.055,.012,0,0),s('skin',PG.head,skin,.075,.04,.08,0,H-.09,.03);else s('skin',PG.head,skin,.09,.084,.096,0,H-.056,.016);
+  if(L.face==='round')s('skin',PG.head,skin,.1,.078,.1,0,H-.048,.012);else if(L.face==='square')s('skin',PG.head,skin,.1,.07,.098,0,H-.055,.012,0,0),s('skin',PG.head,skin,.075,.04,.08,0,H-.09,.03);else if(L.face==='long')s('skin',PG.head,skin,.086,.1,.094,0,H-.066,.016);else if(L.face==='heart')s('skin',PG.head,skin,.082,.08,.094,0,H-.062,.02),s('skin',PG.head,skin,.1,.05,.1,0,H-.02,.01);else s('skin',PG.head,skin,.09,.084,.096,0,H-.056,.016);
   for(const sx of [-1,1]){s('skin',PG.head,skin,.017,.031,.024,sx*.106,H-.004,-.004);s('eyeW',PG.eye,'#f4f1ea',.02,.012,.008,sx*.04,H+.012,.101);s('eyeD',PG.eye,'#1a1210',.0095,.0095,.006,sx*.04,H+.012,.108);
-    s('hair',PG.box,hair,.036,.009,.012,sx*.041,H+.037,.104,0,-sx*.12);if(female)s('gold',PG.eye,'#e0b23a',.008,.008,.008,sx*.108,H-.035,.004);}
-  s('skin',PG.head,skin,.011,.026,.016,0,H-.018,.111);s('skin',PG.head,shade(skin,.96),.015,.012,.014,0,H-.038,.115);s('lip',PG.head,lip,.029,.0085,.01,0,H-.074,.099);
+    s('hair',PG.box,hair,.038,L.brows==='thick'?.013:L.brows==='thin'?.006:.009,.012,sx*.041,H+.037,.104,0,-sx*.12);s('skin',PG.eye,shade(skin,.9),.021,.004,.007,sx*.04,H+.0245,.103);if(female)s('gold',PG.eye,'#e0b23a',.008,.008,.008,sx*.108,H-.035,.004);}
+  {const nk=L.nose==='big'?1.3:L.nose==='small'?.8:1;s('skin',PG.head,skin,.011*nk,.026*nk,.016*nk,0,H-.018,.111);s('skin',PG.head,shade(skin,.96),.015*nk,.012*nk,.014*nk,0,H-.038,.115);for(const sx of [-1,1])s('eyeD',PG.eye,shade(skin,.45),.004*nk,.003,.003,sx*.007*nk,H-.045,.122);}s('lip',PG.head,lip,.029,.0085,.01,0,H-.074,.099);
   if(female&&L.bindi!==false)s('red',PG.eye,'#c8102e',.0075,.0075,.004,0,H+.035,.115);
   // hair
   const st=L.hair||'short',capS=st==='buzz'?[.11,.124,.118]:st==='curly'?[.124,.134,.13]:[.117,.13,.124];
@@ -272,29 +284,45 @@ function headParts(L,skin,hair,female){const H=1.71,o=[];const s=(r,g,c,sx,sy,sz
   if(!female){const b=L.beard;if(b==='stubble')s('beard',PG.head,mixc(skin,hair,.5),.097,.07,.1,0,H-.064,.02);
     if(b==='full'){s('beard',PG.head,hair,.096,.07,.097,0,H-.07,.02);s('beard',PG.box,hair,.05,.012,.014,0,H-.062,.107);}
     if(b==='moustache')s('beard',PG.box,hair,.052,.013,.014,0,H-.062,.107);}
+  if(!female&&L.beard==='goatee'){s('beard',PG.head,hair,.03,.035,.03,0,H-.1,.088);s('beard',PG.box,hair,.045,.01,.013,0,H-.062,.107);}
+  if(!female&&L.beard==='handlebar'){s('beard',PG.box,hair,.05,.012,.014,0,H-.062,.107);for(const sx of [-1,1])s('beard',PG.box,hair,.012,.026,.012,sx*.03,H-.056,.104,0,sx*.6);}
+  // spectacles: round, square or sunglasses, with arms back to the ears
+  if(L.specs&&L.specs!=='none'){const fr=L.specs==='sun'?'#111114':L.specsC||'#2a2522',rg=L.specs==='square'?PG.ring4:PG.ring;for(const sx of [-1,1]){s('specs',rg,fr,.024,.019,.03,sx*.04,H+.01,.115);if(L.specs==='sun')s('specs',PG.eye,'#1b1f26',.022,.016,.004,sx*.04,H+.01,.114);s('specs',PG.box,fr,.004,.004,.1,sx*.064,H+.016,.065);}s('specs',PG.box,fr,.018,.004,.004,0,H+.016,.116);}
+  // headwear: cricket cap, a Rajasthani or Sikh turban, a Gandhi topi
+  if(L.hat==='cap'){const hc=L.hatC||'#2d6cdf';s('hat',PG.cap,hc,.122,.07,.13,0,H+.05,-.005);s('hat',PG.box,hc,.15,.01,.09,0,H+.06,.12);}
+  if(L.hat==='turban'){const hc=L.hatC||'#e8572a';for(let i=0;i<4;i++)s('hat',PG.ring,hc,.118-i*.006,.118-i*.006,.12,0,H+.055+i*.03,-.01,Math.PI/2+(i%2?.12:-.1));s('hat',PG.head,hc,.11,.06,.115,0,H+.14,-.01);if(L.female===false&&Math.random()<.4)s('hat',PG.box,hc,.05,.16,.02,.02,H-.03,-.13);}
+  if(L.hat==='topi'){s('hat',PG.box,'#f4f1ea',.2,.05,.12,0,H+.105,-.005);s('hat',PG.box,'#f4f1ea',.19,.03,.02,0,H+.14,-.005);}
   return o;}
 // the body: torso shape (man or woman), shoulders, collar, hips and belt, and the clothes: shirt and trousers, kurta,
 // mundu, saree with pallu, salwar kameez with dupatta, or jeans and a top
-function bodyParts(L,c){const o=[];const s=(r,g,col,sx,sy,sz,x,y,z,rx,rz)=>o.push([r,g,col,sx,sy,sz,x,y,z,rx||0,rz||0]);const k=L.build==='slim'?.92:L.build==='broad'?1.1:1;
-  s('shirt',L.female?PG.torsoF:PG.torsoM,c.shirt,k,1,.6*k,0,0,0);for(const sx of [-1,1])s('shirt',PG.head,c.shirt,.068*k,.058,.07,sx*.245*k,1.43,0);
+function bodyParts(L,c){const o=[];const s=(r,g,col,sx,sy,sz,x,y,z,rx,rz)=>o.push([r,g,col,sx,sy,sz,x,y,z,rx||0,rz||0]);const k=BUILDK(L.build),sh=L.build==='athletic'?1.14:1;
+  s('shirt',L.female?PG.torsoF:PG.torsoM,c.shirt,k,1,.6*k,0,0,0);for(const sx of [-1,1])s('shirt',PG.head,c.shirt,.068*k*sh,.058*sh,.07*sh,sx*.245*k*sh,1.43,0);if(L.build==='heavy')s('shirt',PG.head,c.shirt,.2,.17,.15,0,1.08,.035);if(L.build==='athletic')s('shirt',PG.head,c.shirt,.2,.12,.12,0,1.33,.02);
   s('shirt',PG.box,shade(c.shirt,.9),.14,.028,.03,0,1.497,.07);s('pants',PG.hips,c.pants,k,1,.62*k,0,0,0);
   if(c.dress==='shirt'&&!L.female)s('belt',PG.cyl,'#3a2a1c',.219*k,.028,.134*k,0,.885,0);
   if(c.dress==='kurta'||c.dress==='salwar')s('shirt',PG.kurta,c.shirt,k,1,.66*k,0,0,0);
   if(c.dress==='mundu')s('pants',PG.mundu,c.pants,k,1,.64*k,0,0,0);
   if(c.dress==='saree'){s('pants',PG.saree,c.pants,k,1,.7*k,0,0,0);s('pants',PG.box,c.pants,.2,.66,.02,.03,1.18,.135*k,0,-.55);s('pants',PG.box,c.pants,.2,.6,.02,.08,1.12,-.13*k,0,.4);s('pants',PG.box,c.pants,.22,.025,.13,0,.99,0);}
   if(c.dress==='salwar')for(const sx of [-1,1])s('dupatta',PG.box,c.dup,.06,.42,.02,sx*.09,1.3,.13*k,0,sx*.32);
+  // clothing details: shirt pocket and buttons, t-shirt print, saree border, a watch, a bag
+  if(c.dress==='shirt'){s('shirt',PG.box,shade(c.shirt,.88),.06,.06,.01,-.09,1.32,.128*k);for(let i=0;i<4;i++)s('btn',PG.eye,'#f2efe8',.007,.007,.004,0,1.42-i*.11,.135*k-.004*i);}
+  if(c.dress==='tee'&&c.print)s('print',PG.box,c.print,.16,.12,.01,0,1.28,.132*k);
+  if(c.dress==='saree')s('trim',PG.cyl,'#d9a93a',.292*k,.03,.212*k,0,.08,0);
+  if(c.dress==='kurta')s('trim',PG.box,shade(c.shirt,.82),.025,.24,.01,0,1.36,.133*k);
+  if(c.bag){s('bag',PG.box,shade(c.bag,.8),.025,.62,.012,.02,1.18,.132*k,0,-.62);s('bag',PG.box,c.bag,.2,.16,.07,.2*k,.92,.05);}
   return o;}
 function pickClothes(female,shirtC){const r=Math.random();if(female){if(r<.5)return{dress:'saree',shirt:shirtC,pants:mpick(SAREE)};if(r<.85)return{dress:'salwar',shirt:mpick(SAREE),pants:mpick(['#f4f1ea','#e9e0c8','#d9c9a2','#2d3142']),dup:mpick(SAREE)};return{dress:'top',shirt:shirtC,pants:'#2c4a7a'};}
-  if(r<.18)return{dress:'kurta',shirt:mpick(['#f4f1ea','#e9e0c8','#cfe3f0',shirtC]),pants:mpick(['#f4f1ea','#e9e4d6','#2d3142'])};if(r<.28)return{dress:'mundu',shirt:shirtC,pants:mpick(['#f4f1ea','#efe6cf'])};return{dress:r<.45?'tee':'shirt',shirt:shirtC,pants:mpick(PANTS)};}
-function randomLook(female){return{female,face:mpick(LOOKS.face),hair:mpick(female?LOOKS.female.hair.slice(0,5):LOOKS.male.hair.slice(0,6)),beard:female?'none':mpick(['none','none','stubble','moustache','full']),build:mpick(LOOKS.build),bindi:Math.random()<.6};}
+  if(r<.18)return{dress:'kurta',shirt:mpick(['#f4f1ea','#e9e0c8','#cfe3f0',shirtC]),pants:mpick(['#f4f1ea','#e9e4d6','#2d3142'])};if(r<.28)return{dress:'mundu',shirt:shirtC,pants:mpick(['#f4f1ea','#efe6cf'])};return{dress:r<.45?'tee':'shirt',shirt:shirtC,pants:mpick(PANTS),print:Math.random()<.6?mpick(['#ffffff','#1a1a1a','#ffc93c','#e4572e','#2f7fc1']):null};}
+function randomLook(female){const old=Math.random()<.15,r=Math.random();return{female,face:mpick(LOOKS.face),hair:old&&!female&&Math.random()<.4?'bald':mpick(female?LOOKS.female.hair.slice(0,5):LOOKS.male.hair.slice(0,6)),beard:female?'none':mpick(['none','none','stubble','moustache','full','goatee','handlebar']),
+  build:mpick(['slim','average','average','athletic','broad','heavy']),bindi:Math.random()<.6,hairC:old?mpick(['#8a8580','#d8d4cc','#9a9590']):Math.random()<.06?'#7a2e1a':mpick(HAIRC.slice(0,5)),specs:old&&Math.random()<.6?mpick(['round','square']):Math.random()<.16?mpick(['round','square','sun']):'none',
+  hat:!female&&r<.07?'turban':!female&&r<.13?'cap':!female&&r<.15?'topi':'none',hatC:mpick(['#e8572a','#f4c430','#c8102e','#f4f1ea','#2d6cdf','#ff8fd0','#1f8a4c']),nose:mpick(LOOKS.nose),brows:mpick(LOOKS.brows)};}
 // One person = a body piece, two legs and two arms (5 draws), each part coloured per vertex. opts.mats keeps separate materials (the player, so outfits and looks can recolour it).
 function buildPerson(shirt,opts={}){const g=new THREE.Group();const shirtC=typeof shirt==='string'?shirt:'#'+shirt.color.getHexString();
   const female=opts.female!=null?opts.female:!opts.mats&&Math.random()<.4;const L=opts.look||randomLook(female);L.female=female;
   const skin=opts.skin||L.skin||mpick(SKIN),hair=L.hairC||mpick(HAIRC.slice(0,5)),shoe=female?mpick(['#5a3b22','#c9a46a','#8a2a2a']):mpick(SHOES);
-  const c=opts.mats?{dress:'shirt',shirt:shirtC,pants:'#2d3142'}:pickClothes(female,shirtC);const legC=c.dress==='saree'||c.dress==='mundu'?c.pants:c.pants;
-  const k=L.build==='slim'?.92:L.build==='broad'?1.1:1;const sleeveC=c.shirt,armSkin=c.dress==='kurta'||c.dress==='salwar'?c.shirt:skin;
+  const c=opts.mats?{dress:'shirt',shirt:shirtC,pants:'#2d3142'}:pickClothes(female,shirtC);if(!opts.mats&&Math.random()<.18)c.bag=mpick(['#3a2a1c','#1f3a5f','#8a2a2a','#2d3142']);const legC=c.dress==='saree'||c.dress==='mundu'?c.pants:c.pants;
+  const k=BUILDK(L.build);const sleeveC=c.shirt,armSkin=c.dress==='kurta'||c.dress==='salwar'?c.shirt:skin;
   const parts=bodyParts(L,c).concat(headParts(L,skin,hair,female));const legs=[],arms=[];let body=null,hairM=null,headG=null;
-  const armParts=sx=>[['shirt',PG.sleeve,sleeveC,1,1,1,0,-.15,0],['skin',PG.fore,armSkin,1,1,1,0,-.45,0],['skin',PG.hand,skin,.048,.062,.034,0,-.645,.004],['skin',PG.hand,skin,.017,.03,.017,-sx*.032,-.62,.025]];
+  const watch=!opts.mats&&Math.random()<.3;const armParts=sx=>[['shirt',PG.sleeve,sleeveC,1,1,1,0,-.15,0],['skin',PG.fore,armSkin,1,1,1,0,-.45,0],...(watch&&sx<0?[['watch',PG.cyl,'#2a2522',.05,.025,.05,0,-.57,0]]:[]),['skin',PG.hand,skin,.048,.062,.034,0,-.645,.004],['skin',PG.hand,skin,.017,.03,.017,-sx*.032,-.62,.025]];
   const legParts=[['pants',PG.leg,legC,1,1,1,0,-.4,0],['shoe',PG.head,shoe,.058,.045,.118,0,-.818,.04],['shoe',PG.box,shade(shoe,.7),.115,.022,.24,0,-.852,.04]];
   if(opts.mats){const M2={shirt,pants:opts.legM||pm(legC),skin:opts.skinM||LMat(skin),hair:opts.hairM||LMat(hair)};M2.beard=M2.hair;
     const mk=(list,parent)=>{const by=new Map();for(const q of list){const key=M2[q[0]]?q[0]:q[2];if(!by.has(key))by.set(key,[]);by.get(key).push(q);}const out={};
@@ -307,7 +335,7 @@ function buildPerson(shirt,opts={}){const g=new THREE.Group();const shirtC=typeo
   body=new THREE.Mesh(mergeC(parts.map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8],q[9],q[10]))),PEDMAT);body.castShadow=true;g.add(body);
   for(const sx of [-1,1]){const lp=new THREE.Group();lp.position.set(sx*.1*k,.86,0);const lm=new THREE.Mesh(mergeC(legParts.map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8]))),PEDMAT);lm.castShadow=true;lp.add(lm);g.add(lp);legs.push(lp);
     const ap=new THREE.Group();ap.position.set(sx*.3*k,1.44,0);const am=new THREE.Mesh(mergeC(armParts(sx).map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8]))),PEDMAT);am.castShadow=true;ap.add(am);g.add(ap);arms.push(ap);}
-  if(L.height==='tall')g.scale.setScalar(1.04);else if(L.height==='short')g.scale.setScalar(.95);
+  g.scale.setScalar(L.height==='tall'?1.05:L.height==='short'?.94:opts.kid?MR(.6,.72):MR(.93,1.07));
   g.userData={legs,arms,body,head:body,hair:{visible:true},legM:pm(legC),female};return g;}
 const avatar=buildPerson(LMat('#e8573e'),{mats:true,female:false,skin:'#a0673f'});scene.add(avatar);avatar.visible=false;
 const AU=avatar.userData;
@@ -353,9 +381,9 @@ function pedBlocksNear(x,z){return blocks.filter(b=>b.hasBld&&Math.abs(b.x-x)<23
 function edgeXY(p){const off=29.4,b=p.b;if(p.side<2){p.x=b.x+p.t;p.z=b.z+(p.side?off:-off);p.ry=p.dir>0?Math.PI/2:-Math.PI/2;}else{p.z=b.z+p.t;p.x=b.x+(p.side===2?-off:off);p.ry=p.dir>0?0:Math.PI;}}
 function placePed(p,minD){const pp=ppos();const bl=pedBlocksNear(pp.x,pp.z);if(!bl.length){p.g.visible=false;p.state='idle';return;}for(let k=0;k<12;k++){p.b=mpick(bl);p.side=Math.floor(Math.random()*4);p.t=MR(-26,26);p.dir=Math.random()<.5?1:-1;edgeXY(p);if(Math.hypot(p.x-pp.x,p.z-pp.z)>minD)break;}
   p.state='walk';p.sp=MR(1,1.8);p.g.rotation.set(0,0,0);p.g.visible=true;}
-function addPed(){const g=buildPerson(mpick(pedCols));scene.add(g);const p={g,x:0,z:0,ry:0,state:'walk',ph:Math.random()*6};placePed(p,started?60:0);peds.push(p);return p;}
+function addPed(){const g=buildPerson(mpick(pedCols),{kid:Math.random()<.07});scene.add(g);const p={g,x:0,z:0,ry:0,state:'walk',ph:Math.random()*6};placePed(p,started?60:0);peds.push(p);return p;}
 function setPedCount(n){while(peds.length<n)addPed();while(peds.length>n){const p=peds.pop();scene.remove(p.g);}}
-function knockPed(p,crime){if(p.state==='down')return;p.state='down';p.downT=14;p.g.rotation.set(-Math.PI/2,p.ry,0,'YXZ');if(crime)addWanted(1,crime);emit('pedDown',p);}
+function knockPed(p,crime){if(p.state==='down')return;p.state='down';setTimeout(()=>fleeFrom(p.x,p.z,22),0);p.downT=14;p.g.rotation.set(-Math.PI/2,p.ry,0,'YXZ');if(crime)addWanted(1,crime);emit('pedDown',p);}
 function fleeFrom(x,z,r){for(const p of peds){if(p.state!=='walk'&&p.state!=='flee')continue;if(Math.hypot(p.x-x,p.z-z)<r){p.state='flee';p.fleeT=8;const ex=p.side<2?1:0,ez=1-ex;p.dir=Math.sign(((p.x-x)*ex+(p.z-z)*ez)||1);}}}
 function ejectDriver(v){const p=peds.find(q=>q.state==='walk'&&Math.hypot(q.x-ppos().x,q.z-ppos().z)>40)||peds[0];if(!p)return;const sx=Math.cos(v.h),sz=-Math.sin(v.h);p.x=v.pos.x+sx*(v.spec.wid/2+.8);p.z=v.pos.z+sz*(v.spec.wid/2+.8);const a=Math.atan2(p.x-v.pos.x,p.z-v.pos.z);p.vx=Math.sin(a)*5;p.vz=Math.cos(a)*5;p.ry=a;p.state='run';p.runT=6;p.g.visible=true;p.g.rotation.set(0,a,0);}
 /* Animals: rounded bodies with painted coats (stripes, spots, patches), proper legs with knees and hooves or paws,
@@ -468,7 +496,7 @@ const FAUNA=[{kind:'lion',x:1800,z:5780,rx:330,rz:200,n:5},{kind:'lioness',x:180
   {kind:'tiger',x:6000,z:2150,rx:260,rz:170,n:4},{kind:'deer',x:6000,z:2150,rx:260,rz:170,n:6},{kind:'peacock',x:6020,z:2120,rx:200,rz:140,n:4},
   {kind:'camel',x:1030,z:1310,rx:160,rz:140,n:7},{kind:'camel',x:4220,z:1860,rx:90,rz:70,n:4},{kind:'peacock',x:4220,z:1860,rx:90,rz:70,n:3}];
 const STRAYS={def:[['cow',36],['dog',30],['goat',14],['buffalo',12],['monkey',5],['peacock',3]],RJ:[['cow',30],['camel',20],['dog',20],['goat',14],['peacock',8],['monkey',8]],GJ:[['cow',34],['buffalo',16],['dog',24],['goat',12],['camel',8],['peacock',6]],
-  KL:[['dog',34],['cow',22],['goat',20],['buffalo',8],['monkey',12],['elephant',4]],GA:[['dog',38],['cow',26],['buffalo',16],['goat',12],['monkey',8]],KA:[['cow',32],['dog',28],['buffalo',14],['goat',12],['monkey',10],['elephant',4]],mumbai:[['dog',70],['goat',15],['cow',10],['monkey',5]]};
+  KL:[['dog',34],['cow',22],['goat',20],['buffalo',8],['monkey',12],['elephant',4]],GA:[['dog',38],['cow',26],['buffalo',16],['goat',12],['monkey',8]],KA:[['cow',32],['dog',28],['buffalo',14],['goat',12],['monkey',10],['elephant',4]],LD:[['goat',55],['cow',35],['buffalo',10]],mumbai:[['dog',70],['goat',15],['cow',10],['monkey',5]]};
 // forest zones where wild elephants, deer and monkeys can cross the highway
 const FOREST=['thekkady','munnar','kalpetta','madikeri','mollem','chikkamagaluru','sasangir','ranthambore','mountabu'];
 const STRAY_SIZE={cow:.9,buffalo:1,goat:.45,dog:.4,camel:1,monkey:.35,peacock:.4,elephant:1.6,deer:.6};

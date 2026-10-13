@@ -12,6 +12,15 @@ window.BBFeatures.push(function (bb) {
     const fin = new T.Mesh(new T.BoxGeometry(.12, 1.4, .9), mat('#f4f1ea')); fin.position.set(0, 2.9, -6.8); g.add(fin);
     const tr = new T.Group(); tr.position.set(.2, 2.9, -6.8); for (let i = 0; i < 2; i++) { const b = new T.Mesh(new T.BoxGeometry(.04, 1.4, .14), mat('#2b2b30')); b.rotation.x = i * Math.PI / 2; tr.add(b); } g.add(tr);
     const mast = new T.Mesh(new T.CylinderGeometry(.12, .12, .6, 6), mat('#2b2b30')); mast.position.y = 3.6; g.add(mast);
+    // more detail (Beta v1.01.03): engine cowling, side windows and doors, skids, a tail stabiliser and lights
+    const cowl = new T.Mesh(new T.BoxGeometry(1.3, .6, 2.2), mat(col || '#d62f4b')); cowl.position.set(0, 3.2, -.5); g.add(cowl);
+    const ex2 = new T.Mesh(new T.CylinderGeometry(.18, .22, .5, 8), mat('#3a3a40')); ex2.rotation.x = Math.PI / 2; ex2.position.set(0, 3.25, -1.8); g.add(ex2);
+    for (const s of [-1, 1]) { const w = new T.Mesh(new T.BoxGeometry(.05, .8, 1.3), new T.MeshLambertMaterial({ color: 0x24323d })); w.position.set(s * 1.55, 2.25, .2); g.add(w);
+      const sk = new T.Mesh(new T.CylinderGeometry(.07, .07, 4.4, 6), mat('#2b2b30')); sk.rotation.x = Math.PI / 2; sk.position.set(s * 1.05, .2, .1); g.add(sk);
+      for (const z of [-1, 1.1]) { const st = new T.Mesh(new T.CylinderGeometry(.05, .05, 1.1, 5), mat('#2b2b30')); st.position.set(s * 1.0, .75, z); st.rotation.z = s * .25; g.add(st); }
+      const hs = new T.Mesh(new T.BoxGeometry(1.2, .06, .4), mat(col || '#d62f4b')); hs.position.set(s * .6, 2.4, -6); g.add(hs); }
+    const stripe = new T.Mesh(new T.BoxGeometry(3.25, .16, 4.2), mat('#f4f1ea')); stripe.position.set(0, 1.55, -.1); g.add(stripe);
+    const light = new T.Mesh(new T.SphereGeometry(.12, 6, 4), new T.MeshBasicMaterial({ color: 0xff3b3b })); light.position.set(0, 3.1, -6.9); g.add(light);
     const rotor = new T.Group(); rotor.position.y = 3.95; for (let i = 0; i < 4; i++) { const b = new T.Mesh(new T.BoxGeometry(.32, .05, 9.5), mat('#2b2b30')); b.rotation.y = i * Math.PI / 4; rotor.add(b); } g.add(rotor);
     for (const s of [-1, 1]) { const sk = new T.Mesh(new T.BoxGeometry(.12, .12, 4.4), mat('#3b3a40')); sk.position.set(s * 1.1, .1, .2); g.add(sk); for (const z of [-.8, 1.2]) { const st = new T.Mesh(new T.BoxGeometry(.08, .9, .08), mat('#3b3a40')); st.position.set(s * 1.05, .55, z); g.add(st); } }
     g.userData.rotor = rotor; g.userData.tail = tr; return g; }

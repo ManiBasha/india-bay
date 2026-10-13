@@ -77,7 +77,7 @@ Both values are public, so it's safe for them to be in the website.
 2. In Supabase, open **SQL Editor → New query**. Run this, with your own email:
    ```
    insert into public.admins (user_id)
-   select id from auth.users where email = 'you@gmail.com'
+   select id from auth.users where email = 'indiabaygame@gmail.com'
    on conflict do nothing;
    ```
 3. Reload the game. **Settings → Admin** now says **Save for all players**.

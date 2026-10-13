@@ -8,7 +8,7 @@ window.PRICES = (function () {
     ['Vehicles', [['veh.cycle', 'Cycle', 4000], ['veh.rickshaw', 'Cycle rickshaw', 15000], ['veh.bike', 'Motorbike', 65000], ['veh.sportsbike', 'Sports bike', 180000], ['veh.auto', 'Auto rickshaw', 12000],
       ['veh.car', 'Hatchback', 45000], ['veh.sedan', 'Sedan', 85000], ['veh.suv', 'SUV', 120000], ['veh.sports', 'Sports coupe', 250000], ['veh.taxi', 'Taxi (resale value)', 40000]]],
     ['Workshop and garage', [['mod.paint', 'Paint job', 3000], ['mod.tune', 'Engine tune (+10% speed)', 15000], ['mod.horn', 'Musical horn', 1200], ['mod.neon', 'Underglow lights', 5000],
-      ['svc.repair', 'Repair, per 1% of body damage', 40], ['svc.service', 'Quick service', 400], ['svc.roadfuel', 'Roadside fuel delivery', 500], ['svc.tow', 'Tow and patch-up', 1500], ['svc.valet', 'Garage valet (bring a vehicle to you)', 200], ['svc.papers', 'Papers for a vehicle you took', 5000]]],
+      ['svc.repair', 'Repair, per 1% of body damage', 40], ['svc.service', 'Quick service', 400], ['svc.roadfuel', 'Roadside fuel delivery', 500], ['svc.tow', 'Tow and patch-up', 1500], ['svc.callmech', 'Mechanic called to your vehicle (full repair)', 2500], ['svc.valet', 'Garage valet (bring a vehicle to you)', 200], ['svc.papers', 'Papers for a vehicle you took', 5000]]],
     ['Licences', [['lic.two', 'Two-wheeler licence', 1500], ['lic.three', 'Auto rickshaw licence', 1000], ['lic.lmv', 'Car licence (LMV)', 2500], ['lic.heavy', 'Heavy vehicle licence', 6000]]],
     ['Daily life', [['svc.hospital', 'Hospital treatment', 300], ['svc.toilet', 'Public toilet', 5], ['svc.lodge', 'Lodge room', 600], ['svc.dharamshala', 'Dharamshala room', 200], ['svc.camp', 'Tent or desert camp', 1500],
       ['svc.safari', 'Lion safari', 800], ['svc.camel', 'Camel ride', 500], ['svc.helmet', 'Helmet', 800], ['svc.cyclerent', 'Rent a cycle for deliveries', 50], ['svc.ko', 'Hospital fee after a knockout', 1000]]],
@@ -31,7 +31,8 @@ window.PRICES = (function () {
       ['cart.energy', 'Energy drink pack', 150], ['cart.sunglasses', 'Sunglasses', 700], ['cart.cap', 'Cricket cap', 250], ['cart.sneakers', 'Sneakers', 2200], ['cart.plant', 'House plant (to your home)', 700], ['cart.lamp', 'Brass lamp (to your home)', 2300], ['cart.rte', 'Ready-to-eat meal (packed)', 120], ['cart.biscuits', 'Biscuits pack', 30], ['cart.chips', 'Chips packet', 20], ['cart.chikki', 'Peanut chikki', 25], ['cart.bananas', 'Bananas', 50], ['cart.delivery', 'Delivery fee', 40]]],
     ['Food apps', [['app.fooddelivery', 'Swiggy or Zomato delivery fee', 35], ['app.foodmarkup', 'App price on top of menu price, per ₹100', 10]]]
   ];
-  const homes = (W.homes || []).map(h => ['home.' + h.id, h.name, h.price]);
+  const homes = (W.homes || []).filter(h => !h.starter).map(h => ['home.' + h.id, h.name, h.price]);
+  homes.unshift(['home.move', 'Move your free starter home to another city', 5000]);
   if (homes.length) groups.splice(3, 0, ['Homes', homes]);
   const MENU = { MH: 'Maharashtra', GJ: 'Gujarat', RJ: 'Rajasthan', DD: 'Daman and coast', HW: 'Highway dhaba', BEACH: 'Beach stalls', GA: 'Goa', KA: 'Karnataka', KL: 'Kerala' };
   for (const [k, list] of Object.entries(W.menus || {})) groups.push(['Food · ' + (MENU[k] || k), list.map(r => ['food.' + k + '.' + r[0], r[1], r[3]])]);

@@ -43,7 +43,10 @@ window.BBFeatures.push(function (bb) {
     else if (['sunglasses', 'cap', 'sneakers'].includes(id)) { const k = id === 'sunglasses' ? 'glasses' : id; if (!p.wardrobe.includes(k)) p.wardrobe.push(k); }
     else if (['plant', 'lamp'].includes(id)) { const h = p.homes[0]; p.furniture[h] = (p.furniture[h] || []); if (!p.furniture[h].includes(id)) p.furniture[h].push(id); }
     bb.setDirty(); bb.toast(`📦 BayCart · ${bb.esc(o.item[1])} delivered${['plant', 'lamp'].includes(id) ? ' to your home' : ''}`, '#5fb4ff'); }
-  bb.onUpdate(dt => { if (!orders.length) return; const gm = dt * (bb.CFG.timeSpeed || 1); for (const o of orders) { if (o.done) continue; o.eta -= gm; if (o.eta <= 0 && !document.querySelector('#wait:not([hidden])')) deliver(o); } if (orders.length > 20) orders.splice(0, orders.length - 20); });
+  bb.onUpdate(dt => { if (!orders.length) return; const gm = dt * (bb.CFG.timeSpeed || 1); for (const o of orders) { if (o.done) continue; o.eta -= gm;
+      // the rider sets off a little before the order is due and hands it over in person
+      if (o.eta <= 16 && !o.sent && bb.VISIT) { o.sent = true; const role = /swiggy/i.test(o.app) ? 'swiggy' : /zomato/i.test(o.app) ? 'zomato' : 'baycart'; bb.VISIT.send({ role, label: `Your ${o.app} order`, onArrive: () => { if (!o.done) deliver(o); } }); }
+      if (o.eta <= (o.sent ? -150 : 0) && !document.querySelector('#wait:not([hidden])')) deliver(o); } if (orders.length > 20) orders.splice(0, orders.length - 20); });
   bb.addApp({ id: 'swiggy', label: 'Swiggy', icon: '🧡', fn: () => foodApp('swiggy') });
   bb.addApp({ id: 'zomato', label: 'Zomato', icon: '❤️', fn: () => foodApp('zomato') });
   bb.addApp({ id: 'baycart', label: 'BayCart', icon: '🛒', fn: cartApp });

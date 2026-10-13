@@ -18,7 +18,7 @@ const FEST_DEFAULT=[
 const EVENT_DEFAULT=[{name:'Rann Utsav',zone:'bhuj',start:'2026-11-01',end:'2027-02-28',mult:1.2},{name:'Juhu beach party',zone:'mumbai',start:'2026-10-10',end:'2026-10-18',mult:1.5}];
 const BILL_DEFAULT=[];   // collaborator ads are added in /admin; with none running, the game shows its own ads
 const DEFAULTS={name:'India Bay',tagline:'Open-world India: drive from Rajasthan to Kerala',announce:'',theme:'kesar',accent:'#ffc93c',
-  timeSpeed:1,timeOffset:0,challansOn:false,voiceChat:true,referBonus:10000,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
+  timeSpeed:1,timeOffset:0,challansOn:false,voiceChat:true,baygramOn:true,referBonus:10000,weather:'auto',traffic:30,peds:40,police:'normal',weapons:true,needs:true,
   foodHrs:30,wcHrs:24,awakeHrs:16,
   act:{sleep:480,meal:30,snack:10,drink:5,cook:30,tv:60,toilet:5},
   queue:{petrol:20,cng:40,atm:15,toilet:5,ticket:20,hospital:30,checkin:30},

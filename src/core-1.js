@@ -4,14 +4,15 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.0.0';
+const VERSION='Beta v1.01.03';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 const {REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg}=window.IBCONF;
 // Beta v1.0.0 is the first public beta: no change history for it, the game's features are listed in Settings → Features.
 // Later updates add their notes here (or in Admin → Changelog) and players see a What's new pop-up once.
-const CHANGELOG=[];
+const CHANGELOG=[
+  {v:'Beta v1.01.03',date:'2026-10-13',title:'First Public Beta Release of India Bay Game',notes:'🎉 The first public beta of India Bay is here. Thank you for playing!\n📷 BayGram: an Instagram-style feed for your in-game photos and clips (up to 5 posts a day). Double-tap to like, share, and keep everything in your own gallery.\n📱 A real phone: the home screen, dock and clock. 📞 Call and 💬 text friends by username (Google sign-in needed). Add contacts, choose who can call you, block and report.\n🏠 Everyone gets a free starter home with a garage in their home city. New games start there, and later games carry on where you left off. Rent or buy homes in other cities (Menu → Property). Add the vehicle you are driving to your garage, even a taken one, but watch out: others can take yours too.\n🛵 Delivery riders, mechanics, fuel bikes and tow trucks now ride to you: Swiggy in orange, Zomato in red, BayCart in blue. Call a mechanic to your vehicle from Roadside help.\n🛞 Steering styles in Settings: arrows, a steering wheel, a slider or tilt. 🕐 A small Bay Time clock (switch it off in Settings).\n🙂 People look different now: face shapes, noses, brows, beards, hair, glasses, hats and body types, for you and for every person on the street. Children and older people are out and about too, and people run from speeding vehicles and fights.\n💡 Street lights and highway lights make nights much easier to drive.\n🚇 Metro and flyover pillars stand on a planted median with U-turn gaps, with flex ads on pillars, parapets and street boards. More detailed metro trains, planes, helicopters, ferries and snake boats, and clearer views out of the metro, plane, bus and ferry windows (the yellow line in the metro is gone).\n🏛 More detail on buildings and attractions: Hawa Mahal and Mysore Palace are rebuilt, and tea stalls are styled by region (thattukada, tapri, lari, thadi).\n🗺 New places: Satara, Ratnagiri, Malvan with Sindhudurg fort, Solapur, Pandharpur, Amravati, Gandhinagar with Akshardham, Bhavnagar, Jamnagar, Junagadh, Porbandar, Saputara, Diu, Bikaner, Chittorgarh, Bundi, Kota, Kumbhalgarh and Lonar crater. Lakshadweep is open too: take the ship from Kochi or fly to Agatti, and you will need an entry permit.\n🛣 Fixed the roads that overlapped where highways leave a city, and the traffic jams they caused.\nGoogle sign-in shows in the game again, your date of birth can no longer be changed once set, test play no longer logs you out, and Log out, How to play and Instagram @indiabaygame are in ⚙ Settings.'}];
 let CFG=mergeCfg(DEFAULTS,store.get('ib.cfg'));let savedCFG=CFG;
 const price=b=>Math.max(5,Math.round(b*CFG.priceMul/5)*5);
 // Price of a catalogue item: the admin's price from /admin → Time and prices, else the default (js/prices.js), times Prices ×.
@@ -174,6 +175,11 @@ function building(x,z,w,d,h,mat,opts={}){const g=new THREE.BoxGeometry(w,h,d);co
   g.translate(x,h/2+.3,z);addStatic(g,mat);addCol(x,z,w/2+.15,d/2+.15,true,true);
   if(opts.cottage){const r=new THREE.CylinderGeometry(0,Math.max(w,d)*.75,3,4,1);r.rotateY(Math.PI/4);r.scale(w/Math.max(w,d),1,d/Math.max(w,d));r.translate(x,h+1.8,z);addStatic(r,M.roofRed);return;}
   box(w+.4,.6,d+.4,x,h+.6,z,M.cream);
+  // Beta v1.01.03 detail: floor ledges, balconies with railings, AC units, a shop band and signboard at street level
+  if(h<70&&!opts.plain){for(let y=6.7;y<h-1&&y<36;y+=6.4)box(w+.24,.16,d+.24,x,y+.3,z,M.cream,false,false);
+    const fs=rnd()<.5?1:-1,nB=Math.min(3,Math.floor(h/6.4));for(let k=0;k<nB;k++){const by=4+k*6.4+3.2,bx=x+R(-w/4,w/4);box(2.6,.14,1,bx,by+.3,z+fs*(d/2+.5),M.cream,false,false);box(2.6,.7,.06,bx,by+.65,z+fs*(d/2+.98),M.steel,false,false);}
+    for(let k=0;k<2;k++){const ay=3.6+R(1,h-4)|0;box(.8,.5,.35,x+R(-w/3,w/3),Math.min(h-1,ay)+.3,z-fs*(d/2+.2),M.white,false,false);}
+    if(h<40){box(w+.08,3.2,d+.08,x,1.9,z,M.basalt,false,false);const sw=w*.7;box(sw,.85,.14,x,4.1,z+fs*(d/2+.12),pick(M.awn),false,false);}}
   if(!opts.old&&rnd()<.5){const t=new THREE.CylinderGeometry(.9,.9,1.6,8);t.translate(x+R(-w/4,w/4),h+1.7,z+R(-d/4,d/4));addStatic(t,M.tank);}
   if(opts.chhatri&&rnd()<opts.chhatri){const cx=x+R(-w/4,w/4),cz=z+R(-d/4,d/4);for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){const p=new THREE.CylinderGeometry(.12,.12,1.6,4);p.translate(cx+dx*.9,h+1.6,cz+dz*.9);addStatic(p,mat);}const dm=new THREE.SphereGeometry(1.3,8,5,0,Math.PI*2,0,Math.PI/2);dm.translate(cx,h+2.4,cz);addStatic(dm,mat);}
   if(opts.dome&&rnd()<opts.dome){const dm=new THREE.SphereGeometry(Math.min(w,d)*.25,10,6,0,Math.PI*2,0,Math.PI/2);dm.translate(x,h+.9,z);addStatic(dm,M.white);}
@@ -223,7 +229,7 @@ for(const h of W.highways){if(h.kind!=='exp'||h.fly)continue;for(let k=0;k<h.pts
     const box=(z,m)=>mx>z.x0-m&&mx<z.x0+z.nx*80+m&&mz>z.z0-m&&mz<z.z0+z.nz*80+m;if(!W.zones.some(z=>z.size!=='small'&&box(z,520))||W.zones.some(z=>box(z,60)))continue;
     const dx=(bx-ax)/L,dz=(bz-az)/L,o=(h.w||16)/2+7.5,t0=L*.2,t1=L*.8;
     for(const sd of [-1,1]){const P=(t,off)=>[ax+dx*t+dz*off*sd,az+dz*t-dx*off*sd];const pts=[P(t0-26,0),P(t0,o),P(t1,o),P(t1+26,0)];
-      if(pts.some(([x,z])=>!isLand(x,z)||inLake(x,z)||inRiver(x,z)))continue;let clash=false;for(let t=t0;t<=t1&&!clash;t+=10){const [x,z]=P(t,o);for(const id of edgesNear(x,z)){const f=EDGES[id];if(f.road.name===h.name)continue;if(segD(x,z,f.ax,f.az,f.bx,f.bz)<f.w/2+5){clash=true;break;}}}
+      if(pts.some(([x,z])=>!isLand(x,z)||inLake(x,z)||inRiver(x,z)))continue;const nearTown=([x,z])=>W.zones.some(q=>x>q.x0-180&&x<q.x0+q.nx*80+180&&z>q.z0-180&&z<q.z0+q.nz*80+180);if(nearTown(pts[0])||nearTown(pts[3]))continue;let clash=false;for(let t=t0;t<=t1&&!clash;t+=10){const [x,z]=P(t,o);for(const id of edgesNear(x,z)){const f=EDGES[id];if(f.road.name===h.name)continue;if(segD(x,z,f.ax,f.az,f.bx,f.bz)<f.w/2+5){clash=true;break;}}}
       if(!clash)addRoad(pts,7,'service',h.name+' service road');}}}
 for(const a of W.airports)addRoad(a.access,12,'city',a.name+' road');
 // Parts of a highway that are not already covered by a parallel road (a city edge road or an earlier highway),
@@ -231,6 +237,7 @@ for(const a of W.airports)addRoad(a.access,12,'city',a.name+' road');
 function hwSpans(e,ri){const st=3,keep=[];let a=-1;const covered=t=>{const x=e.ax+e.dx*t,z=e.az+e.dz*t;for(const id of edgesNear(x,z)){const f=EDGES[id];if(f===e||f.road===e.road||f.fly)continue;if(f.kind!=='city'&&ROADS.indexOf(f.road)>ri)continue;
       if(Math.abs(e.dx*f.dx+e.dz*f.dz)<.94)continue;if(segD(x,z,f.ax,f.az,f.bx,f.bz)<Math.max(f.w,e.w)/2-1)return true;}return false;};
   for(let t=0;t<=e.len+.01;t+=st){const tt=Math.min(t,e.len);const c=covered(tt);if(!c&&a<0)a=tt;if(c&&a>=0){if(tt-a>2)keep.push([a,tt]);a=-1;}}if(a>=0&&e.len-a>2)keep.push([a,e.len]);return keep;}
+const FLY_ADS=[];
 function flyDeck(r){const pos=[],uv=[],idx=[],dpos=[],didx=[];const w=r.w,step=5;let base=0;const pts=[];
   for(const e of r.edges){for(let t=0;t<e.len;t+=step)pts.push({x:e.ax+e.dx*t,z:e.az+e.dz*t,e,t});}const le=r.edges[r.edges.length-1];pts.push({x:le.bx,z:le.bz,e:le,t:le.len});
   pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let dx=q.x-o.x,dz=q.z-o.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;p.nx=dz;p.nz=-dx;p.y=flyY(p.e,p.t)+.06;p.s=p.e.s0+p.t;});
@@ -243,6 +250,9 @@ function flyDeck(r){const pos=[],uv=[],idx=[],dpos=[],didx=[];const w=r.w,step=5
   const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.Float32BufferAttribute(dpos,3));dg.setIndex(didx);dg.computeVertexNormals();const cm=M.concrete.clone();cm.side=THREE.DoubleSide;addStatic(dg,cm,false,true);
   // pillars where the deck is high, and lamp posts on the parapet
   pts.forEach((p,i)=>{if(i%6||p.y<2.2)return;const h=p.y-.9;const c=new THREE.CylinderGeometry(.9,1.05,h,10);c.translate(p.x,h/2,p.z);addStatic(c,M.concrete);const cap=new THREE.BoxGeometry(w*.7,.7,1.6);cap.rotateY(Math.atan2(-p.nz,p.nx));cap.translate(p.x,p.y-1.25,p.z);addStatic(cap,M.concrete);});
+  // local ads: flex wraps on some pillars, banners on the outer face of the parapets (registered once SLOTS exist)
+  pts.forEach((p,i)=>{if(p.y<6)return;if(i%18===0)FLY_ADS.push({id:`fp:${r.name}:${i}`,x:p.x,y:0,z:p.z,rot:Math.atan2(-p.nz,p.nx)+Math.PI/2,kind:'pillar',road:'flyover',zone:null,bw:1.7,bh:2.4,y0:p.y-3.6,off:1.1});
+    if(i%30===15){const sd=(i/30|0)%2?1:-1;FLY_ADS.push({id:`fb:${r.name}:${i}`,x:p.x+p.nx*sd*(w/2+.66),y:0,z:p.z+p.nz*sd*(w/2+.66),rot:Math.atan2(p.nx*sd,p.nz*sd),kind:'parapet',road:'flyover',zone:null,bw:9,bh:1.1,y0:p.y+.35});}});
   pts.forEach((p,i)=>{if(i%8!==4)return;const sd=(i/8|0)%2?1:-1;const lp=new THREE.CylinderGeometry(.1,.12,6,5);lp.translate(p.x+p.nx*sd*(w/2+.3),p.y+3,p.z+p.nz*sd*(w/2+.3));addStatic(lp,M.pole);});}
 function roadRibbons(){ROADS.forEach((r,ri)=>{if(r.fly){flyDeck(r);return;}const isCity=r.kind==='city';const mat=isCity||r.kind==='coast'||r.kind==='service'?M.road:M.hw;
   // each highway gets its own small height so two highways that cross never flicker against each other
@@ -316,6 +326,21 @@ function lampsAlong(pts,side,step){for(let k=0;k<pts.length-1;k++){const [ax,az]
   for(let t=0;t<len;t+=step){const x=ax+dx*t+nx*9,z=az+dz*t+nz*9;if(isWater(x,z))continue;const p=new THREE.CylinderGeometry(.12,.16,6.6,5);p.translate(x,3.3,z);addStatic(p,M.pole);const bl=new THREE.SphereGeometry(.34,6,5);bl.translate(x-nx*1.4,6.3,z-nz*1.4);lampGeoms.push(bl);if(rnd()<.6)palm(x+nx*3,z+nz*3);}}}
 lampsAlong(W.highways.find(h=>h.name==='Marine Drive').pts,-1,16);
 lampsAlong([[2540,8100],[2540,8690]],1,18);
+/* Street lights (Beta v1.01.03): poles with an arm over the road on every city street and along the highways.
+   At night the heads glow and each lamp throws a soft pool of light on the road (a cheap additive decal, no real lights). */
+const poolTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');const g=x.createRadialGradient(32,32,2,32,32,32);g.addColorStop(0,'rgba(255,214,150,1)');g.addColorStop(.45,'rgba(255,200,130,.45)');g.addColorStop(1,'rgba(255,190,120,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
+const poolMat=new THREE.MeshBasicMaterial({map:poolTex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+const LAMPS=[];
+function streetLamp(x,z,ax,az,h,arm,pool){const p=new THREE.CylinderGeometry(.1,.16,h,5);p.translate(x,h/2,z);addStatic(p,M.pole,false,false);
+  const ex=x+ax*arm,ez=z+az*arm;const a=new THREE.BoxGeometry(.12,.12,arm);a.rotateY(Math.atan2(ax,az));a.translate(x+ax*arm/2,h-.1,z+az*arm/2);addStatic(a,M.pole,false,false);
+  const hd=new THREE.BoxGeometry(.9,.18,.42);hd.rotateY(Math.atan2(ax,az)+Math.PI/2);hd.translate(ex,h-.22,ez);lampGeoms.push(hd);
+  const q=new THREE.PlaneGeometry(pool,pool);q.rotateX(-Math.PI/2);q.translate(ex,.07,ez);addStatic(q,poolMat,false,false);LAMPS.push([ex,ez]);}
+{const seen=new Set();const key=(x,z)=>Math.round(x/12)+','+Math.round(z/12);
+  for(const e of EDGES){if(e.fly||e.road.fly)continue;const city=e.kind==='city',hw=!city&&e.kind!=='service';const step=city?30:44;const nx=e.dz,nz=-e.dx;
+    for(let t=city?14:20;t<e.len-6;t+=step){const side=city?((Math.floor(t/step)+e.id)%2?1:-1):(e.id%2?1:-1);const off=e.w/2+(e.kind==='bridge'?-.5:1.3);
+      const x=e.ax+e.dx*t+nx*off*side,z=e.az+e.dz*t+nz*off*side;if(e.kind!=='bridge'&&isWater(x,z))continue;const k=key(x,z);if(seen.has(k))continue;seen.add(k);
+      if(roadAt(x,z,-.5)&&e.kind!=='bridge')continue;   // a pole would stand on another road
+      streetLamp(x,z,-nx*side,-nz*side,city?7.4:9.5,city?2.6:3.6,city?15:19);}}}
 {const m=new THREE.Mesh(merge(lampGeoms),M.lamp);scene.add(m);}
 
 /* free-standing landmarks */
@@ -325,9 +350,27 @@ for(const l of W.landmarks){const [lk,...la]=l.kind.split(':');const fn=LM[lk];i
 
 /* airports */
 const planeGeo=(()=>{const g=new THREE.Group();return g;})();
-function buildPlane(){const g=new THREE.Group();const body=new THREE.Mesh(G0.cyl,M.plane);body.scale.set(2.2,24,2.2);body.rotation.x=Math.PI/2;g.add(body);const nose=new THREE.Mesh(new THREE.SphereGeometry(2.2,10,8),M.plane);nose.position.z=12;g.add(nose);
-  const wing=new THREE.Mesh(new THREE.BoxGeometry(30,.5,5),M.plane);wing.position.set(0,-.4,1);g.add(wing);const tail=new THREE.Mesh(new THREE.BoxGeometry(.5,5,4),M.planeTail);tail.position.set(0,3,-11);g.add(tail);const ts=new THREE.Mesh(new THREE.BoxGeometry(10,.4,3),M.plane);ts.position.set(0,.6,-11);g.add(ts);
-  for(const s of [-1,1]){const e=new THREE.Mesh(G0.cyl,M.steel);e.scale.set(.9,3,.9);e.rotation.x=Math.PI/2;e.position.set(s*6,-1.4,2.4);g.add(e);}g.traverse(o=>{if(o.isMesh)o.castShadow=true;});return g;}
+// An airliner (Beta v1.01.03): a rounded fuselage with a tapered nose and tail, cockpit windows, a row of cabin
+// windows and doors, swept wings with winglets and two engines with fans, a swept tail in the India Bay orange,
+// and landing gear.
+function buildPlane(){const g=new THREE.Group();const add=(geo,m,x,y,z,rx,ry,rz)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);if(rx)o.rotation.x=rx;if(ry)o.rotation.y=ry;if(rz)o.rotation.z=rz;g.add(o);return o;};
+  const prof=[[0,-12.6],[.9,-12],[1.6,-10.6],[2.1,-8],[2.25,-4],[2.25,6],[2.15,8.6],[1.85,10.6],[1.2,11.9],[.45,12.6],[0,12.8]];
+  const fus=new THREE.LatheGeometry(prof.map(([r,z])=>new THREE.Vector2(r,z)),16);fus.rotateX(Math.PI/2);add(fus,M.plane,0,0,0);
+  const dark=new THREE.MeshLambertMaterial({color:0x1f2a36}),stripe=M.planeTail,grey=M.steel;
+  add(new THREE.BoxGeometry(1.7,.38,.9),dark,0,.85,11.2,-.45);                                   // cockpit windscreen
+  for(const s of [-1,1]){const w=new THREE.BoxGeometry(.06,.26,17);w.translate(s*2.22,.55,.4);g.add(new THREE.Mesh(w,dark));    // cabin window row
+    for(const zz of [9.2,-9.4]){const d=new THREE.BoxGeometry(.07,1.3,.7);d.translate(s*2.23,.15,zz);g.add(new THREE.Mesh(d,new THREE.MeshLambertMaterial({color:0xd9dee4})));}
+    const st=new THREE.BoxGeometry(.05,.22,21);st.translate(s*2.24,-.25,0);g.add(new THREE.Mesh(st,stripe));}                    // cheatline
+  for(const s of [-1,1]){const wing=new THREE.BoxGeometry(14,.42,4.6);wing.translate(s*7.6,0,0);const m=add(wing,M.plane,0,-.9,1.4,0,s*.32,s*-.05);m.rotation.order='YXZ';
+    const wl=new THREE.BoxGeometry(.2,1.5,1.2);wl.translate(s*14.6,.6,-1.3);const wlm=new THREE.Mesh(wl,stripe);wlm.rotation.y=s*.32;wlm.position.set(0,-.9,1.4);g.add(wlm);
+    const en=new THREE.CylinderGeometry(.95,.8,3.4,14,1,true);en.rotateX(Math.PI/2);add(en,grey,s*6,-1.95,3.4).material.side=THREE.DoubleSide;
+    add(new THREE.CylinderGeometry(.75,.75,.1,14).rotateX(Math.PI/2),dark,s*6,-1.95,5);const fan=add(new THREE.BoxGeometry(1.4,.12,.05),grey,s*6,-1.95,4.95);g.userData.fans=(g.userData.fans||[]).concat(fan);
+    add(new THREE.BoxGeometry(.25,.9,1.2),grey,s*6,-1.2,3.3);                                         // pylon
+    const hs=new THREE.BoxGeometry(5,.3,2.2);hs.translate(s*2.6,0,0);const h=add(hs,M.plane,0,.4,-11,0,s*.35);}
+  const fin=new THREE.BoxGeometry(.4,5.2,3.6);fin.translate(0,2.6,0);add(fin,stripe,0,1.4,-10.6,-.42);                               // tail fin
+  add(new THREE.BoxGeometry(.42,.8,1.2),M.plane,0,5.4,-12.6,-.42);
+  for(const [x,z] of [[0,9],[-2.2,0],[2.2,0]]){add(new THREE.CylinderGeometry(.08,.08,1.6,5),grey,x,-2.6,z);for(const s of [-.22,.22])add(new THREE.CylinderGeometry(.42,.42,.3,10).rotateZ(Math.PI/2),dark,x+s,-3.4,z);}
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true;});return g;}
 const G0={cyl:new THREE.CylinderGeometry(1,1,1,10)};
 const airportPlanes=[];
 // Airports: runway with markings, parallel taxiway, apron with parked planes and jet bridges, a terminal with a

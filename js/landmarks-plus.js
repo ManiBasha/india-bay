@@ -156,4 +156,102 @@
     c.box(9, 6, 9, tx, 6, tz, mat(c, '#b0a594')); for (const s of [-1, 1]) c.box(1, 6, 9.4, tx + s * 4.3, 6, tz, red); c.box(10, .8, 10, tx, 9.4, tz, st);
     standing(c, tx, 9.8, tz, Math.PI, 23, st, { robe: true, shawl: true, arms: 'book', bookM: mat(c, '#c9b48a'), hair: 'bun' });
     c.col(x, z, 12, 8); c.far(); return {}; };
+
+  /* ---------- Hawa Mahal, Jaipur (Beta v1.01.03, LOD 300) ---------- */
+  // the five-storey pink sandstone "palace of winds": stepped tiers of projecting jharokha bays with latticed windows,
+  // small domed caps and white trim, a crown of chhatris, the arched entrance and the palace body behind
+  L.hawaMahal = (c, x, z) => { const M = c.M, Y = .3, pink = mat(c, '#e58a6a'), pinkL = mat(c, '#f0a585'), trim = mat(c, '#f6e7d2'), lat = mat(c, '#7a3b2e'), FZ = z + 9;
+    c.box(64, .1, 64, x, Y + .02, z, M.plaza, false, true); c.box(46, 22, 14, x, Y + 11, z - 4, pink);
+    const tiers = [[42, 7], [38, 6], [32, 5.5], [24, 5.5], [15, 5]]; let y = Y, d = 6;
+    tiers.forEach(([w, h], ti) => { c.box(w, h, d, x, y + h / 2, FZ - d / 2, pink); c.box(w + .4, .35, d + .5, x, y + h + .1, FZ - d / 2 + .2, trim);
+      const n = Math.max(3, Math.floor(w / 3)); for (let i = 0; i < n; i++) { const wx = x - w / 2 + (i + .5) * w / n; const bw = w / n * .78;
+        const bay = new c.THREE.CylinderGeometry(bw / 2, bw / 2, h * .72, 8, 1, false, -Math.PI / 2, Math.PI); bay.translate(wx, y + h * .46, FZ); c.add(bay, i % 2 ? pinkL : pink);
+        c.box(bw * .55, h * .42, .1, wx, y + h * .5, FZ + bw / 2 - .02, lat); c.box(bw * .62, .14, .2, wx, y + h * .74, FZ + bw / 2, trim);
+        c.dome(bw / 2 * .9, wx, y + h * .82, FZ, i % 2 ? pink : pinkL); if (ti >= 2) c.cone(.12, .7, wx, y + h * .82 + bw * .45 + .3, FZ, trim, 6); } y += h; d -= .9; });
+    for (const s of [-1, 0, 1]) { c.cyl(.18, .18, 1.6, x + s * 4, y + .8, FZ - 1.2, trim, 6); c.dome(1, x + s * 4, y + 1.6, FZ - 1.2, pinkL); c.cone(.12, .8, x + s * 4, y + 2.9, FZ - 1.2, M.gold, 6); }
+    c.box(6, 5, 1, x, Y + 2.5, FZ + .3, trim); c.box(4, 4, 1.2, x, Y + 2, FZ + .4, lat);
+    c.col(x, z, 23, 12); c.far(); return {}; };
+
+  /* ---------- Mysore Palace (Beta v1.01.03, LOD 300) ---------- */
+  // the Indo-Saracenic palace: a long arcaded front with cusped arches on pillars, a five-storey central tower with a
+  // gilded dome, red domed corner towers, flags, and strings of bulbs that light it up at night
+  L.mysorePalace = (c, x, z) => { const M = c.M, Y = .3, st = mat(c, '#ece0c2'), st2 = mat(c, '#d9c7a0'), red = mat(c, '#c4553f'), gold = mat(c, '#d9a93a'), dark = mat(c, '#3a2e26');
+    const bulb = new c.THREE.MeshBasicMaterial({ color: 0xffe08a }); const F = z - 11;
+    c.box(64, .1, 64, x, Y + .02, z, M.grass, false, true); c.box(58, .4, 14, x, Y + .2, z - 18, M.plaza, false, true);
+    c.box(54, 13, 26, x, Y + 6.5, z + 3, st); c.box(55, .9, 27, x, Y + 13.2, z + 3, st2); c.box(54, 2, .6, x, Y + 12, F - .6, st2);
+    // the arcade: cusped arches on twin pillars across the front, two storeys
+    for (let row = 0; row < 2; row++) for (let i = 0; i < 13; i++) { const ax = x - 24 + i * 4, ay = Y + 1 + row * 6;
+      for (const s of [-1, 1]) c.cyl(.28, .32, 4.4, ax + s * 1.6, ay + 2.2, F - 1.2, st, 8);
+      const arch = new c.THREE.TorusGeometry(1.35, .22, 5, 10, Math.PI); arch.translate(ax, ay + 4.4, F - 1.2); c.add(arch, st2); c.box(2.4, 3.6, .2, ax, ay + 2.6, F - .2, dark); }
+    // the central tower
+    for (let k = 0; k < 4; k++) { const w = 13 - k * 1.8; c.box(w, 4.2, w, x, Y + 15.5 + k * 4.2, z - 3, k % 2 ? st2 : st); c.box(w + .5, .4, w + .5, x, Y + 17.7 + k * 4.2, z - 3, trimOf(c)); }
+    c.cyl(4, 4.4, 3, x, Y + 33, z - 3, st, 14); c.dome(4.6, x, Y + 34.4, z - 3, gold); c.cyl(.25, .3, 3, x, Y + 40.5, z - 3, gold, 6); c.box(.04, 1, 1.6, x, Y + 41.6, z - 2.2, mat(c, '#ff9933'));
+    // corner and side towers with red domes
+    for (const [dx, dz, s] of [[-25, -9, 1], [25, -9, 1], [-25, 15, .8], [25, 15, .8], [-12, -9, .7], [12, -9, .7]]) { c.cyl(2.4 * s, 2.6 * s, 10 * s, x + dx, Y + 13 + 5 * s, z + dz, st, 10); c.box(5.6 * s, .4, 5.6 * s, x + dx, Y + 13, z + dz, st2); c.dome(2.8 * s, x + dx, Y + 13 + 10 * s, z + dz, red); c.cone(.2, 1.4, x + dx, Y + 14.4 + 12.4 * s, z + dz, gold, 6); }
+    // the evening lights: bulbs along the roof line, arches and the tower
+    const bl = (bx, by, bz) => { const b = new c.THREE.BoxGeometry(.22, .22, .22); b.translate(bx, by, bz); c.add(b, bulb, false, false); };
+    for (let i = 0; i <= 54; i += 1.5) { bl(x - 27 + i, Y + 13.8, F - .8); bl(x - 27 + i, Y + 7.6, F - 1.6); }
+    for (let k = 0; k < 4; k++) { const w = 13 - k * 1.8; for (let i = 0; i <= w; i += 1.2) bl(x - w / 2 + i, Y + 17.9 + k * 4.2, z - 3 - w / 2 - .3); }
+    for (const s of [-1, 1]) c.box(.06, 2.2, 3.4, x + s * 30, Y + 9, F - 4, mat(c, '#c8102e'));
+    c.col(x, z + 3, 27, 13); c.far(); return {}; };
+  function trimOf(c) { return mat(c, '#f6ecd6'); }
+
+  /* ---------- Beta v1.01.03: new cities from the state plans ---------- */
+  // a Nagara temple: a plinth, a mandapa with a pyramid roof and a curved shikhara with an amalaka and a flag
+  function nagara(c, x, z, m, m2, h) { const Y = .3; c.box(18, 1.2, 26, x, Y + .6, z, m2); c.box(12, 5, 10, x, Y + 3.7, z + 6, m); c.roof(14, 4, 12, x, Y + 6.2, z + 6, m2);
+    for (let i = 0; i < 6; i++) { const t = i / 6, r = 6.2 * (1 - t * .7); c.cyl(r * .86, r, h / 6, x, Y + 1.2 + h * t + h / 12, z - 4, i % 2 ? m2 : m, 8); }
+    c.cyl(1.6, 1.6, .7, x, Y + 1.5 + h, z - 4, m2, 14); c.sph(.6, x, Y + 2.3 + h, z - 4, c.M.gold); c.flag(x, Y + 3 + h, z - 4); c.col(x, z, 9, 13); }
+  L.mahalaxmi = (c, x, z) => { const st = mat(c, '#6f6a62'), st2 = mat(c, '#8a8378'); c.box(64, .1, 64, x, .32, z, c.M.plaza || st2, false, true); nagara(c, x, z, st, st2, 15);
+    for (const s of [-1, 1]) c.box(.8, 8, .8, x + s * 14, .3 + 4, z + 18, st2); c.box(29, 1.2, 1.2, x, 8.9, z + 18, st2); c.far(); return { poi: [{ type: 'food', name: 'Kolhapuri misal stall', x: x + 24, z: z + 26, rot: Math.PI, extra: 'MH' }] }; };
+  L.vitthal = (c, x, z) => { const st = mat(c, '#c9b68e'), st2 = mat(c, '#a8916a'); nagara(c, x, z, st, st2, 13); c.box(40, 4, 1, x, 2.3, z + 24, st2); for (let i = 0; i < 4; i++) c.box(6, .4, 3, x - 15 + i * 10, .5, z + 28, mat(c, '#e88b2c')); c.far(); return {}; };
+  // Akshardham, Gandhinagar: a pink sandstone mandir on a lawn, with a domed roof, many carved pillars and a pond
+  L.akshardham = (c, x, z) => { const pk = mat(c, '#e8b9a0'), pk2 = mat(c, '#d9a184'); c.box(64, .1, 64, x, .32, z, c.M.grass, false, true); c.box(30, 2, 22, x, 1.3, z, pk2);
+    for (let i = 0; i < 9; i++) for (const s of [-1, 1]) c.cyl(.5, .5, 7, x - 12 + i * 3, 5.8, z + s * 9, pk, 8);
+    c.box(28, 1.4, 20, x, 10, z, pk2); c.dome(5, x, 10.7, z, pk); for (const [dx, dz] of [[-10, -7], [10, -7], [-10, 7], [10, 7]]) c.dome(2.2, x + dx, 10.7, z + dz, pk); c.sph(.5, x, 15.9, z, c.M.gold);
+    c.box(26, .2, 10, x, .4, z + 22, mat(c, '#4fa3c7')); c.col(x, z, 15, 11); c.far(); return {}; };
+  // Lakhota palace in Lakhota lake, Jamnagar: a round, towered fort pavilion on a little island
+  L.lakhota = (c, x, z) => { const st = mat(c, '#d8c9a3'); c.box(64, .1, 64, x, .32, z, c.M.plaza || st, false, true); c.cyl(11, 12, 7, x, 3.8, z, st, 16); c.cyl(12.2, 12.2, 1, x, 7.6, z, mat(c, '#bfae86'), 16);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; c.cyl(1.8, 2, 9, x + Math.cos(a) * 11.5, 4.8, z + Math.sin(a) * 11.5, st, 10); c.dome(1.9, x + Math.cos(a) * 11.5, 9.3, z + Math.sin(a) * 11.5, st); }
+    c.dome(5, x, 7.6, z, mat(c, '#e9dfc4')); c.col(x, z, 12, 12); c.far(); return {}; };
+  // Mahabat Maqbara, Junagadh: silver-grey onion domes, spiral-stair minarets and horseshoe arches
+  L.mahabat = (c, x, z) => { const st = mat(c, '#d9d0bf'), st2 = mat(c, '#b9ad97'); c.box(64, .1, 64, x, .32, z, c.M.plaza || st2, false, true); c.box(20, 10, 20, x, 5.3, z, st);
+    for (let i = 0; i < 4; i++) for (const s of [-1, 1]) { c.box(3, 4.6, .3, x - 7.5 + i * 5, 3, z + s * 10.05, mat(c, '#4a3d33')); c.torus(1.5, .25, x - 7.5 + i * 5, 5.3, z + s * 10.1, st2); }
+    const onion = (r, ox, oy, oz) => { c.sph(r, ox, oy + r * .8, oz, st); c.cone(r * .55, r * 1.2, ox, oy + r * 2.2, oz, st, 10); c.sph(.25, ox, oy + r * 2.9, oz, c.M.gold); };
+    onion(4.6, x, 10.3, z); for (const [dx, dz] of [[-8, -8], [8, -8], [-8, 8], [8, 8]]) onion(1.9, x + dx, 10.3, z + dz);
+    for (const s of [-1, 1]) { for (let k = 0; k < 6; k++) c.cyl(1.3, 1.4, 3.4, x + s * 15, 2 + k * 3.4, z + 8, k % 2 ? st2 : st, 10); onion(1.5, x + s * 15, 20.6, z + 8); }
+    c.col(x, z, 11, 11); c.far(); return {}; };
+  // Kirti Mandir, Porbandar: the birthplace memorial of Gandhi, a tall pale tower over a two-storey house
+  L.kirtiMandir = (c, x, z) => { const cr = mat(c, '#efe4cc'), tr = mat(c, '#c97a4a'); c.box(30, 8, 18, x, 4.3, z, cr); c.box(31, .6, 19, x, 8.6, z, tr);
+    for (let k = 0; k < 6; k++) c.box(9 - k * 1.1, 4, 9 - k * 1.1, x, 10.9 + k * 4, z - 1, k % 2 ? tr : cr); c.cone(1.6, 3, x, 36.4, z - 1, cr, 8); c.flag(x, 38.2, z - 1);
+    for (let i = 0; i < 6; i++) c.box(2.2, 4.4, .3, x - 11 + i * 4.4, 3, z + 9.1, mat(c, '#4a3d33')); c.col(x, z, 15, 9); c.far(); return {}; };
+  // Junagarh Fort, Bikaner: red sandstone walls with round bastions, palace blocks with jharokhas and chhatris
+  L.junagarh = (c, x, z) => { const rs = mat(c, '#b8553a'), rs2 = mat(c, '#9c4630'), cr = mat(c, '#f1d9b8'); const Y = .3;
+    c.box(58, 9, 2, x, Y + 4.5, z + 27, rs2); c.box(58, 9, 2, x, Y + 4.5, z - 27, rs2); c.box(2, 9, 54, x - 29, Y + 4.5, z, rs2); c.box(2, 9, 54, x + 29, Y + 4.5, z, rs2);
+    for (const [dx, dz] of [[-29, -27], [29, -27], [-29, 27], [29, 27], [0, 27], [-29, 0], [29, 0]]) { c.cyl(3.4, 3.8, 11, x + dx, Y + 5.5, z + dz, rs, 12); c.box(7.6, .6, 7.6, x + dx, Y + 11.2, z + dz, rs2); }
+    c.box(8, 7, 3, x, Y + 3.5, z + 28.4, rs); c.box(3.8, 5, .4, x, Y + 2.5, z + 30, mat(c, '#3a2a20'));
+    for (const [bx, bz, w, h] of [[-12, -8, 18, 18], [10, -10, 16, 22], [0, 8, 26, 14]]) { c.box(w, h, 12, x + bx, Y + h / 2, z + bz, rs); for (let i = 0; i < Math.floor(w / 4); i++) { c.box(2.2, 2.6, 1.2, x + bx - w / 2 + 2 + i * 4, Y + h - 4, z + bz + 6.4, cr); c.dome(1.1, x + bx - w / 2 + 2 + i * 4, Y + h - 2.7, z + bz + 6.6, cr); }
+      for (const s of [-1, 1]) { c.box(3, .3, 3, x + bx + s * (w / 2 - 2), Y + h + 2, z + bz, cr); for (const q of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) c.cyl(.12, .12, 2, x + bx + s * (w / 2 - 2) + q[0] * 1.2, Y + h + 1, z + bz + q[1] * 1.2, cr, 5); c.dome(1.6, x + bx + s * (w / 2 - 2), Y + h + 2.15, z + bz, cr); } }
+    c.col(x, z - 27, 30, 1.5); c.col(x - 29, z, 1.5, 28); c.col(x + 29, z, 1.5, 28); c.col(x - 18, z + 27, 12, 1.5); c.col(x + 18, z + 27, 12, 1.5); c.far(); return { open: true }; };
+  // Vijay Stambh, Chittorgarh: the nine-storey victory tower on the fort, with the fort wall behind
+  L.vijayStambh = (c, x, z) => { const st = mat(c, '#c9a77a'), st2 = mat(c, '#a8865a'); const Y = .3; c.box(64, .1, 64, x, Y + .02, z, mat(c, '#b79f78'), false, true);
+    c.box(10, 1.2, 10, x, Y + .6, z, st2); for (let k = 0; k < 9; k++) { const w = 7 - k * .35; c.box(w, 3.6, w, x, Y + 3 + k * 4, z, st); c.box(w + 1.4, .5, w + 1.4, x, Y + 4.9 + k * 4, z, st2); for (const s of [-1, 1]) { c.box(1.6, 2, .3, x + s * 1.6, Y + 3 + k * 4, z + w / 2 + .1, mat(c, '#3a2a20')); } }
+    c.box(6.4, 1.2, 6.4, x, Y + 39.4, z, st2); c.dome(2.8, x, Y + 40, z, st); c.flag(x, Y + 43, z);
+    c.box(60, 6, 3, x, Y + 3, z - 28, st2); for (let i = 0; i < 12; i++) c.box(2, 1.4, 3, x - 27 + i * 5, Y + 6.7, z - 28, st2); c.col(x, z, 5.5, 5.5); c.col(x, z - 28, 30, 1.6); c.far(); return { open: true }; };
+  // Ujra Mosque, Kavaratti: a small whitewashed mosque with a tiled roof, carved wooden ceiling and a well, among palms
+  L.ujraMosque = (c, x, z) => { const wh = mat(c, '#f6f3ea'), tl = mat(c, '#9c4a32'), gr = mat(c, '#2fa36b'); c.box(64, .1, 64, x, .32, z, c.M.sand, false, true);
+    c.box(14, 5, 10, x, 2.8, z, wh); c.roof(16, 3.4, 12, x, 5.3, z, tl); c.box(6, 3.8, 4, x, 2.2, z + 6.6, wh); c.roof(7, 2, 5, x, 4.1, z + 6.6, tl); c.cyl(.6, .7, 8, x + 9, 4.3, z - 3, wh, 8); c.dome(.9, x + 9, 8.3, z - 3, gr);
+    c.cyl(1.4, 1.4, 1, x - 10, .8, z + 6, wh, 12); for (let i = 0; i < 9; i++) c.palm(x - 26 + c.rnd() * 52, z - 26 + c.rnd() * 14); c.col(x, z, 7, 5); c.far(); return { open: true }; };
+  // a Lakshadweep lagoon beach: palms, an upturned odam (wooden boat), beach huts and a dive shack
+  L.lagoonBeach = (c, x, z) => { const wd = mat(c, '#8a5a3a'), th = mat(c, '#c9a45a');
+    for (let i = 0; i < 12; i++) { const a = c.rnd() * 6.28, r = 12 + c.rnd() * 22; c.palm(x + Math.cos(a) * r, z + Math.sin(a) * r); }
+    for (let i = 0; i < 3; i++) { const hx = x - 8 + i * 8, hz = z + 6; c.box(5, 2.6, 4, hx, 1.6, hz, wd); c.roof(6.4, 2.4, 5.4, hx, 2.9, hz, th); }
+    c.box(1.6, .7, 7, x + 10, .45, z - 6, mat(c, '#2f7fc1')); c.sign('LAGOON DIVE', x - 8, 4.4, z + 3.9, 0, 4, .8, '#ffffff', '#1a8fb0'); c.col(x, z + 6, 11, 2.2); c.far(); return {}; };
+  // Kumbhalgarh: the second-longest wall in the world snaking over the Aravalli ridge, with a palace on top
+  L.kumbhalgarh = (c, x, z) => { const st = mat(c, '#a39272'), st2 = mat(c, '#8b7b5c'); c.cone(46, 26, x, 13, z, mat(c, '#7f8a55'), 10);
+    const P = []; for (let i = 0; i <= 28; i++) { const a = i / 28 * 6.283; P.push([x + Math.cos(a) * (60 + Math.sin(a * 3) * 10), z + Math.sin(a) * (50 + Math.cos(a * 2) * 8)]); }
+    for (let i = 1; i < P.length; i++) { const [ax, az] = P[i - 1], [bx, bz] = P[i]; const L2 = Math.hypot(bx - ax, bz - az); c.boxRot(L2 + 1, 7, 4.5, (ax + bx) / 2, 3.5, (az + bz) / 2, Math.atan2(bx - ax, bz - az) + Math.PI / 2, st); if (i % 3 === 0) c.cyl(3.4, 3.8, 9, ax, 4.5, az, st2, 10); }
+    c.box(16, 9, 12, x, 30, z, mat(c, '#e7dcc4')); c.box(17, .6, 13, x, 34.8, z, st2); for (const s of [-1, 1]) c.dome(2.2, x + s * 6, 35.1, z, mat(c, '#e7dcc4')); c.col(x, z, 24, 24); c.far(); return {}; };
+  // Lonar crater: a rim of low hills round the green crater lake, with old temples on the slopes
+  L.lonarCrater = (c, x, z) => { const rim = mat(c, '#6f7a45'); for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283; c.cone(14, 9 + (i % 3) * 2, x + Math.cos(a) * 48, 4.5, z + Math.sin(a) * 48, rim, 7); }
+    for (const a of [.4, 2.3, 4.4]) { const tx = x + Math.cos(a) * 38, tz = z + Math.sin(a) * 38; c.box(5, 4, 5, tx, 2, tz, mat(c, '#7d756a')); c.cone(3, 4, tx, 6, tz, mat(c, '#7d756a'), 4); } c.far(); return {}; };
 })();
