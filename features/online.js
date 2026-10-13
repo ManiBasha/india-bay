@@ -79,6 +79,23 @@ window.BBFeatures.push(function (bb) {
     } catch (e) { console.warn('Online unavailable', e); status = 'error'; renderIntro(); return false; }
   })();
 
+  /* ---------- Sign in with Google on the start screen (Beta v1.01.05) ----------
+     Shown when you are not on a Google account yet: no account, or a guest account in this browser.
+     A guest is linked to Google (same player, same progress). If linking is switched off in Supabase
+     (Authentication → Sign In / Providers → "Allow manual linking"), you can sign in with Google as a fresh player. */
+  async function googleIn(fromSheet) { const ok = await ready; if (!ok) return bb.toast('Online is unavailable right now', '#ff9f1c');
+    if (!googleOn) return bb.toast('Google sign-in is switched off on the server (Supabase → Authentication → Sign In / Providers → Google)', '#ff9f1c');
+    bb.toast('Opening Google…', '#d6c8e4');
+    if (session && isAnon()) { const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (!error) return;
+      const off = /manual linking|linking is disabled|identity.*already/i.test(error.message || '');
+      bb.openSheet('Sign in with Google', off ? 'Linking a guest to Google is switched off' : 'Could not link Google', `<p class="note">${bb.esc(niceErr(error))}</p><p class="note">${off ? 'Admin: Supabase → Authentication → Sign In / Providers → turn on <b>Allow manual linking</b>, then try again to keep this guest player. Or sign in with Google as a new player now (this guest stays in this browser).' : 'You can sign in with Google as a new player instead.'}</p><div class="stack"><button class="go gbtn" data-id="fresh"><b>G</b> Sign in with Google</button><button class="buy ghost" data-id="no">Not now</button></div>`,
+        s2 => s2.onclick = async e => { const id = e.target.dataset.id; if (id === 'no') return bb.closeSheet(); if (id !== 'fresh') return; await sb.auth.signOut(); const r = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here() } }); if (r.error) bb.toast(niceErr(r.error), '#ff8b8b'); });
+      return; }
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); }
+  bb.googleIn = googleIn;
+  function introGoogle() { const b = $('#iGoogle'); if (!b) return; b.hidden = !(googleOn && (!session || isAnon())); b.onclick = () => googleIn(); }
+  ready.then(introGoogle); setInterval(introGoogle, 4000);
+
   /* ---------- start screen gate ---------- */
   document.addEventListener('click', e => {
     const t = e.target.closest && e.target.closest('#go,#newGame');
@@ -406,7 +423,7 @@ window.BBFeatures.push(function (bb) {
       s => s.onclick = async e => {
         const id = e.target.dataset.id, mu = e.target.dataset.mute, rep = e.target.dataset.rep;
         if (id === 'conn') { if (status === 'on') disconnect(); else { offline = false; connect(); } return setTimeout(sheet, 400); }
-        if (id === 'acct') { if (!isAnon()) return signOut(); if (!googleOn) return bb.toast('Google sign-in is not set up yet', '#d6c8e4'); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error), '#ff8b8b'); return; }
+        if (id === 'acct') { if (!isAnon()) return signOut(); return googleIn(); }
         if (id === 'out') return signOut();
         if (id === 'voicein' && bb.VOICE) { bb.VOICE.hear = !bb.VOICE.hear; return sheet(); }
         if (id === 'riders') { allowRiders = !allowRiders; try { localStorage.setItem('ib.riders', allowRiders ? '1' : '0'); } catch (er) {} if (!allowRiders) { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; } return sheet(); }
@@ -442,7 +459,7 @@ window.BBFeatures.push(function (bb) {
       { id: 'p_del', label: '🗑 Delete account', sub: 'Removes your player, name, date of birth and cloud save for good', btn: 'Delete', cls: 'danger' }];
     return { sub: isAnon() ? 'Guest account' : 'Google · ' + (session.user.email || ''), top, end, handle: async (id, e) => {
       if (id === 'p_admin') return window.open('admin/', '_blank', 'noopener');
-      if (id === 'p_google') { if (!googleOn) return bb.toast('Google sign-in is switched off on the server (Supabase → Authentication → Providers → Google)', '#ff9f1c'); const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: here() } }); if (error) bb.toast(niceErr(error) + (/manual linking/i.test(error.message || '') ? ' · Admin: turn on "Allow manual linking" in Supabase → Authentication → Sign In / Providers' : ''), '#ff8b8b'); return; }
+      if (id === 'p_google') { bb.closeSheet(); return googleIn(); }
       if (id === 'p_mode') return bb.setTestMode(!bb.testMode);
       if (id === 'p_out') { if (isAnon() && !sure(e, 'Tap again to log out')) return; return signOut(); }
       if (id === 'p_del') { if (!sure(e, 'Tap again to delete for good')) return; const { error } = await sb.rpc('delete_my_account'); if (error) return bb.toast(niceErr(error), '#ff8b8b'); disconnect(true); try { await sb.auth.signOut(); } catch (er) {} localStorage.removeItem('ib.save.v3'); bb.toast('Your account was deleted', '#d6c8e4'); setTimeout(() => location.reload(), 1200); }

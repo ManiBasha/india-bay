@@ -66,25 +66,42 @@
 </div>
 
 <div id="intro">
-  <button class="ibtn imute" id="introMute" type="button" aria-label="Sound">🔊</button>
-  <button class="ibtn iprof" id="introProf" type="button" aria-label="Profile"><span class="pav sm">👤</span><span>Profile</span></button>
-  <div class="card">
-    <p class="hi">इंडिया बे · Open-world India</p>
-    <h1 id="gName">India Bay</h1>
-    <p id="gTag">Open-world West India</p>
-    <p class="ver" id="ver">Beta v1.01.04</p>
-    <p id="today"></p>
-    <div class="ann" id="ann" hidden></div>
-    <div class="cities" id="cities"></div>
-    <div class="btnrow"><button class="go" id="go">Start</button><button class="go alt" id="newGame" hidden>New game</button></div>
-    <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>E</kbd> use · <kbd>J</kbd> attack · <kbd>M</kbd> phone · <kbd>I</kbd> menu · <kbd>N</kbd> map · <kbd>R</kbd> radio · <kbd>C</kbd> camera · <kbd>P</kbd> photo</div>
-    <div class="legal"><a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="#" id="supLink">Contact support</a> · Advertise with us: <a href="mailto:support@indiabaygame.com">support@indiabaygame.com</a> · Instagram <a href="https://www.instagram.com/indiabaygame/" target="_blank" rel="noopener">@indiabaygame</a></div>
+  <div class="ivig"></div>
+  <div class="itop">
+    <button class="ibtn imute" id="introMute" type="button" aria-label="Sound">🔊</button>
+    <div class="ilive"><i></i><span id="today"></span></div>
+    <button class="ibtn iprof" id="introProf" type="button" aria-label="Profile"><span class="pav sm">👤</span><span>Profile</span></button>
   </div>
+  <div class="imain">
+    <div class="ileft">
+      <div class="logo"><span class="hi">इंडिया बे</span><h1 id="gName">India Bay</h1><p id="gTag">Open-world India</p><span class="ver" id="ver">Beta v1.01.05</span></div>
+      <nav class="imenu" aria-label="Start menu">
+        <button class="go ibig" id="go" disabled><span class="gl">▶</span><span class="gt">Loading…</span><kbd>Enter</kbd></button>
+        <button class="mbtn" id="iCity" type="button"><span>🗺</span>Choose your city</button>
+        <button class="mbtn gmb" id="iGoogle" type="button" hidden><span class="gg">G</span>Sign in with Google</button>
+        <button class="mbtn" id="iHow" type="button"><span>🎮</span>How to play</button>
+        <button class="mbtn" id="iNew" type="button"><span>✨</span>What's new</button>
+        <button class="mbtn danger" id="newGame" hidden>New game</button>
+      </nav>
+    </div>
+    <aside class="iright" id="iMapPanel">
+      <div class="iph"><b>Choose your city</b><button class="ibtn" id="iMapClose" type="button" aria-label="Close">✕</button></div>
+      <div class="cities" id="cities"></div>
+    </aside>
+  </div>
+  <div class="ibottom">
+    <div class="tourcap" id="tourCap"><small>Now showing</small><b id="tourName">Gateway of India, Mumbai</b></div>
+    <div class="iload" id="iload"><div class="bar"><i id="iloadBar"></i></div><span id="iloadTxt">Building West India…</span></div>
+    <div class="ticker"><b>BAY NEWS</b><div class="tk"><div class="tkin" id="tick"></div></div></div>
+    <div class="ifoot"><div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>E</kbd> use · <kbd>J</kbd> attack · <kbd>M</kbd> phone · <kbd>I</kbd> menu · <kbd>N</kbd> map · <kbd>R</kbd> radio · <kbd>C</kbd> camera · <kbd>P</kbd> photo</div><div class="legal"><a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="#" id="supLink">Contact support</a> · Advertise with us: <a href="mailto:support@indiabaygame.com">support@indiabaygame.com</a> · Instagram <a href="https://www.instagram.com/indiabaygame/" target="_blank" rel="noopener">@indiabaygame</a></div></div>
+  </div>
+  <div class="ann" id="ann" hidden></div>
 </div>
 
 <div id="sheetWrap" hidden><div id="sheet" role="dialog" aria-modal="true"></div></div>
 <div id="wait" hidden></div>
 
+<script src="js/intro.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>window.BBFeatures=window.BBFeatures||[];</script>
 <script src="js/config.js"></script>

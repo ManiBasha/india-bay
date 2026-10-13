@@ -429,3 +429,69 @@ body.steer-alt .pad.l{display:none!important}
 #cine .gigbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 196px);width:min(420px,calc(100% - 32px));height:44px;border-radius:14px;background:rgba(12,10,24,.8);border:1px solid var(--panel-edge);overflow:hidden;pointer-events:auto}
 #cine .gigbar i{position:absolute;top:0;bottom:0;background:rgba(61,220,151,.3);border-left:2px solid var(--mint);border-right:2px solid var(--mint)}
 #cine .gigbar b{position:absolute;top:6px;bottom:6px;width:6px;margin-left:-3px;border-radius:3px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+/* ================= Start screen (Beta v1.01.05): a game title screen over a live tour ================= */
+#intro{display:block;place-items:initial;padding:0;overflow:hidden;background:none;font-family:var(--f-display);--fade:0}
+#intro::after{content:"";position:absolute;inset:0;background:#0b0818;opacity:var(--fade);pointer-events:none;transition:opacity .2s}
+#intro .ivig{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(14,9,30,.92) 0%,rgba(14,9,30,.7) 28%,rgba(14,9,30,.1) 55%,rgba(14,9,30,0) 70%),linear-gradient(0deg,rgba(14,9,30,.9) 0%,rgba(14,9,30,0) 26%),linear-gradient(180deg,rgba(14,9,30,.6) 0%,rgba(14,9,30,0) 16%)}
+#intro .itop{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 0}
+#intro .imute,#intro .iprof{position:static}
+#intro .iprof{margin-left:auto;height:46px;padding:0 16px 0 6px;background:rgba(20,15,38,.7);border:1px solid rgba(255,201,60,.35);backdrop-filter:blur(6px)}
+#intro .ilive{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(20,15,38,.6);border:1px solid rgba(255,255,255,.12);font-size:13px;font-weight:700;color:var(--ink)}
+#intro .ilive i{width:8px;height:8px;border-radius:50%;background:#ff4f6a;box-shadow:0 0 0 0 rgba(255,79,106,.7);animation:livep 1.6s infinite}
+@keyframes livep{70%{box-shadow:0 0 0 8px rgba(255,79,106,0)}100%{box-shadow:0 0 0 0 rgba(255,79,106,0)}}
+#intro .imain{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:84px clamp(16px,5vw,64px) 150px}
+#intro .ileft{width:min(440px,100%)}
+#intro .logo{margin-bottom:22px}
+#intro .logo .hi{display:block;font-size:17px;font-weight:800;color:var(--acc);letter-spacing:.12em;margin-bottom:-6px}
+#intro .logo h1{margin:0;font:800 clamp(56px,9vw,104px)/.9 var(--f-display);text-transform:uppercase;letter-spacing:-.01em;transform:skew(-6deg);background:linear-gradient(180deg,#fff6d8 0%,#ffc93c 45%,#ff7a2f 75%,#ff4f6a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #2a0f2e) drop-shadow(0 10px 24px rgba(255,120,40,.35));text-shadow:none}
+#intro .logo p{margin:8px 0 8px;font-size:16px;font-weight:600;color:var(--ink);opacity:.9}
+#intro .logo .ver{margin:0}
+#intro .imenu{display:flex;flex-direction:column;gap:9px;align-items:stretch}
+#intro .imenu button{pointer-events:auto;font-family:var(--f-display);cursor:pointer;text-align:left}
+#intro .ibig{position:relative;display:flex;align-items:center;gap:12px;height:68px;padding:0 22px;font-size:24px;font-weight:800;color:#1a1430;border:0;border-radius:0;clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);background:linear-gradient(90deg,#ffc93c,#ff9f1c);box-shadow:none;transition:transform .15s,filter .15s}
+#intro .ibig:hover:not(:disabled){transform:translateX(6px);filter:brightness(1.08)}
+#intro .ibig:disabled{background:linear-gradient(90deg,#5a4f74,#4a4262);color:#cfc4e6;cursor:wait}
+#intro .ibig .gl{font-size:20px}#intro .ibig .gt{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#intro .ibig kbd{font:700 11px var(--f-display);padding:3px 7px;border-radius:6px;background:rgba(26,20,48,.18);color:inherit;margin-right:14px}
+#intro .mbtn{display:flex;align-items:center;gap:12px;height:48px;padding:0 18px;font-size:17px;font-weight:700;color:var(--ink);background:rgba(20,15,38,.62);border:1px solid rgba(255,255,255,.12);border-left:4px solid var(--acc);border-radius:0 10px 10px 0;backdrop-filter:blur(6px);transition:transform .15s,background .15s}
+#intro .mbtn:hover{transform:translateX(6px);background:rgba(44,35,80,.8)}
+#intro .mbtn>span:first-child{width:24px;text-align:center}
+#intro .mbtn.gmb{border-left-color:#4285f4;background:rgba(255,255,255,.95);color:#1f1f1f}
+#intro .mbtn .gg{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:conic-gradient(#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0);color:#fff;font-weight:800;font-size:15px}
+#intro .mbtn.danger{border-left-color:var(--rose);font-size:15px;height:42px}
+#intro .iright{width:min(430px,44vw);max-height:calc(100vh - 260px);overflow:auto;padding:14px;border-radius:18px;background:rgba(14,10,30,.72);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);display:none}
+#intro .iright.open{display:block;animation:pin .25s ease-out}
+@keyframes pin{from{opacity:0;transform:translateX(20px)}}
+#intro .iph{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}#intro .iph b{font-size:18px;color:var(--acc);letter-spacing:.04em;text-transform:uppercase}
+#intro .smap svg{max-height:min(40vh,360px)}
+#intro .ibottom{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 6px)}
+#intro .tourcap{position:absolute;right:clamp(16px,5vw,64px);bottom:calc(100% + 10px);display:flex;flex-direction:column;align-items:flex-end;opacity:.95}
+#intro .tourcap small{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--acc)}
+#intro .tourcap b{font-size:20px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+#intro .tourcap.in{animation:capin .6s ease-out}@keyframes capin{from{opacity:0;transform:translateY(8px)}}
+#intro .iload{display:flex;align-items:center;gap:12px;padding:0 clamp(16px,5vw,64px) 8px;font-size:13px;font-weight:700;color:var(--muted);transition:opacity .4s}
+#intro .iload .bar{flex:0 0 min(320px,50vw);height:8px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}#intro .iload .bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#ffc93c,#ff4f6a);transition:width .3s}
+body.iready #intro .iload{opacity:0;height:0;padding-bottom:0;overflow:hidden}
+#intro .ticker{display:flex;align-items:center;height:34px;background:rgba(10,7,22,.86);border-top:1px solid rgba(255,201,60,.3);border-bottom:1px solid rgba(255,201,60,.15);overflow:hidden}
+#intro .ticker>b{flex:none;height:100%;display:grid;place-items:center;padding:0 14px;background:#ff4f6a;color:#fff;font-size:13px;letter-spacing:.1em;clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%);padding-right:22px}
+#intro .tk{flex:1;overflow:hidden;white-space:nowrap}
+#intro .tkin{display:inline-block;white-space:nowrap;animation:tick 60s linear infinite;font-size:14px;font-weight:600;color:var(--ink)}
+#intro .tkin span{margin-right:44px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+#intro .ifoot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px clamp(16px,5vw,64px) 0;font-size:12px;color:var(--muted)}
+#intro .ifoot .keys{margin:0;font-size:12px;opacity:.8}#intro .ifoot .legal{margin:0;text-align:right;line-height:1.5}
+@media (prefers-reduced-motion:reduce){#intro .tkin{animation:none}#intro .ilive i{animation:none}}
+/* phones and narrow screens: menu at the bottom, the map opens as a panel */
+@media (max-width:979px){
+  #intro .ivig{background:linear-gradient(0deg,rgba(14,9,30,.95) 0%,rgba(14,9,30,.75) 45%,rgba(14,9,30,.15) 75%),linear-gradient(180deg,rgba(14,9,30,.7) 0%,rgba(14,9,30,0) 20%)}
+  #intro .imain{align-items:flex-end;padding:76px 16px 118px}
+  #intro .ileft{width:100%;max-width:460px}
+  #intro .logo h1{font-size:clamp(48px,15vw,76px)}
+  #intro .iright{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 66px);bottom:118px;width:auto;max-height:none;z-index:5}
+  #intro .ifoot .keys{display:none}#intro .ifoot{justify-content:center}#intro .ifoot .legal{text-align:center}
+  #intro .tourcap{display:none}
+  #intro .ilive span{font-size:12px}
+}
+@media (max-height:560px) and (max-width:979px){#intro .logo .hi,#intro .logo p{display:none}#intro .logo h1{font-size:44px}#intro .imenu{gap:6px}#intro .ibig{height:52px;font-size:20px}#intro .mbtn{height:40px;font-size:15px}#intro .imain{padding-bottom:104px}}
+@media (min-width:980px){#intro .iright #iMapClose{display:none}}
+#intro #ann{display:none!important}

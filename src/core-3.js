@@ -666,7 +666,7 @@ function drawStartMap(){const el=$('#cities');const IS=window.INDIA_STATES;if(!I
   el.querySelector('svg').onclick=e=>{const p=e.target.closest('path[data-st]');if(!p)return;const st=p.dataset.st;const q=IS.states.find(x=>x.id===st.toLowerCase());if(!statePlayable(st)){toast(`${esc(q?q.name:st)} opens in a coming update`,'#d6c8e4');return;}
     const z=W.zones.find(x=>x.id===W.startZones[st]);startPick={st,zone:z};el.querySelectorAll('path.on').forEach(x=>x.classList.remove('on'));p.classList.add('on');pickRow();};
   pickRow();}
-function pickRow(){const el=$('#spick');if(!el)return;const go=$('#go');
+function pickRow(){const el=$('#spick');if(!el)return;const go0=$('#go'),go=go0.querySelector('.gt')||go0;
   if(!startPick){el.innerHTML=`<p>Tap a bright state to travel there, or continue where you left off.</p>`;go.textContent='Continue';return;}
   const st=startPick.st,zs=W.zones.filter(z=>z.st===st).sort((a,b)=>({big:0,mid:1,small:2}[a.size]-{big:0,mid:1,small:2}[b.size]));
   el.innerHTML=`<b>${esc(W.states[st])}</b><div class="chips">${zs.slice(0,8).map(z=>`<button class="chip${z===startPick.zone?' on':''}" data-z="${z.id}">${esc(z.name)}</button>`).join('')}</div>`;
@@ -701,7 +701,7 @@ const api={onFire:f=>fireHooks.push(f),setBotScale,get botScale(){return botScal
   CONG,sigState,sigJunction,
   blocks,get db(){return db;},get adminOK(){return adminOK;},buildVeh,nameOk,ageFromDob:IBCONF.ageFromDob,get adSlots(){return SLOTS;},updBillboards,billboardMeshes,adSheet,pickBillboard,personErr,personFields,refreshBillboards,openApp,set introClick(f){hooks.introClick=f;},set starterSheet(f){hooks.starterSheet=f;},enterHome,homeById,set introLabel(f){hooks.introLabel=f;setAvatar();},cloudConfig,hubSheet,supportSheet,setAvatar,addProfileRows(f){profileRows.push(f);},set profileEdit(f){hooks.profileEdit=f;},set displayName(f){hooks.displayName=f;setAvatar();},set userEmail(f){hooks.userEmail=f;},setCfgBackend(b){cfgBackend=b;adminOK=!!(b&&b.admin);adminLocal=false;},get hadSave(){return hadSave;},
   setDirty(){dirty=true;},buildPlane,addAdSlot,setSteer(v){steerIn=v==null?null:clamp(v,-1,1);},addCol,applyLook,lookCode,decodeLook,lookSheet,LOOKS,buildAnimal,animGait,ASPEC,get strays(){return cows;},animals,MR,mpick,clamp,hash,canvasTex,EDGES,ROADS,laneRandom:randomLaneNear,lanePos,uiLock};
-window.BB=api;
+api.howTo=howTo;api.whatsNew=whatsNew;api.featuresSheet=featuresSheet;window.BB=api;
 const queued=Array.isArray(window.BBFeatures)?window.BBFeatures:[];window.BBFeatures={push(f){try{f(api);}catch(e){console.error('Feature failed',e);}}};queued.forEach(f=>window.BBFeatures.push(f));
 flushStatic();
 
@@ -710,8 +710,15 @@ applyTheme();tickClock();renderIntro();document.title=CFG.name;updWeap();renderS
 camera.position.set(3150,60,8950);
 const camPos=new THREE.Vector3(),camLook=new THREE.Vector3(),tmp=new THREE.Vector3();
 let last=performance.now(),orbit=0,frame=0;
+/* the start screen tour (Beta v1.01.05): the camera glides round famous places, one after another */
+const TOUR_SPOTS=[['Gateway of India','Mumbai',170,58,10],['Hawa Mahal','Jaipur',120,40,14],['Statue of Unity','Kevadia',260,90,60],['Marine Drive','Mumbai',200,50,6],['Mysore Palace','Mysuru',140,46,16],['Jaisalmer Fort','Jaisalmer',160,55,18],['Chinese Fishing Nets','Fort Kochi',110,30,6],['Murudeshwar Shiva Statue','Murudeshwar',170,60,30],['Bandra–Worli Sea Link','Mumbai',230,70,10],['Mehrangarh Fort','Jodhpur',190,70,24]];
+const TOUR=TOUR_SPOTS.map(([n,c,r,h,ly])=>{const p=(W.places||[]).find(q=>q[0]===n);return p?{name:`${n}, ${c}`,cx:p[1],cz:p[2],r,h,ly}:null;}).filter(Boolean);
+let tourI=0,tourT=0,tourA=0;
+function tourShot(rdt){if(!TOUR.length)return{cx:2990,cz:8800,r:170,h:60,ly:10,a:orbit+=rdt*.05};tourT+=rdt;tourA+=rdt*.07;
+  if(tourT>13){tourT=0;tourI=(tourI+1)%TOUR.length;tourA=Math.random()*6;const n=$('#tourName');if(n){n.textContent=TOUR[tourI].name;const c=$('#tourCap');if(c){c.classList.remove('in');void c.offsetWidth;c.classList.add('in');}}}
+  const q=TOUR[tourI];const k=Math.min(1,tourT/1.2,(13-tourT)/1.2);const v=$('#intro');if(v)v.style.setProperty('--fade',String(1-Math.max(0,k)));return Object.assign({a:tourA},q);}
 function loop(ms){requestAnimationFrame(loop);const now=ms/1000;const rdt=Math.min(1,Math.max(0,(ms-last)/1000));const dt=Math.min(.05,rdt);last=ms;frame++;tickClock();
-  if(!started){orbit+=dt*.05;updSky(dt);const cx=2990,cz=8800;camera.position.set(cx+Math.cos(orbit)*170,60+Math.sin(orbit*.7)*12,cz+Math.sin(orbit)*150);camera.lookAt(cx-30,10,cz-40);updSun(camera.position);if(frame%15===1)updChunks(cx,cz);if(frame%20===1){updLabels();updBillboards(cx,cz);}
+  if(!started){const T=tourShot(rdt);updSky(dt);camera.position.set(T.cx+Math.cos(T.a)*T.r,T.h+Math.sin(T.a*.7)*6,T.cz+Math.sin(T.a)*T.r);camera.lookAt(T.cx,T.ly,T.cz);updSun(camera.position);if(frame%15===1)updChunks(T.cx,T.cz);if(frame%20===1){updLabels();updBillboards(T.cx,T.cz);}
     if(frame%40===0)$('#today').textContent=`${istText()} · Bay time ${bayTime()}`;renderer.render(scene,camera);return;}
   updSky(dt);
   if(sheetOpen()||waitOpen()){tickWait(rdt);updNeeds(rdt);updHud();renderer.render(inside?inter.scene:scene,camera);for(const f of hooks.afterRender)f();return;}
