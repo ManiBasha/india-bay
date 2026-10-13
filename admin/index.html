@@ -102,12 +102,12 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
   }
 
   /* ---------- tabs ---------- */
-  const TABS = [['settings', 'Game settings'], ['prices', 'Time and prices'], ['ads', 'Billboards and ads'], ['fest', 'Festivals, events and gifts'], ['reports', 'Reports'], ['support', 'Support'], ['sugg', 'Suggestions'], ['players', 'Players']];
+  const TABS = [['settings', 'Game settings'], ['prices', 'Time and prices'], ['ads', 'Billboards and ads'], ['fest', 'Festivals, events and gifts'], ['reports', 'Reports'], ['support', 'Support'], ['sugg', 'Suggestions'], ['players', 'Players'], ['testers', 'Testers']];
   let cur = 'settings';
   function tabs() {
     $('#tabs').innerHTML = TABS.map(([id, l]) => `<button role="tab" data-t="${id}" aria-selected="${id === cur}">${l}</button>`).join('');
     $('#tabs').onclick = e => { const t = e.target.dataset.t; if (t) { cur = t; tabs(); } };
-    ({ settings: settingsTab, prices: pricesTab, ads: () => listTab('billboards'), fest: () => listTab('festivals', 'events', 'gifts'), reports: reportsTab, support: supportTab, sugg: suggTab, players: playersTab })[cur]();
+    ({ settings: settingsTab, prices: pricesTab, ads: () => listTab('billboards'), fest: () => listTab('festivals', 'events', 'gifts'), reports: reportsTab, support: supportTab, sugg: suggTab, players: playersTab, testers: testersTab })[cur]();
   }
   async function loadCfg() { if (cfg) return cfg; const { data, error } = await sb.from('game_config').select('data').eq('id', 1).maybeSingle(); if (error) throw error; cfg = K.mergeCfg(K.DEFAULTS, data && data.data); return cfg; }
   async function saveCfg(msgEl) {
@@ -115,7 +115,7 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
     cfg.name = String(cfg.name || '').trim() || K.DEFAULTS.name;
     const { error } = await sb.from('game_config').upsert({ id: 1, data: cfg, updated_at: new Date().toISOString() });
     if (error) { msgEl.textContent = 'Could not save: ' + error.message; msgEl.className = 'note bad'; return; }
-    msgEl.textContent = 'Saved. Players get the new settings when they load the game, or within 5 minutes.'; msgEl.className = 'note ok';
+    msgEl.textContent = 'Saved. Players get the new settings when they load the game, or within a minute.'; msgEl.className = 'note ok';
   }
   const get = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
   function set(o, p, v) { const k = p.split('.'); let a = o; for (let i = 0; i < k.length - 1; i++) a = a[k[i]]; a[k[k.length - 1]] = v; }
@@ -143,7 +143,7 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
       ['Regions', K.REGIONS.map(r => `<label class="ck"><input type="checkbox" data-p="regions.${r.id}" data-b="1"${r.map ? '' : ' disabled'}> ${esc(r.name)}${r.map ? '' : ' (map not built yet)'}</label>`).join('')]
     ];
     $('#pane').innerHTML = `<div class="card"><h2>Game settings</h2><p class="note">These apply to every player.</p><form id="f" novalidate>${S.map(([t, h], i) => `<details${i === 0 ? ' open' : ''}><summary>${t}</summary><div class="grid" style="margin-top:10px">${h}</div></details>`).join('')}
-      <details><summary>Changelog</summary><p class="note">Add an entry with a higher version number to show players a What's new pop-up.</p><div id="l_changelog"></div></details></form>
+      <details><summary>Changelog</summary><p class="note">Beta v1.0.0 has no change history. For each later update add an entry with a higher version (for example Beta v1.0.1) and players see a What's new pop-up once.</p><div id="l_changelog"></div></details></form>
       <div class="bar"><button class="pri" id="save">Save for all players</button><button id="reset" class="danger">Reset to defaults</button><span class="note" id="msg" style="margin:0"></span></div></div>`;
     const f = $('#f');
     f.querySelectorAll('[data-p]').forEach(el => { const v = get(c, el.dataset.p); if (el.dataset.b) el.checked = !!v; else if (v != null) el.value = v; });
@@ -221,6 +221,15 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
     'Support messages', 'From the Contact support form. Click an email address to reply from your mail app.');
   const suggTab = () => table('suggestions', 'id,created_at,name,region,text', ['When', 'From', 'Region', 'Suggestion'],
     r => `<tr><td>${when(r.created_at)}</td><td>${esc(r.name || '')}</td><td>${esc(r.region || '')}</td><td class="msg">${esc(r.text)}</td></tr>`, 'Player suggestions', 'Schedule and event ideas from players.');
+  // Test accounts: testers (and admins) can switch to Test play in the game: a separate save with everything unlocked.
+  async function testersTab() {
+    $('#pane').innerHTML = `<div class="card"><h2>Testers</h2><p class="note">A tester signs in to the game like any player (Google is best), then opens 👤 Profile → Play mode → Test play. Test play uses its own save with everything unlocked and test tools; their real save is never changed. Admins are testers too. Needs online/supabase-update-5.sql.</p>
+      <form id="tf" class="grid" novalidate><label>Username<input id="tn" maxlength="10" placeholder="Their game username"></label><div class="bar" style="grid-column:1/-1"><button class="pri" type="submit">Add tester</button><span class="note" id="tm" style="margin:0"></span></div></form></div><div class="card"><h3>Current testers</h3><div class="tw" id="tl">Loading…</div></div>`;
+    const list = async () => { const { data, error } = await sb.rpc('list_testers'); $('#tl').innerHTML = error ? `<p class="note bad">${esc(error.message)} · run online/supabase-update-5.sql first</p>` : data && data.length ? `<table><tr><th>Username</th><th>Added</th><th></th></tr>${data.map(t => `<tr><td>${esc(t.username)}</td><td>${when(t.added_at)}</td><td><button data-rm="${esc(t.username)}">Remove</button></td></tr>`).join('')}</table>` : '<p class="note">No testers yet.</p>'; };
+    $('#tf').onsubmit = async e => { e.preventDefault(); const n = $('#tn').value.trim(); if (!n) return; const { data, error } = await sb.rpc('add_tester', { name: n }); $('#tm').textContent = error ? error.message : data === 'ok' ? n + ' is a tester now' : data; $('#tm').className = 'note ' + (data === 'ok' ? 'ok' : 'bad'); $('#tn').value = ''; list(); };
+    $('#tl').onclick = async e => { const n = e.target.dataset.rm; if (!n) return; await sb.rpc('remove_tester', { name: n }); list(); };
+    list();
+  }
   async function playersTab() {
     $('#pane').innerHTML = `<div class="card"><h2>Players</h2><div class="stats" id="st"></div></div><div class="card"><h3>Newest players</h3><div class="tw" id="tw">Loading…</div></div>`;
     const tot = await sb.from('profiles').select('id', { count: 'exact', head: true });

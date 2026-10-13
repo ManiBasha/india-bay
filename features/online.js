@@ -7,7 +7,7 @@ window.BBFeatures.push(function (bb) {
   const THREE = bb.THREE;
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
-  let priv = null, googleOn = true, sb = null, session = null, profile = null, isAdmin = false, offline = false, passed = false, next = null;
+  let priv = null, googleOn = true, sb = null, session = null, profile = null, isAdmin = false, isTester = false, offline = false, passed = false, next = null;
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
   const muted = new Set((() => { try { return JSON.parse(localStorage.getItem('ib.muted') || '[]'); } catch (e) { return []; } })());
@@ -53,6 +53,8 @@ window.BBFeatures.push(function (bb) {
     profile = pr.data || null;
     const ad = await sb.from('admins').select('user_id').eq('user_id', uid).maybeSingle();
     isAdmin = !!(ad.data);
+    try { const ts = await sb.rpc('is_tester'); isTester = isAdmin || ts.data === true; } catch (e) { isTester = isAdmin; }
+    if (bb.testMode && !isTester) { bb.toast('Test play is only for testers', '#ff8b8b'); setTimeout(() => bb.setTestMode(false), 1500); }
     bb.setCfgBackend(backend(false));   // admin settings live on the /admin page only
     const pv = await sb.from('profile_private').select('full_name,dob,parent_ok').eq('user_id', uid).maybeSingle();
     priv = pv.data || null;
@@ -147,6 +149,7 @@ window.BBFeatures.push(function (bb) {
   function claim() { bb.P.extra.uid = session.user.id; bb.P.name = profile.username; bb.setDirty(); }
   async function syncSave() {
     const uid = session.user.id, P = bb.P;
+    if (bb.testMode) { claim(); return false; }   // test play never touches the cloud save
     if (sessionStorage.getItem('ib.reset')) { sessionStorage.removeItem('ib.reset'); claim(); upload(true); return false; }
     const { data, error } = await sb.from('saves').select('data').eq('user_id', uid).maybeSingle();
     if (error) { bb.toast('Could not reach your cloud save · using this device', '#ffc93c'); claim(); return false; }
@@ -159,7 +162,7 @@ window.BBFeatures.push(function (bb) {
   }
   let upAt = 0, upBusy = false, upLater = false;
   async function upload(force) {
-    if (!sb || !session || !profile || !passed && !force) return;
+    if (!sb || !session || !profile || !passed && !force || bb.testMode) return;
     if (!force && Date.now() - upAt < 20000) { upLater = true; return; }
     if (upBusy) { upLater = true; return; }
     upBusy = true; upLater = false; upAt = Date.now();
@@ -219,21 +222,23 @@ window.BBFeatures.push(function (bb) {
   }
   function freeSprite(sp) { if (!sp) return; sp.parent && sp.parent.remove(sp); sp.material.map.dispose(); sp.material.dispose(); }
   const TALL = { bus: 4.4, truck: 4.2 };
+  // other players look the way they set themselves up in Settings → My look
+  const lookOpts = d => { const L = d.l && bb.decodeLook ? bb.decodeLook(d.l) : null; return L ? { look: L, female: L.female, skin: L.skin } : { female: false }; };
   function rebuild(r, d, kind) {
     if (r.body) r.g.remove(r.body);
     r.kind = kind;
     if (d.m === 'd') {
       r.body = bb.buildVeh(d.v); const sp = bb.SPEC[d.v] || {};
-      if (sp.two || sp.pedal) { const rider = bb.buildPerson(mat(d.c || '#e8573e')); rider.position.set(0, .35, -.15); const U = rider.userData; U.legs.forEach(l => l.rotation.x = -1.3); r.body.add(rider); }
+      if (sp.two || sp.pedal) { const rider = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); rider.position.set(0, .35, -.15); const U = rider.userData; U.legs.forEach(l => l.rotation.x = -1.3); r.body.add(rider); }
       r.tagY = TALL[d.v] || 2.9;
-    } else if (d.m === 'r') { r.body = new THREE.Group(); const sit = bb.buildPerson(mat(d.c || '#e8573e')); const U = sit.userData; U.legs.forEach(l => l.rotation.x = -1.4); sit.position.y = -.5; r.body.add(sit); r.tagY = 2.1; }
-    else { r.body = bb.buildPerson(mat(d.c || '#e8573e')); r.tagY = 2.45; }
+    } else if (d.m === 'r') { r.body = new THREE.Group(); const sit = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); const U = sit.userData; U.legs.forEach(l => l.rotation.x = -1.4); sit.position.y = -.5; r.body.add(sit); r.tagY = 2.1; }
+    else { r.body = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); r.tagY = 2.45; }
     r.g.add(r.body); r.tag.position.y = r.tagY; if (r.bub) r.bub.position.y = r.tagY + 1.1;
   }
   function upsert(d) {
     if (d.id === myId) return;
     let r = remotes.get(d.id);
-    const kind = d.m === 'd' ? 'd:' + d.v : d.m === 'i' ? 'i' : d.m === 'r' ? 'r:' + (d.c || '') : 'f:' + (d.c || '');
+    const kind = (d.m === 'd' ? 'd:' + d.v : d.m === 'i' ? 'i' : d.m === 'r' ? 'r:' + (d.c || '') : 'f:' + (d.c || '')) + (d.l || '');
     if (!r) { r = { id: d.id, n: d.n, g: new THREE.Group(), body: null, kind: '', x: d.x, z: d.z, y: d.y || 0, h: d.h, walk: 0, tagY: 2.4 }; r.tag = tag(d.n, false); r.g.add(r.tag); bb.scene.add(r.g); remotes.set(d.id, r); renderChip(); }
     if (r.kind !== kind && kind !== 'i') rebuild(r, d, kind); else if (kind === 'i') r.kind = 'i';
     r.tx = d.x; r.tz = d.z; r.ty = d.y || 0; r.th = d.h; r.s = d.s || 0; r.seen = performance.now(); r.n = d.n; r.m = d.m; r.v = d.v || ''; r.rid = d.r || ''; r.rs = d.rs || 0; r.o = d.o || 0;
@@ -254,8 +259,8 @@ window.BBFeatures.push(function (bb) {
     if (drive) lastVeh = pl.veh;
     const lv = !drive && lastVeh && !lastVeh.dead && bb.vehicles.includes(lastVeh) && Math.hypot(lastVeh.pos.x - p.x, lastVeh.pos.z - p.z) < 600 ? lastVeh : null;
     const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
-    if (ride) return { t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', r: ride.id, rs: ride.s };
-    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '' };
+    if (ride) return { t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', r: ride.id, rs: ride.s };
+    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '' };
   }
   bb.onUpdate(dt => {
     const now = performance.now(), k = 1 - Math.exp(-8 * Math.min(dt, .2)), hide = bb.inside;
@@ -380,7 +385,7 @@ window.BBFeatures.push(function (bb) {
     introLine.innerHTML = `🌐 India online${online ? ` · <b>${online}</b> playing now` : ''}<br><small>${who}</small>`;
     const o = introLine.querySelector('[data-out]'); if (o) o.onclick = signOut;
   }
-  async function signOut() { bb.save(); await upload(true); disconnect(true); try { await sb.auth.signOut(); } catch (e) {} localStorage.removeItem('ib.save.v3'); location.reload(); }
+  async function signOut() { bb.save(); await upload(true); disconnect(true); try { await sb.auth.signOut(); } catch (e) {} localStorage.removeItem('ib.save.v3'); localStorage.removeItem('ib.testmode'); location.reload(); }
 
   /* ---------- phone app ---------- */
   function sheet() {
@@ -430,10 +435,12 @@ window.BBFeatures.push(function (bb) {
     if (!session || !profile) return { sub: offline ? 'Playing offline on this device' : 'Not signed in', top: [{ id: 'p_in', label: '🌐 Sign in to play online', sub: 'See other players and keep your progress in the cloud', btn: 'Sign in', cls: '' }], end: [],
       handle: id => { if (id === 'p_in') { offline = false; next = passed ? () => { bb.closeSheet(); connect(); } : () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); } } };
     const top = isAdmin ? [{ id: 'p_admin', label: '🔑 Admin panel', sub: 'Game settings, billboards, reports and support', btn: 'Open', cls: '' }] : [];
+    if (isTester || bb.testMode) top.unshift(bb.testMode ? { id: 'p_mode', label: '🧪 Play mode: TEST PLAY', sub: 'Separate test save · everything unlocked · Phone → Test tools', btn: 'Back to real play', cls: '' } : { id: 'p_mode', label: '🧪 Play mode: real play', sub: 'Testers can switch to a separate test save with everything unlocked', btn: 'Switch to test play', cls: 'ghost' });
     const end = [{ id: 'p_out', label: '🚪 Log out', sub: isAnon() ? 'A guest account cannot be recovered after logging out' : 'Sign in again any time with Google', btn: 'Log out', cls: 'danger' },
       { id: 'p_del', label: '🗑 Delete account', sub: 'Removes your player, name, date of birth and cloud save for good', btn: 'Delete', cls: 'danger' }];
     return { sub: isAnon() ? 'Guest account' : 'Google · ' + (session.user.email || ''), top, end, handle: async (id, e) => {
       if (id === 'p_admin') return window.open('admin/', '_blank', 'noopener');
+      if (id === 'p_mode') return bb.setTestMode(!bb.testMode);
       if (id === 'p_out') { if (isAnon() && !sure(e, 'Tap again to log out')) return; return signOut(); }
       if (id === 'p_del') { if (!sure(e, 'Tap again to delete for good')) return; const { error } = await sb.rpc('delete_my_account'); if (error) return bb.toast(niceErr(error), '#ff8b8b'); disconnect(true); try { await sb.auth.signOut(); } catch (er) {} localStorage.removeItem('ib.save.v3'); bb.toast('Your account was deleted', '#d6c8e4'); setTimeout(() => location.reload(), 1200); }
     } };
@@ -447,7 +454,7 @@ window.BBFeatures.push(function (bb) {
     const r = remotes.get(id); if (r) { freeSprite(r.bub); r.bub = tag(text, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 5000; } }
   bb.ONLINE = { get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
     send(o) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); return true; } return false; }, isMuted: n => muted.has(String(n).toLowerCase()), openChat: () => openBar(),
-    rpc: (n, a) => (sb ? sb.rpc(n, a) : Promise.resolve({ error: { message: 'offline' } })), get signedIn() { return !!(session && profile); }, get guest() { return !!(session && isAnon()); } };
+    rpc: (n, a) => (sb ? sb.rpc(n, a) : Promise.resolve({ error: { message: 'offline' } })), get signedIn() { return !!(session && profile); }, get isTester() { return isTester; }, get isAdmin() { return isAdmin; }, get guest() { return !!(session && isAnon()); } };
 
   // Bot people and bot traffic make room for real players: the more players online near you, the fewer bots.
   // No players = 100% bots. Every player near you removes 8% and every 20 players online in the region remove 5% more,

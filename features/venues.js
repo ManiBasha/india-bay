@@ -50,7 +50,7 @@ window.BBFeatures.push(function (bb) {
     s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return; const fee = id === 'bowl' ? bb.cost('mall.bowling', 200) : id === 'vr' ? bb.cost('mall.vr', 300) : 50; if (!bb.spend(fee, true)) return; bb.closeSheet();
       if (id === 'claw') { const win = Math.random() < .25; bb.toast(win ? '🧸 You won a soft toy!' : 'So close · the claw slipped', win ? '#3ddc97' : '#d6c8e4'); return; }
       bb.startActivity({ kind: id === 'bowl' ? 'Bowling' : 'VR ride', title: id === 'bowl' ? 'Bowling night' : 'VR roller coaster', minutes: id === 'bowl' ? 40 : 15, effects: { energy: -3 }, onDone: () => { if (id === 'bowl') { const sc = 60 + Math.floor(Math.random() * 180); bb.toast(`Bowling score ${sc}${sc > 200 ? ' · strike after strike!' : sc > 140 ? ' · nice game' : ''}`, '#ffc93c'); } else bb.toast('Your legs are still shaking · what a ride', '#ffc93c'); bb.emit('mall', { kind: id }); } }); }); }
-  bb.poiHandlers.mall = poi => { if (bb.clock < 10 || bb.clock >= 22) return bb.toast(`${poi.name} is open 10 am to 10 pm`, '#ff9f1c'); bb.enterVenue(mallVenue(poi)); bb.toast(`Welcome to ${poi.name}`, '#ffc93c'); bb.emit('mall', { kind: 'enter' }); };
+  bb.poiHandlers.mall = poi => { if (!bb.testMode && (bb.clock < 10 || bb.clock >= 22)) return bb.toast(`${poi.name} is open 10 am to 10 pm`, '#ff9f1c'); bb.enterVenue(mallVenue(poi)); bb.toast(`Welcome to ${poi.name}`, '#ffc93c'); bb.emit('mall', { kind: 'enter' }); };
 
   /* ---------- inside famous places ---------- */
   const CAT = [[/dargah|masjid|mosque|haji ali/i, 'dargah'], [/maqbara|gumbaz|tomb/i, 'tomb'], [/caves?\b/i, 'cave'], [/church|basilica|cathedral|chapel|bom jesus|conception/i, 'church'],

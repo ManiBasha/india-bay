@@ -170,7 +170,7 @@
 
   add('highways', [
     // NH66, the west coast road, from the Konkan to Kanyakumari
-    { name: 'NH66 Konkan–Goa', pts: [[3120,10390],[3190,10600],[3260,10850],[3330,11050],[3450,11150],[3520,11230],[3560,11310]] },
+    { name: 'NH66 Konkan–Goa', pts: [[3120,10390],[3190,10600],[3260,10850],[3330,11050],[3450,11150],[3520,11230],[3534,11290],[3560,11290]] },
     { name: 'NH66 Atal Setu', pts: [[3600,11370],[3575,11450],[3560,11540]] },
     { name: 'NH66 Zuari Bridge', pts: [[3650,11700],[3700,11760],[3830,11860],[3860,11960],[3860,12020]] },
     { name: 'NH66 Margao–Karwar', pts: [[3800,12100],[3820,12240],[3850,12330]] },
@@ -185,13 +185,13 @@
     { name: 'NH66 Guruvayur–Kochi', pts: [[5370,16410],[5410,16620],[5500,16800]] },
     { name: 'NH66 Kochi–Alappuzha', pts: [[5570,17220],[5580,17340],[5590,17460]] },
     { name: 'NH66 Alappuzha–Kollam', pts: [[5620,17620],[5680,17780],[5760,17920],[5830,18020]] },
-    { name: 'NH66 Kollam–Thiruvananthapuram', pts: [[5900,18180],[5960,18260],[6040,18280],[6090,18300]] },
+    { name: 'NH66 Kollam–Thiruvananthapuram', pts: [[5900,18180],[5980,18260],[6040,18280],[6090,18300]] },
     { name: 'Kovalam Road', pts: [[6170,18530],[6150,18580]] },
     { name: 'Kanyakumari Road', pts: [[6410,18400],[6520,18500],[6600,18880]] },
     // Goa local roads
-    { name: 'Arambol Road', pts: [[3480,11290],[3560,11300]] },
-    { name: 'Calangute Road', pts: [[3530,11440],[3577,11442]] },
-    { name: 'NH748 Panaji–Ponda', pts: [[3730,11620],[3780,11620],[3860,11620],[3940,11630]] },
+    { name: 'Arambol Road', pts: [[3480,11290],[3534,11290]] },
+    { name: 'Calangute Road', pts: [[3530,11440],[3575,11450]] },
+    { name: 'NH748 Panaji–Old Goa', pts: [[3730,11620],[3780,11620]] }, { name: 'NH748 Old Goa–Ponda', pts: [[3860,11620],[3940,11630]] },
     { name: 'NH748 Ponda–Mollem', pts: [[4100,11640],[4200,11720]] },
     { name: 'NH748 Anmod Ghat', pts: [[4280,11700],[4300,11560],[4240,11440],[4140,11320]] },
     { name: 'NH366 Vasco–Verna', pts: [[3600,11820],[3700,11810],[3755,11803]] },
@@ -207,7 +207,7 @@
     { name: 'NH48 Chitradurga–Tumakuru', pts: [[5760,12920],[5950,13200],[6100,13450],[6180,13620]] },
     { name: 'NH48 Tumakuru–Bengaluru', pts: [[6340,13740],[6400,13820],[6440,13900]] },
     // Bengaluru
-    { name: 'NH44 Airport Road', pts: [[6800,13624],[6800,13760],[6800,13880]] },
+    { name: 'NH44 Airport Road', pts: [[6800,13640],[6800,13760],[6800,13880]] },
     { name: 'Bengaluru–Mysuru Expressway', kind: 'exp', pts: [[6440,14300],[6300,14380],[6200,14430]] },
     { name: 'Bengaluru–Mysuru Expressway (Mandya)', kind: 'exp', pts: [[6040,14450],[5960,14520],[5900,14600]] },
     { name: 'NH75 Bengaluru–Hassan', pts: [[6440,14040],[6200,14000],[5900,13980],[5500,14040]] },
@@ -246,7 +246,7 @@
     { name: 'NH183 Kollam–Kottayam', pts: [[6050,18020],[6060,17800],[5990,17620],[5930,17540]] },
     { name: 'NH183 Kottayam–Kumily', pts: [[6010,17460],[6150,17420],[6250,17400]] },
     { name: 'MC Road Kochi–Kottayam', pts: [[5830,17220],[5840,17300],[5860,17380]] },
-    { name: 'Sabarimala Road', pts: [[6010,17540],[6120,17560],[6200,17570]] },
+    { name: 'Sabarimala Road', pts: [[6010,17540],[6120,17560],[6176,17566]] },
     { name: 'Athirappilly Road', pts: [[5680,16560],[5740,16640],[5790,16700]] },
     { name: 'Wayanad–Kannur Road', pts: [[5330,15400],[5200,15330],[5100,15250],[5070,15240]] },
     { name: 'Kasaragod–Bekal Road', pts: [[4520,14540],[4490,14590]] },

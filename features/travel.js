@@ -30,7 +30,7 @@ window.BBFeatures.push(function (bb) {
     const zs = W.zones.map(q => ({ z: q, d: Math.hypot(q.x0 + q.nx * 40 - pp.x, q.z0 + q.nz * 40 - pp.z) })).sort((a, b) => a.d - b.d);
     const sub = gps ? `Route to ${bb.esc(gps.name)} · drag, pinch or scroll to zoom` : 'Drag to move · pinch or scroll to zoom · tap a place for directions';
     bb.openSheet(`🗺 ${bb.esc(z.name)} · ${W.states[z.st]}`, sub, tabs() +
-      `<div class="mapwrap zmap"><canvas id="zm"></canvas><div class="zbtns"><button data-zb="in" aria-label="Zoom in">+</button><button data-zb="out" aria-label="Zoom out">−</button><button data-zb="me" aria-label="Centre on me">◎</button>${R0 || gps ? '<button data-zb="route" aria-label="Show whole route">⤢</button>' : ''}</div><div class="zscale" id="zsc"></div></div>
+      `<div class="mapwrap zmap"><canvas id="zm"></canvas><div class="zbtns"><button data-zb="in" aria-label="Zoom in">+</button><button data-zb="out" aria-label="Zoom out">−</button><button data-zb="me" aria-label="Centre on me">◎</button>${R0 || gps ? '<button data-zb="ahead" aria-label="Navigation view: the road ahead">🧭</button><button data-zb="route" aria-label="Show whole route">⤢</button>' : ''}</div><div class="zscale" id="zsc"></div></div>
       <div id="msel"></div><div class="legend"><span><b style="color:#2f7bff">━</b> Your route</span><span><b style="color:#d62f4b">●</b> Destination</span><span><b style="color:#ff9f1c">━</b> Busy · <b style="color:#e8473a">━</b> Jammed</span><span><b style="color:#ffd36a">━</b> Expressway</span><span>✈ Airport · 🏡 Home</span><span><b style="color:${bb.CFG.accent}">▲</b> You</span></div>` +
       `<details open><summary class="dsum">Near you (${near.length})</summary>${near.map((q, i) => bb.rowHtml('p' + i, `${bb.PICON[q.p.type] || '📍'} ${bb.esc(q.p.name)}`, `${bb.PLABEL[q.p.type] || ''} · ${dkm(q.d)}`, 'Directions', 'ghost')).join('')}</details>` +
       `<details><summary class="dsum">Cities and towns (${zs.length})</summary>${zs.map((q, i) => bb.rowHtml('z' + i, bb.esc(q.z.name), `${W.states[q.z.st]} · ${dkm(q.d)}`, 'Directions', 'ghost')).join('')}</details>` +
@@ -41,7 +41,12 @@ window.BBFeatures.push(function (bb) {
       let V = view ? Object.assign({}, view) : { cx: pp.x, cz: pp.z, s: .45 }; let pin = null, raf = 0;
       const fitRoute = () => { const R = bb.route; const pts = R ? R.slice() : []; if (gps) pts.push([gps.x, gps.z]); pts.push([pp.x, pp.z]); if (pts.length < 2) return false; let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const [a, b] of pts) { x0 = Math.min(x0, a); x1 = Math.max(x1, a); z0 = Math.min(z0, b); z1 = Math.max(z1, b); }
         V.cx = (x0 + x1) / 2; V.cz = (z0 + z1) / 2; V.s = Math.max(sMin, Math.min(1.2, Math.min((cw - 90) / (x1 - x0 + 1), (ch - 110) / (z1 - z0 + 1)))); V.cz -= 10 / V.s; return true; };
-      if (!view && (R0 || gps)) fitRoute();
+      // navigating: open on the road ahead of you (not the whole city); otherwise open around you
+      const fitAhead = () => { const R = bb.route; if (!R || R.length < 2) return fitRoute(); let L = 0, k = 0; let bi = 0, bd = 1e9; R.forEach((q, i) => { const d = Math.hypot(q[0] - pp.x, q[1] - pp.z); if (d < bd) { bd = d; bi = i; } });
+        const pts = [[pp.x, pp.z]]; for (let i = bi + 1; i < R.length && L < 900; i++) { L += Math.hypot(R[i][0] - R[i - 1][0], R[i][1] - R[i - 1][1]); pts.push(R[i]); k++; } if (L < 900 && gps) pts.push([gps.x, gps.z]);
+        let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const [a, b] of pts) { x0 = Math.min(x0, a); x1 = Math.max(x1, a); z0 = Math.min(z0, b); z1 = Math.max(z1, b); }
+        V.cx = (x0 + x1) / 2; V.cz = (z0 + z1) / 2; V.s = Math.max(.3, Math.min(1.4, Math.min((cw - 80) / (x1 - x0 + 1), (ch - 100) / (z1 - z0 + 1)))); return true; };
+      if (R0 || gps) fitAhead(); else if (!view || Math.hypot(view.cx - pp.x, view.cz - pp.z) > 300) V = { cx: pp.x, cz: pp.z, s: view ? Math.max(view.s, .45) : .45 };
       const clampV = () => { V.s = Math.max(sMin, Math.min(sMax, V.s)); const hw = cw / 2 / V.s, hh = ch / 2 / V.s; V.cx = Math.max(Math.min(hw, W.W / 2), Math.min(W.W - Math.min(hw, W.W / 2), V.cx)); V.cz = Math.max(Math.min(hh, W.H / 2), Math.min(W.H - Math.min(hh, W.H / 2), V.cz)); view = Object.assign({}, V); };
       const sx = wx => (wx - V.cx) * V.s + cw / 2, sz = wz => (wz - V.cz) * V.s + ch / 2, wx = px => (px - cw / 2) / V.s + V.cx, wz = py => (py - ch / 2) / V.s + V.cz;
       const inView = (ax, az, bx, bz, m) => Math.max(ax, bx) > wx(-m) && Math.min(ax, bx) < wx(cw + m) && Math.max(az, bz) > wz(-m) && Math.min(az, bz) < wz(ch + m);
@@ -88,7 +93,7 @@ window.BBFeatures.push(function (bb) {
         if (!best) { const zz = bb.zoneAt(mx, mz, 60); best = { x: mx, z: mz, name: 'Dropped pin', sub: zz ? zz.name : W.states[bb.stateAt(mx, mz)] || '' }; }
         if (bb.isWater(best.x, best.z) && !bb.roadAt(best.x, best.z)) return bb.toast('That is water · tap on land', '#d6c8e4');
         selectCard(sh, best.x, best.z, best.name, best.sub, p => { pin = p; redraw(); }); }
-      sh.querySelector('.zbtns').onclick = e => { const k = e.target.dataset.zb; if (!k) return; e.stopPropagation(); if (k === 'in') zoomAt(1.8, cw / 2, ch / 2); if (k === 'out') zoomAt(1 / 1.8, cw / 2, ch / 2); if (k === 'me') { V.cx = pp.x; V.cz = pp.z; V.s = Math.max(V.s, .45); redraw(); } if (k === 'route') { fitRoute(); redraw(); } };
+      sh.querySelector('.zbtns').onclick = e => { const k = e.target.dataset.zb; if (!k) return; e.stopPropagation(); if (k === 'in') zoomAt(1.8, cw / 2, ch / 2); if (k === 'out') zoomAt(1 / 1.8, cw / 2, ch / 2); if (k === 'me') { V.cx = pp.x; V.cz = pp.z; V.s = Math.max(V.s, .45); redraw(); } if (k === 'route') { fitRoute(); redraw(); } if (k === 'ahead') { fitAhead(); redraw(); } };
       sh.onclick = e => { const t = e.target.dataset.tab; if (t) return mapSheet(t); const id = e.target.dataset.id; if (!id) return;
         if (id[0] === 'p') { const q = near[+id.slice(1)]; go(q.p.x, q.p.z, q.p.name); } if (id[0] === 'z') { const q = zs[+id.slice(1)].z; go(q.x0 + q.nx * 40, q.z0 + q.nz * 40, q.name); } if (id[0] === 'f') { const pl = W.places[+id.slice(1)]; go(pl[1], pl[2], pl[0]); } };
     }); }

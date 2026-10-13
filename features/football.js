@@ -81,7 +81,7 @@ window.BBFeatures.push(function (bb) {
     const d = F.day(bb.gameDay); const champDays = !d.matchday; const champ = champDays ? champion(d.season) : null;
     let rows = '';
     if (f && st.mc.state !== 'ft') {
-      const gates = st.mc.state !== 'pre' || st.mc.toKick <= 30;
+      const gates = bb.testMode || st.mc.state !== 'pre' || st.mc.toKick <= 30;
       if (has) rows += bb.rowHtml('enter', gates ? 'Go in and watch' : 'You have a ticket', gates ? `${has === 'vip' ? 'VIP box' : 'Stands'} · ${st.text}` : `Gates open at 7:00 pm · ${st.text}`, gates ? 'Enter' : 'Wait', gates ? '' : 'ghost');
       else { const disc = fb.club === team.id ? .5 : 1; rows += bb.rowHtml('stands', 'Ticket · stands', `${st.text}${disc < 1 ? ' · fan club half price' : ''}`, bb.inr(bb.cost('fb.stands', 300) * disc)) + bb.rowHtml('vip', 'Ticket · VIP box', 'Padded seats, snacks included', bb.inr(bb.cost('fb.vip', 1500) * disc), 'ghost'); }
     } else if (champ && champ.id === team.id) rows += `<p class="note">🏆 ${bb.esc(team.name)} are the champions! The trophy celebration starts at 7:30 pm outside the stadium.</p>`;
@@ -97,7 +97,7 @@ window.BBFeatures.push(function (bb) {
       if (id === 'bet') return bb.SPORTS.betSheet('football', f, () => stadiumSheet(poi));
       if (id === 'tour') { if (!bb.spend(bb.cost('st.tour', 150), true)) return; bb.closeSheet(); return bb.SPORTS.enter(poi, 'football', null, false); }
       if (id === 'stands' || id === 'vip') { const disc = fb.club === team.id ? .5 : 1; if (!bb.spend((id === 'vip' ? bb.cost('fb.vip', 1500) : bb.cost('fb.stands', 300)) * disc, true)) return; fb.tickets = { [key]: id === 'vip' ? 'vip' : 'stand' }; bb.setDirty(); bb.toast(`Ticket booked · ${f.home.short} v ${f.away.short}`, '#3ddc97'); bb.emit('football', { kind: 'ticket' }); return stadiumSheet(poi); }
-      if (id === 'enter') { const s2 = status(f); if (s2.mc.state === 'pre' && s2.mc.toKick > 30) return bb.toast('Gates open at 7:00 pm', '#ff9f1c'); bb.closeSheet(); return watch(poi, f, fb.tickets[key] === 'vip'); }
+      if (id === 'enter') { const s2 = status(f); if (!bb.testMode && s2.mc.state === 'pre' && s2.mc.toKick > 30) return bb.toast('Gates open at 7:00 pm', '#ff9f1c'); bb.closeSheet(); return watch(poi, f, fb.tickets[key] === 'vip'); }
       if (id === 'jersey' && !jersey) { if (!bb.spend(bb.cost('fb.jersey', 999), true)) return; p.outfit.topCol = team.col; bb.applyOutfit(); bb.setDirty(); bb.toast(`You're in ${team.short} colours`, team.col); bb.emit('football', { kind: 'jersey' }); return stadiumSheet(poi); }
       if (id === 'club' && fb.club !== team.id) { if (!bb.spend(bb.cost('fb.club', 500), true)) return; fb.club = team.id; bb.setDirty(); bb.toast(`Welcome to the ${team.fans}! Match alerts are on`, team.col); bb.emit('football', { kind: 'club', team: team.id }); return stadiumSheet(poi); } }); }
   bb.poiHandlers.stadium = stadiumSheet;

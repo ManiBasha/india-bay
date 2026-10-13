@@ -109,7 +109,7 @@ window.BBFeatures.push(function (bb) {
   bb.addApp({ id: 'story', label: 'Story', icon: '📖', fn: () => storySheet() });
 
   /* ---------- achievements, with an unlock card ---------- */
-  const ACH = [['firstjob', '💼', 'First day at work', 'Finish any job'], ['jobs10', '💼', 'Regular', 'Finish 10 jobs'], ['jobs50', '🏅', 'Workhorse', 'Finish 50 jobs'], ['lakh', '💰', 'Lakhpati', 'Have ₹1,00,000 in cash and bank'], ['crore', '💎', 'Crorepati', 'Have ₹1,00,00,000 in cash and bank'],
+  const ACH = [['zoo', '🦒', 'Zoo day', 'Visit an open zoo'], ['safari', '🦁', 'Safari ride', 'Take a zoo safari through the habitats'], ['zoos3', '🐘', 'Zoo hopper', 'Visit 3 different zoos'], ['firstjob', '💼', 'First day at work', 'Finish any job'], ['jobs10', '💼', 'Regular', 'Finish 10 jobs'], ['jobs50', '🏅', 'Workhorse', 'Finish 50 jobs'], ['lakh', '💰', 'Lakhpati', 'Have ₹1,00,000 in cash and bank'], ['crore', '💎', 'Crorepati', 'Have ₹1,00,00,000 in cash and bank'],
     ['home', '🏡', 'Ghar ka sapna', 'Buy a home'], ['homes3', '🏘', 'Property tycoon', 'Own 3 homes'], ['states', '🗺', 'Tri-state traveller', 'Visit Maharashtra, Gujarat and Rajasthan'], ['south', '🌴', 'Down south', 'Visit Goa, Karnataka and Kerala'], ['ut', '🧭', 'UT explorer', 'Visit Daman and Silvassa'], ['places10', '📸', 'Sightseer', 'Discover 10 famous places'],
     ['places30', '📚', 'Guidebook', 'Discover 30 famous places'], ['placesAll', '🌏', 'Know your India', 'Discover every famous place'], ['lions', '🦁', 'Simba spotted', 'See lions on a Gir safari'], ['camel', '🐪', 'Ship of the desert', 'Ride a camel at Sam'], ['local', '🚉', 'Local legend', 'Ride the Mumbai local'],
     ['flight', '✈', 'Frequent flyer', 'Take a flight'], ['metro', 'Ⓜ', 'Metro rider', 'Take a metro ride'], ['heli', '🚁', 'Chopper', 'Fly in a helicopter'], ['pilot', '🪪', 'Captain', 'Get a helicopter pilot licence'], ['five', '🚨', 'Most wanted', 'Reach 5 police stars'], ['helmet', '⛑', 'Safety first', 'Buy a helmet'],
@@ -138,6 +138,7 @@ window.BBFeatures.push(function (bb) {
   bb.on('heli', () => grant('heli')); bb.on('licence', id => { if (id === 'heli') grant('pilot'); });
   bb.on('football', d => { if (d.kind === 'watched') grant('matchday'); if (d.kind === 'club') grant('fanclub'); if (d.kind === 'march') grant('march'); if (d.kind === 'jersey') grant('jersey'); });
   bb.on('cricket', d => { if (d.kind === 'watched') grant('cricket'); }); bb.on('bet', d => { if (d.won) grant('betwin'); });
+  bb.on('zoo', d => { const ex = bb.P.extra = bb.P.extra || {}; if (d.kind === 'enter') { grant('zoo'); const v = ex.zoos = ex.zoos || []; if (d.id && !v.includes(d.id)) v.push(d.id); if (v.length >= 3) grant('zoos3'); } if (d.kind === 'safari') grant('safari'); });
   bb.on('mall', d => { if (d.kind === 'enter') grant('mall'); if (d.kind === 'movie') grant('movie'); });
   bb.on('attraction', d => { if (d.kind !== 'enter') return; const v = P().extra.visited || {}; if (Object.keys(v).length >= 5) grant('inside5'); });
   bb.on('adventure', () => { grant('adv1'); if (Object.keys(P().extra.adv || {}).length >= 5) grant('adv5'); });

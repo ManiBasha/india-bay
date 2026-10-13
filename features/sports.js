@@ -45,7 +45,7 @@ window.BBFeatures.push(function (bb) {
   const fxKey = f => `${f.sport || 'football'}:${f.season}:${f.round}:${f.home.id}:${f.away.id}`;
 
   /* ---------- odds and bets ---------- */
-  function adult() { const a = bb.ageFromDob(P().dob); return a != null ? a >= 18 : !!P().age18; }
+  function adult() { if (bb.testMode) return true; const a = bb.ageFromDob(P().dob); return a != null ? a >= 18 : !!P().age18; }
   function odds(sp, f) { const tab = standings(sp); const n = tab.length; const rk = id => { const i = tab.findIndex(r => r.team.id === id); return i < 0 ? n / 2 : i; };
     const sH = 1 + (n - rk(f.home.id)) / n + (f.home.stadium ? .12 : .05), sA = 1 + (n - rk(f.away.id)) / n; const k = .92; const r2 = v => Math.max(1.15, Math.min(9, Math.round(v * 20) / 20));
     if (SP[sp].draw) { const pD = .26, pH = (1 - pD) * sH / (sH + sA), pA = 1 - pD - pH; return { home: r2(k / pH), draw: r2(k / pD), away: r2(k / pA) }; }
@@ -107,7 +107,7 @@ window.BBFeatures.push(function (bb) {
   // Cricket grounds: tickets, IPL jerseys and going in
   function cricketSheet(poi) { const team = CR.byId(poi.extra); if (!team) return; const X = ex(); const f = CR.homeMatch(team.id, bb.gameDay); const st = f ? SP.cricket.status(f) : null; const key = f ? fxKey(f) : ''; const has = f && X.tickets[key];
     const nx = !f || st.ft ? CR.nextHome(team.id, bb.gameDay + 1) : null; let rows = '';
-    if (f && !st.ft) { const gates = st.c.state !== 'pre' || st.c.toKick <= 30;
+    if (f && !st.ft) { const gates = bb.testMode || st.c.state !== 'pre' || st.c.toKick <= 30;
       if (has) rows += bb.rowHtml('enter', gates ? 'Go in and take your seat' : 'You have a ticket', gates ? `${has === 'vip' ? 'VIP box' : 'Stands'} · ${st.text}` : `Gates open at 3:00 pm · ${st.text}`, gates ? 'Enter' : 'Wait', gates ? '' : 'ghost');
       else rows += bb.rowHtml('stands', 'Ticket · stands', st.text, bb.inr(bb.cost('cr.stands', 400))) + bb.rowHtml('vip', 'Ticket · VIP box', 'Padded seats and snacks included', bb.inr(bb.cost('cr.vip', 2000)), 'ghost');
       if (st.open && adult()) rows += bb.rowHtml('bet', 'Bet on this match', `${team.short} v ${f.away.short} · bets close at 3:30 pm`, 'Bet', 'ghost'); }
@@ -117,7 +117,7 @@ window.BBFeatures.push(function (bb) {
     bb.openSheet(`🏏 ${esc(poi.name)}`, `${esc(team.name)} · ${f ? `${esc(f.home.short)} v ${esc(f.away.short)} today` : 'No match today'}`, rows, s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return;
       if (id === 'app') return open('cricket'); if (id === 'bet') return betSheet('cricket', f, () => cricketSheet(poi));
       if (id === 'stands' || id === 'vip') { if (!bb.spend(id === 'vip' ? bb.cost('cr.vip', 2000) : bb.cost('cr.stands', 400), true)) return; X.tickets = { [key]: id === 'vip' ? 'vip' : 'stand' }; bb.setDirty(); bb.toast(`Ticket booked · ${f.home.short} v ${f.away.short}`, '#3ddc97'); return cricketSheet(poi); }
-      if (id === 'enter') { const s2 = SP.cricket.status(f); if (s2.c.state === 'pre' && s2.c.toKick > 30) return bb.toast('Gates open at 3:00 pm', '#ff9f1c'); bb.closeSheet(); return enter(poi, 'cricket', f, X.tickets[key] === 'vip'); }
+      if (id === 'enter') { const s2 = SP.cricket.status(f); if (!bb.testMode && s2.c.state === 'pre' && s2.c.toKick > 30) return bb.toast('Gates open at 3:00 pm', '#ff9f1c'); bb.closeSheet(); return enter(poi, 'cricket', f, X.tickets[key] === 'vip'); }
       if (id === 'tour') { if (!bb.spend(bb.cost('st.tour', 150), true)) return; bb.closeSheet(); return enter(poi, 'cricket', null, false); }
       if (id === 'jersey' && !jersey) { if (!bb.spend(bb.cost('cr.jersey', 1299), true)) return; P().outfit.topCol = team.col; X.cr.club = team.id; bb.applyOutfit(); bb.setDirty(); bb.toast(`You're in ${team.short} colours`, team.col); return cricketSheet(poi); } }); }
   bb.poiHandlers.cricket = cricketSheet;
