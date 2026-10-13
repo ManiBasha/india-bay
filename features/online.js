@@ -8,6 +8,7 @@ window.BBFeatures.push(function (bb) {
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
   let priv = null, googleOn = true, sb = null, session = null, profile = null, isAdmin = false, isTester = false, offline = false, passed = false, next = null;
+  let lastErr = '', lastErrAt = 0; const noteErr = m => { lastErr = String(m || ''); lastErrAt = Date.now(); };
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
   const muted = new Set((() => { try { return JSON.parse(localStorage.getItem('ib.muted') || '[]'); } catch (e) { return []; } })());
@@ -69,6 +70,7 @@ window.BBFeatures.push(function (bb) {
       const q = new URLSearchParams(location.search);
       try { const st = await fetch(C.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: C.supabaseKey } }); if (st.ok) { const j = await st.json(); googleOn = !!(j.external && j.external.google); } } catch (e) {}
       const { data } = await sb.auth.getSession(); session = data.session;
+      if (!session && q.get('code')) { try { const ex = await sb.auth.exchangeCodeForSession(q.get('code')); if (ex.error) { noteErr('Google sign-in did not finish: ' + ex.error.message); setTimeout(() => bb.toast('Google sign-in did not finish · ' + bb.esc(ex.error.message) + ' · try Sign in with Google again', '#ff8b8b'), 900); } else session = ex.data.session; } catch (e) { noteErr('Google sign-in did not finish: ' + e.message); } }
       if (q.has('code') || q.has('error')) { if (q.get('error_description')) setTimeout(() => bb.toast(q.get('error_description'), '#ff8b8b'), 800); history.replaceState(null, '', location.pathname + location.hash); }
       sb.auth.onAuthStateChange((ev, s) => { session = s; if (ev === 'SIGNED_OUT') { profile = null; priv = null; disconnect(true); } });
       loadConfig(); setInterval(loadConfig, 60 * 1000);
@@ -76,7 +78,7 @@ window.BBFeatures.push(function (bb) {
       if (sessionStorage.getItem('ib.cloudLoaded')) { sessionStorage.removeItem('ib.cloudLoaded'); setTimeout(() => bb.toast('☁ Loaded your cloud save', '#3ddc97'), 600); }
       renderIntro(); serverStatus();
       return true;
-    } catch (e) { console.warn('Online unavailable', e); status = 'error'; renderIntro(); return false; }
+    } catch (e) { console.warn('Online unavailable', e); noteErr('Could not start online: ' + (e && e.message || e)); status = 'error'; renderIntro(); return false; }
   })();
 
   /* ---------- Sign in with Google on the start screen (Beta v1.01.05) ----------
@@ -198,7 +200,8 @@ window.BBFeatures.push(function (bb) {
     try { ws = new WebSocket(wsUrl()); } catch (e) { ws = null; return later(); }
     const me = ws;
     me.onmessage = ev => { if (ws !== me) return; let d; try { d = JSON.parse(ev.data); } catch (e) { return; } handle(d); };
-    me.onclose = () => { if (ws !== me) return; ws = null; myId = null; clearRemotes(); status = kicked ? 'off' : 'retry'; renderChip(); if (!kicked) later(); };
+    me.onerror = () => noteErr('Could not reach the game server');
+    me.onclose = ev => { if (ws === me && ev && ev.reason) noteErr('Server closed the connection: ' + ev.reason); if (ws !== me) return; ws = null; myId = null; clearRemotes(); status = kicked ? 'off' : 'retry'; renderChip(); if (!kicked) later(); };
   }
   function later() { retry = Math.min(retry + 1, 6); setTimeout(() => { if (!ws && !kicked && !offline && bb.started) connect(); }, 1000 * Math.pow(2, retry)); }
   function disconnect(silent) { kicked = true; if (ws) { const w = ws; ws = null; try { w.close(); } catch (e) {} } myId = null; clearRemotes(); status = 'off'; renderChip(); if (!silent) bb.toast('Offline', '#d6c8e4'); }
@@ -213,10 +216,10 @@ window.BBFeatures.push(function (bb) {
     else if (d.t === 'v') onV(d);
     else if (d.t === 'call') bb.emit('call', d);
     else if (d.t === 'vc' || d.t === 'vcoff') bb.emit('voice', Object.assign({ self: d.id === myId }, d));
-    else if (d.t === 'kick') { kicked = true; if (/idle/i.test(d.msg)) idleOff = true; bb.toast(d.msg + (idleOff ? ' · press any key to rejoin' : ''), '#ffc93c'); }
+    else if (d.t === 'kick') { noteErr(d.msg); if (/somewhere else/i.test(d.msg)) d.msg = 'This account is playing in another window or device, so this one went offline. Each player needs their own account (another Google account, or a guest)'; kicked = true; if (/idle/i.test(d.msg)) idleOff = true; bb.toast(d.msg + (idleOff ? ' · press any key to rejoin' : ''), '#ffc93c'); }
     else if (d.t === 'err') {
       if (d.code === 'auth' && !authRetry) { authRetry = true; try { const r = await sb.auth.refreshSession(); if (r.data && r.data.session) { session = r.data.session; return; } } catch (e) {} kicked = true; bb.toast(d.msg, '#ff8b8b'); }
-      else { kicked = true; bb.toast(d.msg, '#ff8b8b'); }
+      else { noteErr(d.msg); kicked = true; bb.toast(d.msg, '#ff8b8b'); }
     }
   }
   function input() { lastInput = Date.now(); if (idleOff && !ws && bb.started) { idleOff = false; connect(); } }
@@ -224,7 +227,7 @@ window.BBFeatures.push(function (bb) {
   setInterval(() => { if (ws && Date.now() - lastInput > IDLE_MIN * 60000) { disconnect(true); idleOff = true; bb.toast(`Went offline after ${IDLE_MIN} idle minutes · press any key to rejoin`, '#ffc93c'); } }, 30000);
   setInterval(() => { if (ws && ws.readyState === 1) ws.send('{"t":"ping"}'); }, 30000);
   // Keep others seeing you while a menu is open (the game loop pauses then).
-  setInterval(() => { if (ws && ws.readyState === 1 && myId && bb.started && lastSent && Date.now() - lastSent.at > 3500) { const st = state(); ws.send(JSON.stringify(st)); st.at = Date.now(); lastSent = st; } }, 2000);
+  setInterval(() => { if (ws && ws.readyState === 1 && myId && bb.started && (!lastSent || Date.now() - lastSent.at > 3500)) { const st = state(); ws.send(JSON.stringify(st)); st.at = Date.now(); lastSent = st; } }, 2000);
   bb.onStart(() => { if (session && profile && !offline) connect(); renderChip(); });
 
   /* ---------- other players ---------- */
@@ -380,7 +383,7 @@ window.BBFeatures.push(function (bb) {
     if (self) { freeSprite(selfBub); selfBub = tag(short, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 7000; }
     else { const r = remotes.get(d.id); if (r) { freeSprite(r.bub); r.bub = tag(short, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 7000; } }
   }
-  function openBar() { if (status !== 'on') { offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
+  function openBar() { if (status !== 'on') { if (lastErr || !session) return onlineSheet(); offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
   function closeBar() { bar.hidden = true; inp.blur(); }
   bar.onsubmit = e => { e.preventDefault(); const t = inp.value.trim(); if (t && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'chat', text: t.slice(0, 120) })); closeBar(); };
   bar.querySelector('[data-x]').onclick = closeBar;
@@ -388,10 +391,17 @@ window.BBFeatures.push(function (bb) {
   chip.onclick = openBar;
   // T opens chat. Handled here so the T itself is not typed into the box.
   addEventListener('keydown', e => { if (e.code !== 'KeyT' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return; if (e.target.closest && e.target.closest('input,textarea,select')) return; if (!bb.started || bb.uiLock()) return; e.preventDefault(); openBar(); }, true);
+  // Settings → Online status (and tapping the chip when you are not online): what the game knows about your connection
+  function onlineSheet() { const acct = !session ? 'Not signed in' : isAnon() ? 'Guest account (this browser only)' : 'Google account';
+    const st = status === 'on' ? `Online · ${remotes.size} player(s) near you · ${online} in India` : status === 'connecting' ? 'Joining the server…' : status === 'retry' ? 'Reconnecting…' : offline ? 'Playing offline' : 'Not connected';
+    bb.openSheet('🌐 Online status', 'Who you are and whether you are connected', bb.rowHtml('i_acct', acct, profile ? 'Username: ' + bb.esc(profile.username) : session ? 'No username yet' : 'Sign in to see other players', session && !isAnon() ? '' : 'Sign in', 'ghost') +
+      bb.rowHtml('i_srv', st, lastErr ? 'Last message: ' + bb.esc(lastErr) : 'Players see each other within about 700 m', status === 'on' ? '' : 'Connect', status === 'on' ? 'ghost' : '') +
+      `<p class="note">To see another player, both of you need your <b>own</b> account (two different Google accounts, or a guest in each browser) and both must show <b>Online</b> here. One account can only be online in one window at a time.</p>`,
+      sh => sh.onclick = e => { const id = e.target.dataset.id; if (id === 'i_acct' && (!session || isAnon())) { bb.closeSheet(); return googleIn(); } if (id === 'i_srv' && status !== 'on') { bb.closeSheet(); lastErr = ''; offline = false; kicked = false; if (!session || !profile) { next = connect; return flow(); } connect(); } }); }
+  bb.addApp({ id: 'online', label: 'Online status', icon: '🌐', group: 'settings', fn: onlineSheet });
   function renderChip() {
-    chip.hidden = !bb.started || (!session && !offline);
-    if (offline && !session) chip.hidden = !bb.started;
-    chip.innerHTML = status === 'on' ? `💬 Chat <small>${remotes.size} near · ${online} online</small>` : status === 'connecting' ? '🌐 Joining…' : status === 'retry' ? '🌐 Reconnecting…' : offline || !session ? '🌐 Offline · go online' : '🌐 Offline · tap to rejoin';
+    chip.hidden = !bb.started;
+    chip.innerHTML = status === 'on' ? `💬 Chat <small>${remotes.size} near · ${online} online</small>` : status === 'connecting' ? '🌐 Joining…' : status === 'retry' ? '🌐 Reconnecting…' : !session ? '🌐 Not signed in · tap' : offline ? '🌐 Offline · go online' : '🌐 Offline · tap to rejoin';
     chip.classList.toggle('on', status === 'on');
   }
 
