@@ -425,3 +425,7 @@ body.steer-alt .pad.l{display:none!important}
 .trow .tm{flex:1;min-width:0}.trow .tm b{display:block;font-family:var(--f-display)}.trow .tm small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trow .tt{font-size:11px;color:var(--muted);display:grid;justify-items:end;gap:3px}.trow .tt i{background:#2ecc71;color:#fff;border-radius:9px;padding:0 6px;font-style:normal;font-weight:800}
 .chat2{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto;padding:4px 2px 8px}.bub{max-width:78%;align-self:flex-start;background:rgba(255,255,255,.1);padding:7px 11px;border-radius:16px 16px 16px 4px;font-size:14px;line-height:1.4}
 .bub.me{align-self:flex-end;background:#2f7bff;color:#fff;border-radius:16px 16px 4px 16px}.bub small{display:block;font-size:10px;opacity:.65;margin-top:2px;text-align:right}
+/* Local work timing bar (Beta v1.01.04) */
+#cine .gigbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 196px);width:min(420px,calc(100% - 32px));height:44px;border-radius:14px;background:rgba(12,10,24,.8);border:1px solid var(--panel-edge);overflow:hidden;pointer-events:auto}
+#cine .gigbar i{position:absolute;top:0;bottom:0;background:rgba(61,220,151,.3);border-left:2px solid var(--mint);border-right:2px solid var(--mint)}
+#cine .gigbar b{position:absolute;top:6px;bottom:6px;width:6px;margin-left:-3px;border-radius:3px;background:var(--acc);box-shadow:0 0 10px var(--acc)}

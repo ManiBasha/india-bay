@@ -254,4 +254,41 @@
   // Lonar crater: a rim of low hills round the green crater lake, with old temples on the slopes
   L.lonarCrater = (c, x, z) => { const rim = mat(c, '#6f7a45'); for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283; c.cone(14, 9 + (i % 3) * 2, x + Math.cos(a) * 48, 4.5, z + Math.sin(a) * 48, rim, 7); }
     for (const a of [.4, 2.3, 4.4]) { const tx = x + Math.cos(a) * 38, tz = z + Math.sin(a) * 38; c.box(5, 4, 5, tx, 2, tz, mat(c, '#7d756a')); c.cone(3, 4, tx, 6, tz, mat(c, '#7d756a'), 4); } c.far(); return {}; };
+
+  /* ---------- Beta v1.01.04: more towns from the state plans ---------- */
+  // Takht Sachkhand Sri Hazur Sahib, Nanded: a white gurdwara with a golden dome, corner kiosks and a sarovar
+  L.hazurSahib = (c, x, z) => { const wh = mat(c, '#f7f4ec'), gd = c.M.gold || mat(c, '#d9a93a'); c.box(64, .1, 64, x, .32, z, c.M.plaza || wh, false, true);
+    c.box(18, 9, 18, x, 4.8, z - 6, wh); c.box(19, .6, 19, x, 9.5, z - 6, gd); c.cyl(5, 5, 3, x, 11.3, z - 6, wh, 14); c.dome(5.4, x, 12.8, z - 6, gd); c.cone(.5, 3, x, 19.6, z - 6, gd, 8);
+    for (const [dx, dz] of [[-8, -14], [8, -14], [-8, 2], [8, 2]]) { c.cyl(1.2, 1.2, 3, x + dx, 11.3, z + dz, wh, 8); c.dome(1.3, x + dx, 12.8, z + dz, gd); }
+    for (let i = 0; i < 5; i++) c.box(2.2, 4.5, .3, x - 6 + i * 3, 2.6, z + 3.1, mat(c, '#c9a84a')); c.box(30, .3, 12, x, .45, z + 20, mat(c, '#4fa3c7')); c.flag(x + 14, 14, z - 6, true); c.col(x, z - 6, 9.5, 9.5); c.far(); return { open: true }; };
+  // Tulja Bhavani temple, Tuljapur: a stone temple down a stepped approach, inside the fort-like walls
+  L.bhavani = (c, x, z) => { const st = mat(c, '#8a7d6a'), st2 = mat(c, '#a39782'); nagara(c, x, z, st, st2, 13); for (let i = 0; i < 6; i++) c.box(20 - i * 1.5, .5, 2, x, .3 + i * .1, z + 16 + i * 2, st2);
+    c.box(60, 5, 2, x, 2.8, z - 28, st); c.box(2, 5, 56, x - 29, 2.8, z, st); c.box(2, 5, 56, x + 29, 2.8, z, st); c.col(x, z - 28, 30, 1.2); c.col(x - 29, z, 1.2, 28); c.col(x + 29, z, 1.2, 28); c.far(); return { open: true }; };
+  // a white marble temple (Ambaji, Dakor, Palitana's Jain temples): carved shikhara, mandapa domes, a flag
+  L.whiteTemple = (c, x, z) => { const wh = mat(c, '#f2eee4'), wh2 = mat(c, '#dcd5c4'); c.box(64, .1, 64, x, .32, z, c.M.plaza || wh2, false, true); nagara(c, x, z, wh, wh2, 15);
+    for (const s of [-1, 1]) { c.cyl(3, 3, 3, x + s * 10, 3, z + 6, wh, 10); c.dome(3.2, x + s * 10, 4.5, z + 6, wh); } c.far(); return { poi: [{ type: 'food', name: 'Prasad and chai stall', x: x + 24, z: z + 26, rot: Math.PI, extra: 'GJ' }] }; };
+  // Modhera Sun Temple: the stepped Surya Kund tank in front, the pillared sabha mandap and the temple on a plinth
+  L.modhera = (c, x, z) => { const st = mat(c, '#c79a6a'), st2 = mat(c, '#b0855a'), wt = mat(c, '#3f8fb0'); c.box(64, .1, 64, x, .32, z, mat(c, '#cdb48a'), false, true);
+    for (let k = 0; k < 5; k++) { const w = 26 - k * 3.6; c.box(w, .5, w * .7, x, .3 - k * .45, z + 16, k % 2 ? st2 : st); } c.box(8, .1, 5.6, x, -1.9, z + 16, wt);
+    for (let k = 0; k < 6; k++) for (const s of [-1, 1]) { c.box(1.2, 1.2, 1.2, x + s * (12 - k * 1.8), .9 + k * .05, z + 16 + 7.5 - k * .2, st2); c.cone(.8, 1.8, x + s * (12 - k * 1.8), 2.4, z + 16 + 7.5 - k * .2, st2, 4); }
+    c.box(16, 1.6, 12, x, 1.1, z - 2, st2); for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) c.cyl(.45, .45, 5, x - 6 + i * 4, 4.4, z - 6 + j * 4, st, 8); c.roof(16, 3, 12, x, 6.9, z - 2, st);
+    c.box(12, 1.6, 12, x, 1.1, z - 18, st2); c.box(9, 7, 9, x, 5.4, z - 18, st); for (let i = 0; i < 4; i++) c.cyl(4.2 - i * .9, 4.6 - i * .9, 2, x, 9.9 + i * 2, z - 18, st2, 8); c.col(x, z - 10, 9, 15); c.far(); return { open: true }; };
+  // Kirti Toran, Vadnagar: twin carved red sandstone pillars joined by an arch
+  L.kirtiToran = (c, x, z) => { const rs = mat(c, '#b8643f'); c.box(64, .1, 64, x, .32, z, c.M.grass, false, true); c.box(14, 1, 6, x, .8, z, rs);
+    for (const s of [-1, 1]) for (let k = 0; k < 5; k++) c.box(2 - k * .1, 2.4, 2 - k * .1, x + s * 4.5, 2.5 + k * 2.4, z, k % 2 ? mat(c, '#a0553a') : rs);
+    c.box(11, 1.4, 1.6, x, 14, z, rs); c.torus(4.5, .5, x, 10.5, z, rs); for (const s of [-1, 0, 1]) c.cone(.7, 2, x + s * 4, 15.7, z, rs, 6); c.col(x - 4.5, z, 1.2, 1.2); c.col(x + 4.5, z, 1.2, 1.2); c.far(); return { open: true }; };
+  // Statue of Belief (Vishwas Swaroopam), Nathdwara: a giant seated Shiva on a hill, with the trishul
+  L.statueBelief = (c, x, z) => { const cu = mat(c, '#a8a29a'), dk = mat(c, '#6f6a64'); const f = frame(c, x, 0, z, Math.PI);
+    c.cone(30, 10, x, 5, z, mat(c, '#7f8a55'), 12); c.cyl(9, 10, 6, x, 13, z, dk, 16);
+    f.sph(7, 6, 6, 0, 22, 0, cu); f.sph(9, 4, 6, 0, 17.5, 2, cu); f.sph(5.4, 8, 4.2, 0, 31, 0, cu); f.sph(3.2, 4, 3.2, 0, 41, 0, cu); f.sph(1.8, 3, 1.8, 0, 46, -1, dk);
+    for (const s of [-1, 1]) { f.sph(1.8, 7, 1.8, s * 6.6, 30, 0, cu, 0, 0, s * .35); f.sph(1.5, 5, 1.5, s * 7.5, 23, 3, cu, -.9); f.sph(5, 2.2, 3, s * 4.5, 16.6, 5.5, cu); }
+    f.box(.5, 30, .5, 9, 30, 2, dk); f.box(4, .5, .5, 9, 44, 2, dk); for (const s of [-1, 0, 1]) f.box(.5, 3, .5, 9 + s * 1.8, 46, 2, dk); f.sph(1, 1.4, .6, -1.5, 44, 3, mat(c, '#e8e2d6'));
+    c.col(x, z, 9, 9); c.far(); return {}; };
+  // Ranakpur Jain temple: a marble temple of many domes and spires on a high plinth, with 1,444 pillars inside
+  L.ranakpur = (c, x, z) => { const wh = mat(c, '#efe9dc'), wh2 = mat(c, '#d9d0bd'); c.box(64, .1, 64, x, .32, z, c.M.grass, false, true); c.box(40, 3, 40, x, 1.8, z, wh2);
+    for (let i = 0; i < 4; i++) c.box(6, .4, 3, x, .5 + i * .6, z + 21 + 3 - i * .9, wh2); c.box(36, 6, 36, x, 6.3, z, wh);
+    for (let i = 0; i < 9; i++) for (let j = 0; j < 2; j++) c.cyl(.3, .3, 5, x - 16 + i * 4, 6, z + (j ? 18.2 : -18.2), wh2, 6);
+    for (const [dx, dz, r] of [[0, 0, 4.5], [-11, -11, 2.4], [11, -11, 2.4], [-11, 11, 2.4], [11, 11, 2.4], [0, -12, 2.6], [0, 12, 2.6], [-12, 0, 2.6], [12, 0, 2.6]]) c.dome(r, x + dx, 9.3, z + dz, wh);
+    for (const [dx, dz] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) { for (let k = 0; k < 4; k++) c.cyl(2.4 - k * .5, 2.6 - k * .5, 1.8, x + dx, 10.2 + k * 1.8, z + dz, wh2, 8); c.flag(x + dx, 17.6, z + dz); }
+    c.col(x, z, 20, 20); c.far(); return { open: true }; };
 })();
