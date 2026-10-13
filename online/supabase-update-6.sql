@@ -5,6 +5,10 @@
 -- (800 MB by default, see baygram_cap) the oldest posts are removed automatically. Admins can delete any post.
 -- Paste into Supabase → SQL Editor → New query, then Run. Safe to run more than once.
 
+-- files of posts removed to free space; any player's game deletes them from Storage, then clears the row
+create table if not exists public.baygram_trash (path text primary key, added_at timestamptz not null default now());
+alter table public.baygram_trash enable row level security;
+
 -- the bucket: public read, 10 MB per file, pictures and video only
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('baygram', 'baygram', true, 10485760, array['image/jpeg', 'image/png', 'image/webp', 'video/webm', 'video/mp4'])
@@ -48,9 +52,6 @@ create policy "admin hides posts" on public.baygram_posts for update to authenti
 
 alter table public.baygram_posts add column if not exists size int not null default 0;
 
--- files of posts removed to free space; any player's game deletes them from Storage, then clears the row
-create table if not exists public.baygram_trash (path text primary key, added_at timestamptz not null default now());
-alter table public.baygram_trash enable row level security;
 create or replace function public.baygram_cap() returns bigint language sql immutable as $$ select 800::bigint * 1024 * 1024 $$;
 
 create table if not exists public.baygram_likes (
