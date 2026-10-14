@@ -41,5 +41,13 @@
     d.onclick = () => { const lines = ['Online settings file: ' + (window.ONLINE && window.ONLINE.supabaseUrl ? 'found' : 'MISSING (js/online-config.js)'), 'Online code version: ' + (window.__ibOnlineV || 'old or not loaded'), 'Online step: ' + (window.__ibOnlineStage || 'never started'), 'Sign-in library: ' + (window.supabase ? 'loaded' : 'not loaded'), 'Game version: ' + ((document.querySelector('#ver') || {}).textContent || '?'), 'Browser: ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 110)].concat(ERR.slice(-4).map(e => 'Error: ' + e));
       if (B.openSheet) B.openSheet('⚠ Online problem', 'Send a screenshot of this to the developer', lines.map(l => '<p class="note">' + l.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) + '</p>').join('') + '<div class="btnrow"><button class="go" data-id="rl">Try again</button></div>', s => s.onclick = e => { if (e.target.dataset.id === 'rl') { try { B.save && B.save(); } catch (er) {} location.reload(); } }); else alert(lines.join('\n')); };
     lc.appendChild(d); }, 1500);
+  // Always the newest version (Beta v1.01.14): the browser or GitHub Pages can keep an old index.html for a while,
+  // which then loads the old game files. version.json is fetched fresh; if it names a newer version, reload once
+  // with a fresh address (on the start screen), or offer it during play.
+  function curV() { return ((document.querySelector('#ver') || {}).textContent || '').trim(); }
+  async function checkV(playing) { try { const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return; const j = await r.json(); const v = String(j.v || '').trim(); if (!v || v === curV()) return;
+      if (!playing) { if (sessionStorage.getItem('ib.upd') === v) return; sessionStorage.setItem('ib.upd', v); location.replace(location.pathname + '?u=' + Date.now() + location.hash); return; }
+      const B = window.BB; if (B && B.toast) B.toast(`✨ ${v} is ready · it loads when you go to the main menu`, '#ffc93c'); window.__ibNewV = v; } catch (e) {} }
+  checkV(false); setInterval(() => { const B = window.BB; if (!window.__ibNewV) checkV(!!(B && B.started)); }, 10 * 60 * 1000);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();

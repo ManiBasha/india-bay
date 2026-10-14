@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.13';
+const VERSION='Beta v1.01.14';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -1353,7 +1353,7 @@ const appHue=id=>({map:140,swiggy:28,zomato:355,baycart:215,foodbag:40,sports:12
 function menuSheet(){phoneSheet();}
 // 🏠 back to the start screen (Beta v1.01.11): saves, then shows the main menu with Continue
 function mainMenuSheet(){openSheet('🏠 Main menu','Your game is saved first',`<p class="note">Go back to the start screen to change city, read what's new or start a new game. You continue right where you are.</p><div class="stack"><button class="go" data-id="menu">Go to the main menu</button><button class="buy ghost" data-id="stay">Keep playing</button></div>`,
-  s=>s.onclick=e=>{const id=e.target.dataset.id;if(id==='stay')return closeSheet();if(id==='menu'){save();emit('toMenu');closeSheet();toast('Saved · opening the main menu','#3ddc97');setTimeout(()=>location.reload(),900);}});}   // the old ☰ menu: everything is in the phone now
+  s=>s.onclick=e=>{const id=e.target.dataset.id;if(id==='stay')return closeSheet();if(id==='menu'){save();emit('toMenu');closeSheet();toast('Saved · opening the main menu','#3ddc97');setTimeout(()=>location.replace(location.pathname+'?u='+Date.now()+location.hash),900);}});}   // the old ☰ menu: everything is in the phone now
 addApp({id:'garage',label:'Garage',icon:'🚗',group:'menu',fn:garageSheet});addApp({id:'features',label:'Features',icon:'✨',group:'settings',fn:()=>featuresSheet()});addApp({id:'look',label:'My look',icon:'🧑',group:'settings',fn:lookSheet});addApp({id:'admin',label:'Admin',icon:'🔑',group:'settings',admin:true,fn:()=>adminSheet()});
 function garageSheet(){const pp=ppos();const homeNear=P.homes.map(id=>pois.find(q=>q.type==='home'&&q.extra===id)).find(q=>q&&Math.hypot(q.x-pp.x,q.z-pp.z)<45);
   openSheet('🚗 Garage',`${P.cars.length} vehicle${P.cars.length===1?'':'s'} · valet ${inr(cost('svc.valet',200))} brings one to the nearest road`,rowHtml('addv','＋ Add a vehicle','Get in the driver seat of any vehicle, then tap Add · you can name it','Add')+P.cars.map((c,i)=>{const v=ownedVeh[i];const d=v?Math.round(v.pos.distanceTo(pp)*2.4/100)/10:null;const val=Math.round(cost('veh.'+c.type,VALUE[c.type]||10000)*.5*Math.max(.3,(v?v.hp:c.hp)/100)/5)*5;
