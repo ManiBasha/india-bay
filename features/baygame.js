@@ -7,13 +7,15 @@ window.BBFeatures.push(function (bb) {
   function shell(title, sub, body) { if (!root) { root = document.createElement('div'); root.id = 'bg'; document.body.appendChild(root); }
     root.hidden = false; root.innerHTML = `<div class="bgcard"><div class="shead"><div><h2 style="font-family:var(--f-display);margin:0;font-size:22px">${title}</h2><div class="sub">${sub || ''}</div></div><button class="x" data-bgx aria-label="Close">×</button></div>${body}</div>`;
     root.querySelector('[data-bgx]').onclick = close; return root.querySelector('.bgcard'); }
-  function close() { clearT(); if (root) root.hidden = true; if (holding) { holding = false; bb.closeWait(); } removeKey(); }
+  function close() { clearT(); if (root) root.hidden = true; if (!holding && bb.MINIGAMES) bb.MINIGAMES.close(); if (holding) { holding = false; bb.closeWait(); } removeKey(); }
   let keyFn = null; const removeKey = () => { if (keyFn) removeEventListener('keydown', keyFn); keyFn = null; };
   bb.setEscape(() => { if (root && !root.hidden) { close(); return true; } return false; });
-  function menu() { clearT(); removeKey(); const c = shell('BayGame', 'Play chips only · bots on this device', `${[['ludo', 'Ludo', 'You and three bots'], ['snl', 'Snakes and Ladders', 'Race a bot to 100'], ['ttt', 'Tic-tac-toe', 'Best of quick rounds'], ['cricket', 'Gully cricket', '2 overs, chase the target'], ['quiz', 'Cricket and Bollywood quiz', '5 questions']].map(([id, n, s]) => bb.rowHtml(id, n, s, 'Play')).join('')}<p class="note">Chess, carrom, rummy and teen patti (play chips) arrive with online tables.</p>`);
+  function menu() { clearT(); removeKey(); if (bb.MINIGAMES) { if (root) root.hidden = true; return bb.MINIGAMES.menu(); } const c = shell('BayGame', 'Play chips only · bots on this device', `${[['ludo', 'Ludo', 'You and three bots'], ['snl', 'Snakes and Ladders', 'Race a bot to 100'], ['ttt', 'Tic-tac-toe', 'Best of quick rounds'], ['cricket', 'Gully cricket', '2 overs, chase the target'], ['quiz', 'Cricket and Bollywood quiz', '5 questions']].map(([id, n, s]) => bb.rowHtml(id, n, s, 'Play')).join('')}<p class="note">Chess, carrom, rummy and teen patti (play chips) arrive with online tables.</p>`);
     c.onclick = e => { const id = e.target.dataset.id; if (!id) return; ({ ludo, snl, ttt, cricket, quiz })[id](); }; }
   function open(fromWait) { if (!fromWait && !bb.inside && !bb.uiLock()) { holding = true; bb.closeSheet(); bb.openWait({ kind: 'BayGame', title: 'Playing BayGame', sub: 'The Bay clock keeps running', total: 1e9, cancel: 'Stop playing', timeText: () => `Bay ${bb.bayTime()}`, onCancel: () => { holding = false; if (root) root.hidden = true; } }); } else bb.closeSheet(); menu(); }
-  bb.setBayGame(() => open(true)); bb.addApp({ id: 'baygame', label: 'BayGame', icon: '🎲', smart: true, fn: () => open(false) });
+  // Beta v1.01.12: the new mini games lobby (features/minigames.js) takes over; Ludo and Gully cricket still live here
+  bb.setBayGame(() => bb.MINIGAMES ? bb.MINIGAMES.menu() : open(true)); bb.addApp({ id: 'baygame', label: 'BayGame', icon: '🎲', smart: true, fn: () => bb.MINIGAMES ? bb.MINIGAMES.menu() : open(false) });
+  bb.BAYGAME_OLD = { get QS() { return QS; }, open: g => { clearT(); removeKey(); if (g === 'ludo') ludo(); if (g === 'cricket') cricket(); } };
   const win = (game, w) => { bb.emit('baygame', { game, win: w }); if (w) bb.toast(`You won ${game}!`, '#3ddc97'); };
   const back = '<div class="btnrow" style="margin-top:10px"><button class="buy ghost" data-back>All games</button></div>';
   function wireBack(c) { const b = c.querySelector('[data-back]'); if (b) b.onclick = menu; }

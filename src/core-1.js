@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.11';
+const VERSION='Beta v1.01.12';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -22,7 +22,9 @@ const inr=n=>(n<0?'−':'')+'₹'+Math.abs(Math.round(n)).toLocaleString('en-IN'
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 
 /* ================= clocks ================= */
-function gameMin(){return Date.now()/1000*CFG.timeSpeed+(+CFG.timeOffset||0);}
+// the shared clock (Beta v1.01.12): the online server's time, so everyone has the same Bay time, weather and events
+const bayNow=()=>Date.now()+(+window.__ibClockOff||0);
+function gameMin(){return bayNow()/1000*CFG.timeSpeed+(+CFG.timeOffset||0);}
 let clockH=0,gameDay=0;
 function tickClock(){const g=gameMin();clockH=((g/60)%24+24)%24;gameDay=Math.floor(g/1440);}
 const IST=(()=>{try{return{d:new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',day:'numeric',month:'short',year:'numeric'}),iso:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}),m:new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',month:'numeric'})};}catch(e){return null;}})();

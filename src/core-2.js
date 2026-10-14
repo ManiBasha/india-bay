@@ -1,7 +1,7 @@
 
 /* ================= places you can use ================= */
 const PCOL={stadium:'#3ddc97',bank:'#3ddc97',food:'#ff9f1c',toilet:'#5fb4ff',pump:'#2fc4b2',cng:'#7fd858',hospital:'#ff6b6b',police:'#5f8bff',rto:'#c9a227',jobs:'#ffb347',cars:'#c38bff',bikes:'#ff8fd0',clothes:'#ff6fa8',furniture:'#d8a46a',mobile:'#6fc3ff',guns:'#ff5d73',realty:'#ffc93c',mechanic:'#9aa5b1',station:'#e07b39',bus:'#e85d5d',lodge:'#b38bff',home:'#ffe08a',airport:'#7ad0ff',local:'#ff9a3c',ferry:'#4fb3ff',safari:'#9bd36a',camel:'#e3b26a',cricket:'#3ddc97',mall:'#ff6fa8',metro:'#c38bff',bullet:'#1b4f9c',gig:'#e0a030',helipad:'#ffd36a',activity:'#3fd0c9',zoo:'#7cc96a'};
-const PICON={stadium:'⚽',bank:'🏦',food:'🍛',toilet:'🚻',pump:'⛽',cng:'🟢',hospital:'🏥',police:'🚓',rto:'🪪',jobs:'💼',cars:'🚗',bikes:'🏍',clothes:'👕',furniture:'🛋',mobile:'📱',guns:'🎯',realty:'🏘',mechanic:'🔧',station:'🚆',bus:'🚌',lodge:'🛏',home:'🏡',airport:'✈',local:'🚉',ferry:'⛴',safari:'🦁',camel:'🐪',cricket:'🏏',mall:'🛍',metro:'Ⓜ',bullet:'🚄',gig:'🛠',helipad:'🚁',activity:'🪂',zoo:'🦒'};
+const PICON={heritage:'📜',stadium:'⚽',bank:'🏦',food:'🍛',toilet:'🚻',pump:'⛽',cng:'🟢',hospital:'🏥',police:'🚓',rto:'🪪',jobs:'💼',cars:'🚗',bikes:'🏍',clothes:'👕',furniture:'🛋',mobile:'📱',guns:'🎯',realty:'🏘',mechanic:'🔧',station:'🚆',bus:'🚌',lodge:'🛏',home:'🏡',airport:'✈',local:'🚉',ferry:'⛴',safari:'🦁',camel:'🐪',cricket:'🏏',mall:'🛍',metro:'Ⓜ',bullet:'🚄',gig:'🛠',helipad:'🚁',activity:'🪂',zoo:'🦒'};
 const PLABEL={stadium:'Football stadium',bank:'Bank and ATM',food:'Food and chai',toilet:'Public toilet',pump:'Petrol and diesel',cng:'CNG pump',hospital:'Hospital',police:'Police station',rto:'RTO (licences)',jobs:'Job agent',cars:'Car showroom',bikes:'Two-wheeler dealer',clothes:'Clothes shop',furniture:'Furniture',mobile:'Mobile shop',guns:'Gun shop',realty:'Homes for sale',mechanic:'Mechanic',station:'Railway station',bus:'Bus stand',lodge:'Lodge to sleep',home:'Home',airport:'Airport',local:'Mumbai local',ferry:'Ferry',safari:'Lion safari',camel:'Camel ride',cricket:'Cricket stadium',mall:'Shopping mall',metro:'Metro station',bullet:'Bullet train station',gig:'Local work',helipad:'Helipad',activity:'Adventure activity',zoo:'Zoo'};
 const VALUE={cycle:4000,rickshaw:15000,bike:65000,sportsbike:180000,auto:12000,car:45000,sedan:85000,suv:120000,sports:250000,taxi:40000};
 const PNAME={bank:'Bharat Bay Bank',toilet:'Public toilet',pump:'Petrol pump',cng:'CNG pump',hospital:'Hospital',police:'Police station',rto:'RTO office',jobs:'Rozgar job agent',cars:'Bay Motors',bikes:'Do-Pahiya two-wheelers',clothes:'Kapda Bazaar',furniture:'Ghar Sajao furniture',mobile:'Mobile Point',guns:'Hathiyar Ghar',realty:'Sapna Homes',mechanic:'Mechanic garage',station:'Railway station',bus:'ST bus stand',lodge:'Lodge'};
@@ -71,8 +71,9 @@ const HOUSE=[
 const SAFETY=[{title:'WEAR A HELMET',line2:'Road safety · India Bay',desc:'Helmets save lives, and traffic police fine riders without one.',cat:'Road safety',fg:'#ffffff',bg:'#c0392b'},
   {title:'STOP AT RED',line2:'Road safety · India Bay',desc:'Red means stop. Wait for green.',cat:'Road safety',fg:'#1d1433',bg:'#ffffff'},
   {title:'YOUR AD HERE',line2:'support@indiabaygame.com',desc:'Businesses and creators can book billboards in India Bay by city, dates and age group.',cat:'Advertise',fg:'#1d1433',bg:'#ffffff',mail:true}];
+const EXTRA_ADS=[];   // features add house ads here (Beta v1.01.12: hero sightings)
 function houseAd(slot,n){const R=slot.kind==='road'&&slot.road!=='city road'?4000:1600;const near=pois.filter(p=>Math.abs(p.x-slot.x)<R&&Math.abs(p.z-slot.z)<R);
-  const opts=[];for(const [type,f,alt] of HOUSE){const list=near.filter(p=>p.type===type||(alt&&p.type===alt)).sort((a,b)=>Math.hypot(a.x-slot.x,a.z-slot.z)-Math.hypot(b.x-slot.x,b.z-slot.z));for(const p of list){const ad=f(p);if(ad){opts.push(Object.assign(ad,{target:{x:p.x,z:p.z,name:p.name}}));break;}}}
+  const opts=[];for(const f of EXTRA_ADS){try{const a=f(slot);if(a){opts.push(a);opts.push(a);}}catch(e){}}for(const [type,f,alt] of HOUSE){const list=near.filter(p=>p.type===type||(alt&&p.type===alt)).sort((a,b)=>Math.hypot(a.x-slot.x,a.z-slot.z)-Math.hypot(b.x-slot.x,b.z-slot.z));for(const p of list){const ad=f(p);if(ad){opts.push(Object.assign(ad,{target:{x:p.x,z:p.z,name:p.name}}));break;}}}
   // spread the variety: each board in an area takes the next kind of ad; every 5th is a road-safety or advertise-here board
   const key=slot.zone||'hw',c=houseCount.get(key)||0;houseCount.set(key,c+1);const off=Math.floor(hash(key.length*13.1+(slot.zone?slot.zone.charCodeAt(0):7))*97);
   const pick=!opts.length||c%5===4?SAFETY[(c+off)%SAFETY.length]:opts[(c+off)%opts.length];return Object.assign({house:true},pick);}
@@ -173,6 +174,10 @@ function buildCar(type,colorMat,g){const sp=SPEC[type],shape=type==='taxi'?'car'
   if(type==='police'){part(G.box,paint('#1d3f9a'),W+.02,.18,L*.92,0,.82,0,g);const r=part(G.box,VM.sirR,.55,.16,.3,-.32,S.roof+.1,-.2,g),bl=part(G.box,VM.sirB,.55,.16,.3,.32,S.roof+.1,-.2,g);g.userData.lights=[r,bl];
     const p=new THREE.Mesh(new THREE.PlaneGeometry(1.6,.36),new THREE.MeshBasicMaterial({map:policeTex}));p.position.set(W/2+.04,1.0,0);p.rotation.y=Math.PI/2;g.add(p);const p2=p.clone();p2.position.x=-W/2-.04;p2.rotation.y=-Math.PI/2;g.add(p2);}
   const wz=L/2-.78*k,wx=W/2-.12,wg=shape==='suv'?WG.big:WG.car,wy=shape==='suv'?.36:.34;return wheels2(g,[[-wx,wy,wz],[wx,wy,wz],[-wx,wy,-wz],[wx,wy,-wz]],wg);}
+// state bus liveries (Beta v1.01.12): a feature sets vehLivery to {body, band, text} before a bus is built
+let vehLivery=null;const LIVTEX=new Map();
+function liveryTex(L){const k=L.body+L.band+L.text;if(LIVTEX.has(k))return LIVTEX.get(k);const t=canvasTex(512,128,x=>{x.fillStyle=L.body;x.fillRect(0,0,512,128);x.fillStyle=L.band;x.fillRect(0,82,512,20);x.fillRect(0,8,512,4);
+  for(let i=0;i<9;i++){x.fillStyle='#1d2a34';x.fillRect(14+i*55,16,46,56);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(16+i*55,18,18,52);}if(L.text){x.fillStyle=L.textC||L.body;x.font='bold 17px sans-serif';x.textAlign='center';x.fillText(L.text,256,98);}},false);LIVTEX.set(k,t);return t;}
 const busSide=canvasTex(512,128,x=>{x.fillStyle='#b8202a';x.fillRect(0,0,512,128);x.fillStyle='#f3efe6';x.fillRect(0,92,512,14);for(let i=0;i<9;i++){x.fillStyle='#1d2a34';x.fillRect(14+i*55,14,46,58);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(16+i*55,16,18,54);}},false);
 const truckBox=canvasTex(256,128,x=>{const c=mpick(['#2f6fb5','#e0a21b','#2d8a4e','#b5432f']);x.fillStyle=c;x.fillRect(0,0,256,128);x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=3;for(let i=12;i<256;i+=22){x.beginPath();x.moveTo(i,0);x.lineTo(i,128);x.stroke();}x.fillStyle='#ffe066';x.font='800 22px "Baloo 2", sans-serif';x.fillText('BHARAT TRANSPORT',22,70);},false);
 function buildVeh(type,colorMat){const g=new THREE.Group();let w;g.userData={};
@@ -195,7 +200,7 @@ function buildVeh(type,colorMat){const g=new THREE.Group();let w;g.userData={};
     const pax=new THREE.Group();part(G.box,VM.red,.5,.5,.3,0,1.38,-.78,pax);part(G.sph,VM.skin,.16,.19,.17,0,1.82,-.78,pax);pax.visible=false;g.add(pax);g.userData.pax=pax;
     w=wheels2(g,[[0,.3,1.18],[-.8,.3,-.95],[.8,.3,-.95]],WG.auto);}
   else if(['taxi','car','suv','police','sports','sedan'].includes(type)){w=buildCar(type,colorMat,g);}
-  else if(type==='bus'){const dd=Math.random()<.5,h=dd?4.3:2.8,red=paint('#b8202a');const side=new THREE.MeshPhongMaterial({map:busSide,shininess:40,specular:0x222222});
+  else if(type==='bus'){const LV=vehLivery;const dd=LV?(LV.dd?Math.random()<.5:false):Math.random()<.5,h=dd?4.3:2.8,red=paint(LV?LV.body:'#b8202a');const side=new THREE.MeshPhongMaterial({map:LV?liveryTex(LV):busSide,shininess:40,specular:0x222222});
     const bodyM=[side,side,red,red,red,red];const bx=new THREE.Mesh(new THREE.BoxGeometry(2.55,h,10.3),bodyM);bx.position.y=.6+h/2;bx.castShadow=true;g.add(bx);
     if(dd){const up=new THREE.Mesh(new THREE.BoxGeometry(2.56,1.2,10.0),[side,side,red,red,red,red]);up.position.y=.6+h-1.0;g.add(up);}
     part(G.box,VX.glass,2.3,1.1,.06,0,.6+h-(dd?2.2:1.0),5.16,g);part(G.box,VX.trim,2.6,.32,.2,0,.68,5.14,g);part(G.box,VX.trim,2.6,.32,.2,0,.68,-5.14,g);part(G.box,VX.grille,1.2,.3,.04,0,1.0,5.2,g);
@@ -235,7 +240,7 @@ const TT=['taxi','taxi','taxi','car','car','car','sedan','bus','truck','auto','a
 const TTOWN=['auto','auto','bike','bike','bike','car','truck','bus','suv','cycle','rickshaw','sedan'];
 function trafficTypeAt(x,z){const zz=zoneAt(x,z);if(!zz)return mpick(['truck','truck','bus','car','sedan','suv','bike','taxi']);if(zz.id==='mumbai')return mpick(TT);return mpick(TTOWN);}
 function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.vmax=Math.min(sp.max*.55,type==='bus'||type==='truck'?MR(8,11):MR(9,15))*(l.e.kind==='city'?1:1.6);
-  const v=makeVeh(type,0,0,0,'traffic');v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
+  vehLivery=type==='bus'&&hooks.livery?hooks.livery(_lp.x,_lp.z):null;const v=makeVeh(type,0,0,0,'traffic');vehLivery=null;v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
 const riderMat=['#d9483b','#2f7fc1','#e8a628','#3aa66b','#f4f1ea'].map(c=>LMat(c));
 function addRider(v){const r=buildPerson(mpick(pedCols));const U=r.userData;U.legs.forEach(l=>l.rotation.x=-1.25);U.arms.forEach(a=>a.rotation.x=-1.05);const seat=(v.spec.seat||[0,.95,-.2]);r.position.set(0,seat[1]-.82,seat[2]-.05);
   if(v.type!=='cycle'){const h=new THREE.Mesh(G.sph,mpick([VM.black,VM.red,VM.white,VM.blue]));h.scale.set(.17,.16,.19);h.position.set(0,1.75,0);r.add(h);}v.m.add(r);v.m.userData.driver=r;}

@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.11';
+const VERSION='Beta v1.01.12';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -22,7 +22,9 @@ const inr=n=>(n<0?'−':'')+'₹'+Math.abs(Math.round(n)).toLocaleString('en-IN'
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 
 /* ================= clocks ================= */
-function gameMin(){return Date.now()/1000*CFG.timeSpeed+(+CFG.timeOffset||0);}
+// the shared clock (Beta v1.01.12): the online server's time, so everyone has the same Bay time, weather and events
+const bayNow=()=>Date.now()+(+window.__ibClockOff||0);
+function gameMin(){return bayNow()/1000*CFG.timeSpeed+(+CFG.timeOffset||0);}
 let clockH=0,gameDay=0;
 function tickClock(){const g=gameMin();clockH=((g/60)%24+24)%24;gameDay=Math.floor(g/1440);}
 const IST=(()=>{try{return{d:new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',day:'numeric',month:'short',year:'numeric'}),iso:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}),m:new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',month:'numeric'})};}catch(e){return null;}})();
@@ -463,7 +465,7 @@ for(const r of ROADS){if(r.kind!=='hw'&&r.kind!=='exp')continue;let acc=0;const 
 
 /* ================= places you can use ================= */
 const PCOL={stadium:'#3ddc97',bank:'#3ddc97',food:'#ff9f1c',toilet:'#5fb4ff',pump:'#2fc4b2',cng:'#7fd858',hospital:'#ff6b6b',police:'#5f8bff',rto:'#c9a227',jobs:'#ffb347',cars:'#c38bff',bikes:'#ff8fd0',clothes:'#ff6fa8',furniture:'#d8a46a',mobile:'#6fc3ff',guns:'#ff5d73',realty:'#ffc93c',mechanic:'#9aa5b1',station:'#e07b39',bus:'#e85d5d',lodge:'#b38bff',home:'#ffe08a',airport:'#7ad0ff',local:'#ff9a3c',ferry:'#4fb3ff',safari:'#9bd36a',camel:'#e3b26a',cricket:'#3ddc97',mall:'#ff6fa8',metro:'#c38bff',bullet:'#1b4f9c',gig:'#e0a030',helipad:'#ffd36a',activity:'#3fd0c9',zoo:'#7cc96a'};
-const PICON={stadium:'⚽',bank:'🏦',food:'🍛',toilet:'🚻',pump:'⛽',cng:'🟢',hospital:'🏥',police:'🚓',rto:'🪪',jobs:'💼',cars:'🚗',bikes:'🏍',clothes:'👕',furniture:'🛋',mobile:'📱',guns:'🎯',realty:'🏘',mechanic:'🔧',station:'🚆',bus:'🚌',lodge:'🛏',home:'🏡',airport:'✈',local:'🚉',ferry:'⛴',safari:'🦁',camel:'🐪',cricket:'🏏',mall:'🛍',metro:'Ⓜ',bullet:'🚄',gig:'🛠',helipad:'🚁',activity:'🪂',zoo:'🦒'};
+const PICON={heritage:'📜',stadium:'⚽',bank:'🏦',food:'🍛',toilet:'🚻',pump:'⛽',cng:'🟢',hospital:'🏥',police:'🚓',rto:'🪪',jobs:'💼',cars:'🚗',bikes:'🏍',clothes:'👕',furniture:'🛋',mobile:'📱',guns:'🎯',realty:'🏘',mechanic:'🔧',station:'🚆',bus:'🚌',lodge:'🛏',home:'🏡',airport:'✈',local:'🚉',ferry:'⛴',safari:'🦁',camel:'🐪',cricket:'🏏',mall:'🛍',metro:'Ⓜ',bullet:'🚄',gig:'🛠',helipad:'🚁',activity:'🪂',zoo:'🦒'};
 const PLABEL={stadium:'Football stadium',bank:'Bank and ATM',food:'Food and chai',toilet:'Public toilet',pump:'Petrol and diesel',cng:'CNG pump',hospital:'Hospital',police:'Police station',rto:'RTO (licences)',jobs:'Job agent',cars:'Car showroom',bikes:'Two-wheeler dealer',clothes:'Clothes shop',furniture:'Furniture',mobile:'Mobile shop',guns:'Gun shop',realty:'Homes for sale',mechanic:'Mechanic',station:'Railway station',bus:'Bus stand',lodge:'Lodge to sleep',home:'Home',airport:'Airport',local:'Mumbai local',ferry:'Ferry',safari:'Lion safari',camel:'Camel ride',cricket:'Cricket stadium',mall:'Shopping mall',metro:'Metro station',bullet:'Bullet train station',gig:'Local work',helipad:'Helipad',activity:'Adventure activity',zoo:'Zoo'};
 const VALUE={cycle:4000,rickshaw:15000,bike:65000,sportsbike:180000,auto:12000,car:45000,sedan:85000,suv:120000,sports:250000,taxi:40000};
 const PNAME={bank:'Bharat Bay Bank',toilet:'Public toilet',pump:'Petrol pump',cng:'CNG pump',hospital:'Hospital',police:'Police station',rto:'RTO office',jobs:'Rozgar job agent',cars:'Bay Motors',bikes:'Do-Pahiya two-wheelers',clothes:'Kapda Bazaar',furniture:'Ghar Sajao furniture',mobile:'Mobile Point',guns:'Hathiyar Ghar',realty:'Sapna Homes',mechanic:'Mechanic garage',station:'Railway station',bus:'ST bus stand',lodge:'Lodge'};
@@ -533,8 +535,9 @@ const HOUSE=[
 const SAFETY=[{title:'WEAR A HELMET',line2:'Road safety · India Bay',desc:'Helmets save lives, and traffic police fine riders without one.',cat:'Road safety',fg:'#ffffff',bg:'#c0392b'},
   {title:'STOP AT RED',line2:'Road safety · India Bay',desc:'Red means stop. Wait for green.',cat:'Road safety',fg:'#1d1433',bg:'#ffffff'},
   {title:'YOUR AD HERE',line2:'support@indiabaygame.com',desc:'Businesses and creators can book billboards in India Bay by city, dates and age group.',cat:'Advertise',fg:'#1d1433',bg:'#ffffff',mail:true}];
+const EXTRA_ADS=[];   // features add house ads here (Beta v1.01.12: hero sightings)
 function houseAd(slot,n){const R=slot.kind==='road'&&slot.road!=='city road'?4000:1600;const near=pois.filter(p=>Math.abs(p.x-slot.x)<R&&Math.abs(p.z-slot.z)<R);
-  const opts=[];for(const [type,f,alt] of HOUSE){const list=near.filter(p=>p.type===type||(alt&&p.type===alt)).sort((a,b)=>Math.hypot(a.x-slot.x,a.z-slot.z)-Math.hypot(b.x-slot.x,b.z-slot.z));for(const p of list){const ad=f(p);if(ad){opts.push(Object.assign(ad,{target:{x:p.x,z:p.z,name:p.name}}));break;}}}
+  const opts=[];for(const f of EXTRA_ADS){try{const a=f(slot);if(a){opts.push(a);opts.push(a);}}catch(e){}}for(const [type,f,alt] of HOUSE){const list=near.filter(p=>p.type===type||(alt&&p.type===alt)).sort((a,b)=>Math.hypot(a.x-slot.x,a.z-slot.z)-Math.hypot(b.x-slot.x,b.z-slot.z));for(const p of list){const ad=f(p);if(ad){opts.push(Object.assign(ad,{target:{x:p.x,z:p.z,name:p.name}}));break;}}}
   // spread the variety: each board in an area takes the next kind of ad; every 5th is a road-safety or advertise-here board
   const key=slot.zone||'hw',c=houseCount.get(key)||0;houseCount.set(key,c+1);const off=Math.floor(hash(key.length*13.1+(slot.zone?slot.zone.charCodeAt(0):7))*97);
   const pick=!opts.length||c%5===4?SAFETY[(c+off)%SAFETY.length]:opts[(c+off)%opts.length];return Object.assign({house:true},pick);}
@@ -635,6 +638,10 @@ function buildCar(type,colorMat,g){const sp=SPEC[type],shape=type==='taxi'?'car'
   if(type==='police'){part(G.box,paint('#1d3f9a'),W+.02,.18,L*.92,0,.82,0,g);const r=part(G.box,VM.sirR,.55,.16,.3,-.32,S.roof+.1,-.2,g),bl=part(G.box,VM.sirB,.55,.16,.3,.32,S.roof+.1,-.2,g);g.userData.lights=[r,bl];
     const p=new THREE.Mesh(new THREE.PlaneGeometry(1.6,.36),new THREE.MeshBasicMaterial({map:policeTex}));p.position.set(W/2+.04,1.0,0);p.rotation.y=Math.PI/2;g.add(p);const p2=p.clone();p2.position.x=-W/2-.04;p2.rotation.y=-Math.PI/2;g.add(p2);}
   const wz=L/2-.78*k,wx=W/2-.12,wg=shape==='suv'?WG.big:WG.car,wy=shape==='suv'?.36:.34;return wheels2(g,[[-wx,wy,wz],[wx,wy,wz],[-wx,wy,-wz],[wx,wy,-wz]],wg);}
+// state bus liveries (Beta v1.01.12): a feature sets vehLivery to {body, band, text} before a bus is built
+let vehLivery=null;const LIVTEX=new Map();
+function liveryTex(L){const k=L.body+L.band+L.text;if(LIVTEX.has(k))return LIVTEX.get(k);const t=canvasTex(512,128,x=>{x.fillStyle=L.body;x.fillRect(0,0,512,128);x.fillStyle=L.band;x.fillRect(0,82,512,20);x.fillRect(0,8,512,4);
+  for(let i=0;i<9;i++){x.fillStyle='#1d2a34';x.fillRect(14+i*55,16,46,56);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(16+i*55,18,18,52);}if(L.text){x.fillStyle=L.textC||L.body;x.font='bold 17px sans-serif';x.textAlign='center';x.fillText(L.text,256,98);}},false);LIVTEX.set(k,t);return t;}
 const busSide=canvasTex(512,128,x=>{x.fillStyle='#b8202a';x.fillRect(0,0,512,128);x.fillStyle='#f3efe6';x.fillRect(0,92,512,14);for(let i=0;i<9;i++){x.fillStyle='#1d2a34';x.fillRect(14+i*55,14,46,58);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(16+i*55,16,18,54);}},false);
 const truckBox=canvasTex(256,128,x=>{const c=mpick(['#2f6fb5','#e0a21b','#2d8a4e','#b5432f']);x.fillStyle=c;x.fillRect(0,0,256,128);x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=3;for(let i=12;i<256;i+=22){x.beginPath();x.moveTo(i,0);x.lineTo(i,128);x.stroke();}x.fillStyle='#ffe066';x.font='800 22px "Baloo 2", sans-serif';x.fillText('BHARAT TRANSPORT',22,70);},false);
 function buildVeh(type,colorMat){const g=new THREE.Group();let w;g.userData={};
@@ -657,7 +664,7 @@ function buildVeh(type,colorMat){const g=new THREE.Group();let w;g.userData={};
     const pax=new THREE.Group();part(G.box,VM.red,.5,.5,.3,0,1.38,-.78,pax);part(G.sph,VM.skin,.16,.19,.17,0,1.82,-.78,pax);pax.visible=false;g.add(pax);g.userData.pax=pax;
     w=wheels2(g,[[0,.3,1.18],[-.8,.3,-.95],[.8,.3,-.95]],WG.auto);}
   else if(['taxi','car','suv','police','sports','sedan'].includes(type)){w=buildCar(type,colorMat,g);}
-  else if(type==='bus'){const dd=Math.random()<.5,h=dd?4.3:2.8,red=paint('#b8202a');const side=new THREE.MeshPhongMaterial({map:busSide,shininess:40,specular:0x222222});
+  else if(type==='bus'){const LV=vehLivery;const dd=LV?(LV.dd?Math.random()<.5:false):Math.random()<.5,h=dd?4.3:2.8,red=paint(LV?LV.body:'#b8202a');const side=new THREE.MeshPhongMaterial({map:LV?liveryTex(LV):busSide,shininess:40,specular:0x222222});
     const bodyM=[side,side,red,red,red,red];const bx=new THREE.Mesh(new THREE.BoxGeometry(2.55,h,10.3),bodyM);bx.position.y=.6+h/2;bx.castShadow=true;g.add(bx);
     if(dd){const up=new THREE.Mesh(new THREE.BoxGeometry(2.56,1.2,10.0),[side,side,red,red,red,red]);up.position.y=.6+h-1.0;g.add(up);}
     part(G.box,VX.glass,2.3,1.1,.06,0,.6+h-(dd?2.2:1.0),5.16,g);part(G.box,VX.trim,2.6,.32,.2,0,.68,5.14,g);part(G.box,VX.trim,2.6,.32,.2,0,.68,-5.14,g);part(G.box,VX.grille,1.2,.3,.04,0,1.0,5.2,g);
@@ -697,7 +704,7 @@ const TT=['taxi','taxi','taxi','car','car','car','sedan','bus','truck','auto','a
 const TTOWN=['auto','auto','bike','bike','bike','car','truck','bus','suv','cycle','rickshaw','sedan'];
 function trafficTypeAt(x,z){const zz=zoneAt(x,z);if(!zz)return mpick(['truck','truck','bus','car','sedan','suv','bike','taxi']);if(zz.id==='mumbai')return mpick(TT);return mpick(TTOWN);}
 function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.vmax=Math.min(sp.max*.55,type==='bus'||type==='truck'?MR(8,11):MR(9,15))*(l.e.kind==='city'?1:1.6);
-  const v=makeVeh(type,0,0,0,'traffic');v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
+  vehLivery=type==='bus'&&hooks.livery?hooks.livery(_lp.x,_lp.z):null;const v=makeVeh(type,0,0,0,'traffic');vehLivery=null;v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
 const riderMat=['#d9483b','#2f7fc1','#e8a628','#3aa66b','#f4f1ea'].map(c=>LMat(c));
 function addRider(v){const r=buildPerson(mpick(pedCols));const U=r.userData;U.legs.forEach(l=>l.rotation.x=-1.25);U.arms.forEach(a=>a.rotation.x=-1.05);const seat=(v.spec.seat||[0,.95,-.2]);r.position.set(0,seat[1]-.82,seat[2]-.05);
   if(v.type!=='cycle'){const h=new THREE.Mesh(G.sph,mpick([VM.black,VM.red,VM.white,VM.blue]));h.scale.set(.17,.16,.19);h.position.set(0,1.75,0);r.add(h);}v.m.add(r);v.m.userData.driver=r;}
@@ -1320,7 +1327,7 @@ function appClick(e){const b=e.target.closest('[data-app]');if(!b)return false;c
 // Everything that used to be in the ☰ menu lives here now. New apps from features join the end of the home screen.
 const DOCK=['calls','messages','map','baygram'];
 const HOME=[{f:'bay',label:'Bay',icon:'⭐',ids:['story','rewards','invite','ach']},{f:'food',label:'BayFood',icon:'🍛',ids:['foodbag','swiggy','zomato']},{f:'veh',label:'Vehicles',icon:'🚗',ids:['garage','addgarage','mechanic','roadside']},
-  {f:'pay',label:'BayPay',icon:'💸',ids:['baypay','challans']},'bayradio',{f:'work',label:'Jobs',icon:'💼',ids:['jobs','localwork']},'traveler','baycart','sports','property','wardrobe','business','baygame','camera','themes','online','testtools'];
+  {f:'pay',label:'BayPay',icon:'💸',ids:['baypay','challans']},'bayradio',{f:'work',label:'Jobs',icon:'💼',ids:['jobs','localwork']},'traveler','baytaxi','baycart','sports','property','wardrobe','business','baygame','camera','themes','online','testtools'];
 const HOME_HIDE=['radio'];   // opened from inside another app (BayRadio)
 const appById=id=>apps.find(a=>a.id===id&&(!a.admin||adminOK)&&(!a.show||a.show()));
 const appIcon=(a,cls='')=>`<button class="app${cls}${a.smart&&P.phone!=='smart'?' locked':''}" data-app="${a.id}" style="--h:${appHue(a.id)}"><span>${esc(a.icon||'•')}</span>${esc(a.label)}</button>`;
@@ -1482,7 +1489,7 @@ function adminSheet(){const C=JSON.parse(JSON.stringify(CFG));let work=Object.as
   <details><summary>Needs and activity times</summary>${ck('needs','Hunger, toilet and sleep needs')}${num('foodHrs','Food lasts (game hours)',2,48,1)}${num('wcHrs','Bladder lasts (game hours)',2,48,1)}${num('awakeHrs','Awake time before exhausted (game hours)',4,48,1)}
    ${['sleep','meal','snack','drink','cook','tv','toilet'].map(k=>num('act.'+k,{sleep:'Full sleep',meal:'Meal',snack:'Snack',drink:'Drink',cook:'Cooking',tv:'TV cricket',toilet:'Toilet'}[k]+' (game minutes)',1,720,1)).join('')}</details>
   <details><summary>Queues (real seconds per person)</summary>${Object.keys(C.queue).map(k=>num('queue.'+k,{petrol:'Petrol pump',cng:'CNG pump',atm:'ATM',toilet:'Public toilet',ticket:'Railway ticket counter',hospital:'Hospital',checkin:'Airport check-in'}[k],1,300,1)).join('')}</details>
-  <details><summary>Travel tickets and times</summary>${Object.keys(C.travel).map(k=>`<div class="pair">${num('travel.'+k+'.0',{sleeper:'Train sleeper',ac:'Train AC',flight:'Flight',bus:'Bus',bottaxi:'Bot taxi',ferry:'Ferry',local:'Mumbai local',metro:'Metro'}[k]+' ticket (₹)',0,100000,10)}${num('travel.'+k+'.1','Longest trip (real seconds)',5,1800,5)}</div>`).join('')}<p class="note">Shorter trips take less time, scaled by distance.</p></details>
+  <details><summary>Travel tickets and times</summary>${Object.keys(C.travel).map(k=>`<div class="pair">${num('travel.'+k+'.0',({sleeper:'Train sleeper',ac:'Train AC',flight:'Flight',bus:'State bus',busac:'AC sleeper bus',citybus:'City bus',tour:'City tour bus',bottaxi:'Bot taxi',ferry:'Ferry',local:'Mumbai local',metro:'Metro',bullet:'Bullet train',baytaxi:'BayTaxi'}[k]||k)+' ticket (₹)',0,100000,10)}${num('travel.'+k+'.1','Longest trip (real seconds)',5,1800,5)}</div>`).join('')}<p class="note">Shorter trips take less time, scaled by distance.</p></details>
   <details><summary>Streets and police</summary>${rng('traffic','Traffic vehicles near the player',0,60,1)}${rng('peds','Pedestrians near the player',0,80,1)}${sel('police','Police',[['off','Off'],['easy','Easy'],['normal','Normal'],['hard','Hard']])}${ck('weapons','Weapons and bank robbery')}${ck('challansOn','Traffic challans (red lights, speed cameras, no helmet)')}${ck('voiceChat','Voice messages between players')}${ck('filmOn','Film mode for every player (Profile → Film mode)')}</details>
   <details><summary>Economy</summary>${rng('priceMul','Prices ×',0.5,3,0.1)}${rng('fareMul','Job pay ×',0.5,3,0.1)}${num('startCash','Starting cash for new players (₹)',0,10000000,100)}${num('fuel.petrol','Petrol ₹/L',10,500,1)}${num('fuel.diesel','Diesel ₹/L',10,500,1)}${num('fuel.cng','CNG ₹/L',10,500,1)}${num('toll','Toll (₹)',0,5000,10)}
 </details>
@@ -1490,6 +1497,7 @@ function adminSheet(){const C=JSON.parse(JSON.stringify(CFG));let work=Object.as
   <details><summary>Happening now events</summary>${list('events')}</details>
   <details><summary>Billboards</summary><p class="note">Text billboards on rooftops in the chosen city. Image uploads need the online storage (R2).</p>${list('billboards')}</details>
   <details><summary>Changelog</summary><p class="note">Every version is listed. Change any text, or set Players see it to Hide. Use | between lines in Notes. A new entry with a higher version shows players a What's new pop-up once.</p>${list('changelog')}</details>
+  <details><summary>Heroes</summary>${ck('heroes.vidyut','⚡ Vidyut, the Lightning Guardian (Kerala)')}${ck('heroes.varsha','🌧 Varsha, the Monsoon Guardian (Maharashtra)')}${ck('heroes.marudhar','🦅 Marudhar, the Desert Falcon (Rajasthan)')}${ck('heroes.patang','🪁 Patang, the Kite Ace (Gujarat)')}${ck('heroes.sagar','🌊 Sagar, the Tide Rider (Goa)')}${ck('heroes.chandan','🌿 Chandan, the Forest Spirit (Karnataka)')}<p class="note">Each hero is in one city of its state at a time and moves every 20 minutes.</p></details>
   <details><summary>Regions</summary>${REGIONS.map(r=>`<label class="ck"><input type="checkbox" data-p="regions.${r.id}" data-t="b"${C.regions[r.id]?' checked':''}${r.map?'':' disabled'}> ${r.name}: ${r.states}${r.map?'':' (map not built yet)'}</label>`).join('')}</details>
   <details id="sugg"><summary>Player suggestions</summary><div id="sugg_l" class="note">Open to load.</div></details>
   <div class="btnrow"><button type="submit" class="go">${adminLocal?'Save on this device':'Save for all players'}</button><button type="button" class="go alt" id="a_reset">Defaults</button></div>
@@ -1840,12 +1848,12 @@ const api={onFire:f=>fireHooks.push(f),setBotScale,get botScale(){return botScal
   toast,big,openSheet,closeSheet,rowHtml,spend,earn,inr,price,esc,addWanted,damage,save,makeVeh,removeVeh,spawnOwned,ownedVeh,buyVehicle,ppos,edgePos,box,boxRot,addStatic,flushStatic,LMat,buildPerson,addSign,
   addPoi(o){const p=makePoi(o);return p;},addApp,addMission,addPrompt,addFirstPrompt(f){firstPrompts.push(f);},poiHandlers,speedMods,on,emit,openWait,closeWait,startActivity,startQueue,startSleep,teleport,nearestRoadPoint,roadAt,drivable,isWater,isLand,zoneAt,stateAt,
   fareMultAt,activeFestivals,activeEvents,addChallan,istISO,istText,bayTime,gameMin,enterVehicle,exitVehicle,applyOutfit,homeById,buildInterior,nearestPoi,phoneSheet,profileSheet,hornSfx,areaName,
-  onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},set viewAt(f){hooks.viewAt=f;},get tourSpots(){return TOUR;},get photo(){return hooks.photo;},
+  onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},set livery(f){hooks.livery=f;},makeBusWith(L,x,z,h,state){vehLivery=L;try{return makeVeh('bus',x,z,h,state||'parked');}finally{vehLivery=null;}},set viewAt(f){hooks.viewAt=f;},get tourSpots(){return TOUR;},get photo(){return hooks.photo;},
   PICON,PLABEL,findRoute,get route(){return nav.route;},menuSheet,settingsSheet,get curMission(){return curMission;},
   CONG,sigState,sigJunction,
   blocks,get db(){return db;},get adminOK(){return adminOK;},buildVeh,nameOk,ageFromDob:IBCONF.ageFromDob,get adSlots(){return SLOTS;},updBillboards,billboardMeshes,adSheet,pickBillboard,personErr,personFields,refreshBillboards,openApp,set introClick(f){hooks.introClick=f;},set starterSheet(f){hooks.starterSheet=f;},enterHome,homeById,set introLabel(f){hooks.introLabel=f;setAvatar();},cloudConfig,hubSheet,supportSheet,setAvatar,addProfileRows(f){profileRows.push(f);},set profileEdit(f){hooks.profileEdit=f;},set displayName(f){hooks.displayName=f;setAvatar();},set userEmail(f){hooks.userEmail=f;},setCfgBackend(b){cfgBackend=b;adminOK=!!(b&&b.admin);adminLocal=false;},get hadSave(){return hadSave;},
   setDirty(){dirty=true;},buildPlane,addAdSlot,setSteer(v){steerIn=v==null?null:clamp(v,-1,1);},addCol,applyLook,lookCode,decodeLook,lookSheet,LOOKS,buildAnimal,animGait,ASPEC,get strays(){return cows;},animals,MR,mpick,clamp,hash,canvasTex,EDGES,ROADS,laneRandom:randomLaneNear,lanePos,uiLock};
-api.addResumer=addResumer;api.resumeWait=resumeWait;api.getWait=()=>wait;api.applyTheme=applyTheme;api.phoneSheet=phoneSheet;api.folderSheet=folderSheet;api.HOME=HOME;api.activeNews=activeNews;api.clList=clList;api.clLines=clLines;api.THEMES=THEMES;api.garageSheet=garageSheet;api.needCity=()=>!hadSave&&!startPick;api.startName=()=>startPick?startPick.zone.name:(lastZone()||{}).name||'';api.openCityPick=()=>{const p=$('#iMapPanel');if(p)p.classList.add('open');document.body.classList.add('imap');const s=$('#spick');if(s){s.classList.remove('flash');void s.offsetWidth;s.classList.add('flash');}};api.lastZone=lastZone;api.howTo=howTo;api.whatsNew=whatsNew;api.featuresSheet=featuresSheet;window.BB=api;
+api.addResumer=addResumer;api.resumeWait=resumeWait;api.getWait=()=>wait;api.applyTheme=applyTheme;api.phoneSheet=phoneSheet;api.folderSheet=folderSheet;api.HOME=HOME;api.activeNews=activeNews;api.clList=clList;api.clLines=clLines;api.THEMES=THEMES;api.garageSheet=garageSheet;api.now=bayNow;api.addHouseAd=f=>EXTRA_ADS.push(f);api.needCity=()=>!hadSave&&!startPick;api.startName=()=>startPick?startPick.zone.name:(lastZone()||{}).name||'';api.openCityPick=()=>{const p=$('#iMapPanel');if(p)p.classList.add('open');document.body.classList.add('imap');const s=$('#spick');if(s){s.classList.remove('flash');void s.offsetWidth;s.classList.add('flash');}};api.lastZone=lastZone;api.howTo=howTo;api.whatsNew=whatsNew;api.featuresSheet=featuresSheet;window.BB=api;
 const queued=Array.isArray(window.BBFeatures)?window.BBFeatures:[];window.BBFeatures={push(f){try{f(api);}catch(e){console.error('Feature failed',e);}}};queued.forEach(f=>window.BBFeatures.push(f));
 flushStatic();
 

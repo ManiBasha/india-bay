@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.11';
+window.__ibOnlineV = '1.01.12';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -231,7 +231,8 @@ window.BBFeatures.push(function (bb) {
     else if (d.t === 'snap') { online = d.online; for (const p of d.list) upsert(p); renderChip(); }
     else if (d.t === 'p') { upsert(d); }
     else if (d.t === 'leave') { drop(d.id); renderChip(); }
-    else if (d.t === 'pong') { online = d.online; if (d.city != null) cityN = d.city; renderChip(); }
+    else if (d.t === 'pong') { online = d.online; if (d.city != null) cityN = d.city; if (d.ts) { const off = d.ts - Date.now(); window.__ibClockOff = window.__ibClockOff == null ? off : window.__ibClockOff * .7 + off * .3; } renderChip(); }
+    else if (d.t === 'mg') bb.emit('mg', d);
     else if (d.t === 'vcguest') bb.toast('🎙 Hold to talk is for Google accounts · sign in with Google in ⚙ Settings → Online status', '#ffc93c');
     else if (d.t === 'slow') bb.toast('Wait a moment before sending again', '#ffc93c');
     else if (d.t === 'chat') chat(d);

@@ -17,7 +17,7 @@ window.BBFeatures.push(function (bb) {
   // the strip
   const box = document.createElement('div'); box.id = 'timers'; box.className = 'hud'; box.setAttribute('aria-live', 'off'); document.body.appendChild(box);
   function list() { const out = []; const now = Date.now();
-    const w = bb.getWait && bb.getWait(); if (w && w.total) out.push({ icon: iconFor(w.kind), label: w.kind || w.title, left: w.total - w.t });
+    const w = bb.getWait && bb.getWait(); if (w && w.total && w.total < 1e6) out.push({ icon: iconFor(w.kind), label: w.kind || w.title, left: w.total - w.t });
     const c = bb.CINE && bb.CINE.state; if (c && c.o && c.o.dur) out.push({ icon: iconFor(c.o.label || c.o.kind), label: c.o.label || c.o.title || 'Ride', left: c.o.dur - c.t });
     for (const j of jobs()) out.push({ icon: j.icon, label: j.label, left: (j.end - now) / 1000, id: j.id });
     for (const f of sources) { try { const r = f(); if (r) out.push(...r); } catch (e) {} }

@@ -239,9 +239,16 @@ export class Region extends DurableObject {
       const out = { t: 'call', k: d.k, n: p.name };
       if (d.k === 'vc') Object.assign(out, { a: d.a, ms: num(d.ms, 300, 10000) | 0, mime: VOICE_MIME.has(d.mime) ? d.mime : 'audio/webm' });
       this.send(target, JSON.stringify(out));
+    } else if (d.t === 'mg') {
+      // Mini games between players near each other (Beta v1.01.12): invites, replies and moves, sent only to the named player.
+      const K = new Set(['inv', 'acc', 'dec', 'mv', 'bye']); if (!K.has(d.k) || typeof d.to !== 'string') return;
+      if (now - (p.mgAt || 0) < 100) return; p.mgAt = now;
+      const g = typeof d.g === 'string' && /^[a-z0-9]{1,12}$/.test(d.g) ? d.g : ''; const s = typeof d.s === 'string' && d.s.length <= 300 ? d.s : '';
+      const out = JSON.stringify({ t: 'mg', k: d.k, id: p.id, n: p.name, g, s, m: num(d.m, 0, 1e9) | 0 });
+      for (const [w, q] of this.players) if (q.id === d.to) { if (near(p, q, NEAR)) this.send(w, out); break; }
     } else if (d.t === 'ping') {
       let city = 0, near1 = 0; for (const q of this.players.values()) { if (!q.ready) continue; if (p.zn && q.zn === p.zn) city++; if (near(p, q, NEAR)) near1++; }
-      this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size, city, near: near1, zn: p.zn }));
+      this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size, city, near: near1, zn: p.zn, ts: Date.now() }));   // ts: the shared clock (Beta v1.01.12)
     }
     this.sweep(now);
   }
