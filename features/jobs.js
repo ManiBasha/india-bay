@@ -16,6 +16,7 @@ window.BBFeatures.push(function (bb) {
     dabba: { name: 'Dabbawala', veh: ['cycle', 'foot'], unlock: 'No licence needed', rate: .35, icon: '🥡', desc: 'Home tiffin to office, by noon, on cycle or local train' }
   };
   let J = null; let freelance = false; let streak = 0;
+  bb.TIMERS.source(() => J && J.timer > 0 ? [{ icon: J.t === 'bus' ? '🚌' : JOBS[J.t].kind === 'food' ? '🛵' : '📦', label: J.stage === 'pickup' ? 'Pick up' : J.t === 'bus' ? 'Route' : 'Deliver', left: J.timer }] : []);
   // Delivery bag in the app's colour on the back of your vehicle while you carry an order.
   let bagMesh = null; function bag(on) { const v = bb.player.veh; if (bagMesh && bagMesh.parent) bagMesh.parent.remove(bagMesh); bagMesh = null; if (!on || !v || !J || !JOBS[J.t].bag) return; const sp = v.spec; const g = new bb.THREE.Mesh(new bb.THREE.BoxGeometry(.55, .5, .5), bb.LMat(JOBS[J.t].bag)); g.position.set(0, sp.two || sp.pedal ? 1.35 : 1.2, -(sp.len / 2) + (sp.two || sp.pedal ? .25 : .4)); g.castShadow = true; v.m.add(g); bagMesh = g; } let nextOfferT = 0; let hail = null;
   const rating = t => (P().ratings[t] != null ? P().ratings[t] : 3);

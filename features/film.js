@@ -2,7 +2,8 @@
 // Only for admins and testers (Settings → Film mode, or press F9). Records a 16:9 or 9:16 video with
 // optional cinema bars, the place name and an indiabaygame.com watermark burned into the video.
 window.BBFeatures.push(function (bb) {
-  const allowed = () => !!(bb.adminOK || bb.testMode || (bb.ONLINE && (bb.ONLINE.isAdmin || bb.ONLINE.isTester)));
+  // every player (Beta v1.01.11) unless the admin switches it off; admins and testers always
+  const allowed = () => !!(bb.CFG.filmOn !== false || bb.adminOK || bb.testMode || (bb.ONLINE && (bb.ONLINE.isAdmin || bb.ONLINE.isTester)));
   const MODES = [['tour', '🎬 Landmark tour', 'Glides round the famous places, like the start screen'], ['orbit', '🔄 Orbit me', 'Circles slowly around you or your vehicle'],
     ['drone', '🚁 Drone follow', 'High and behind, follows as you drive or walk'], ['fly', '✈ Flyby', 'Low and fast past you, then swings round'], ['street', '🎥 Street level', 'Fixed camera by the road as you pass']];
   const st = { on: false, mode: 'drone', bars: true, mark: true, cap: true, fmt: '16:9', t: 0, tourI: 0, fix: null };
@@ -25,7 +26,7 @@ window.BBFeatures.push(function (bb) {
     if (st.cap) { const c = caption(); if (c) { cctx.font = `800 ${Math.round(34 * u)}px system-ui, sans-serif`; cctx.fillStyle = 'rgba(0,0,0,.45)'; cctx.fillText(c, 42 * u + 2, H - bh - 40 * u + 2); cctx.fillStyle = '#fff'; cctx.fillText(c, 42 * u, H - bh - 40 * u); } }
     if (st.mark) { cctx.font = `800 ${Math.round(22 * u)}px system-ui, sans-serif`; const t = 'INDIA BAY · indiabaygame.com'; const w = cctx.measureText(t).width; cctx.fillStyle = 'rgba(0,0,0,.4)'; cctx.fillText(t, W - w - 30 * u + 2, bh + 44 * u + 2); cctx.fillStyle = '#ffc93c'; cctx.fillText(t, W - w - 30 * u, bh + 44 * u); } }
   bb.onAfterRender(compose);
-  function start() { if (!allowed()) return bb.toast('Film mode is for admins and testers', '#ff9f1c'); if (!bb.started) return; if (st.on) return; if (bb.photo) return bb.toast('Close photo mode first', '#d6c8e4');
+  function start() { if (!allowed()) return bb.toast('Film mode is switched off right now', '#ff9f1c'); if (!bb.started) return; if (st.on) return; if (bb.photo) return bb.toast('Close photo mode first', '#d6c8e4');
     st.on = true; st.t = 0; st.fix = null; document.body.classList.add('film'); cam.live = true; bb.photo = cam; bb.viewAt = () => { if (st.mode === 'tour') { const T = bb.tourSpots[st.tourI]; if (T) return { x: T.cx, z: T.cz }; } return bb.ppos(); }; ui(); }
   function stop() { if (rec) stopRec(); st.on = false; document.body.classList.remove('film', 'filmbars'); bb.photo = null; bb.viewAt = null; if (bar) bar.remove(); bar = null; }
   function ui() { if (bar) bar.remove(); bar = document.createElement('div'); bar.id = 'filmBar'; document.body.classList.toggle('filmbars', st.bars);
@@ -49,6 +50,6 @@ window.BBFeatures.push(function (bb) {
     if (e.code === 'F9') { e.preventDefault(); return st.on ? stop() : start(); }
     if (!st.on) return; if (e.code === 'KeyH' && bar) bar.hidden = !bar.hidden; if (e.code === 'KeyR') rec ? stopRec() : startRec(); if (e.code === 'Escape') stop();
     const n = { Digit1: 'tour', Digit2: 'orbit', Digit3: 'drone', Digit4: 'fly', Digit5: 'street' }[e.code]; if (n) { st.mode = n; st.t = 0; st.fix = null; ui(); } });
-  bb.addApp({ id: 'film', label: 'Film mode', icon: '🎬', group: 'settings', show: allowed, fn: () => { if (!allowed()) return bb.toast('Film mode is for admins and testers', '#ff9f1c'); bb.closeSheet(); setTimeout(start, 120); } });
+  bb.addApp({ id: 'film', label: 'Film mode', icon: '🎬', group: 'settings', show: allowed, fn: () => { if (!allowed()) return bb.toast('Film mode is switched off right now', '#ff9f1c'); bb.closeSheet(); setTimeout(start, 120); } });
   bb.FILM = { start, stop, get on() { return st.on; }, allowed };
 });

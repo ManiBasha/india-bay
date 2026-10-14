@@ -17,6 +17,7 @@ window.BBFeatures.push(function (bb) {
   let mapTab = 'map';
   function tabs() { return `<div class="chips">${[['map', '🗺 Map'], ['india', '🇮🇳 All India']].map(([k, l]) => `<button class="chip${k === mapTab ? ' on' : ''}" data-tab="${k}">${l}</button>`).join('')}${gps ? '<button class="chip" data-tab="clear">✖ Clear route</button>' : ''}</div>`; }
   function mapSheet(tab) { if (tab === 'clear') { gps = null; bb.toast('Directions cleared', '#d6c8e4'); tab = null; } if (tab === 'city' || tab === 'region') tab = 'map'; if (tab) mapTab = tab; if (mapTab === 'india') return indiaTab(); return zoomTab(); }
+  bb.directions = (x, z, name) => go(x, z, name);
   function go(x, z, name) { const r = bb.nearestRoadPoint(x, z, 400); setGps(r && Math.hypot(r.x - x, r.z - z) < 60 ? r.x : x, r && Math.hypot(r.x - x, r.z - z) < 60 ? r.z : z, name); bb.toast(`Directions to ${bb.esc(name)} · follow the blue line`, '#5fb4ff'); }
   function selectCard(sh, x, z, name, sub, pin) { const el = sh.querySelector('#msel'); const pp = bb.ppos(); el.innerHTML = `<div class="selcard"><div><b>${bb.esc(name)}</b><small>${bb.esc(sub || '')} · ${dkm(Math.hypot(x - pp.x, z - pp.z))} away</small></div><div class="btnrow" style="gap:6px;flex-wrap:nowrap"><button class="go" data-dir>Directions</button><button class="buy ghost" data-unsel>Close</button></div></div>`;
     el.querySelector('[data-dir]').onclick = () => go(x, z, name); el.querySelector('[data-unsel]').onclick = () => { el.innerHTML = ''; if (pin) pin(null); }; if (pin) pin([x, z]); }
@@ -120,10 +121,12 @@ window.BBFeatures.push(function (bb) {
     if (mode === 'local') return [[2902, from.z], [2902, to.z]];
     if (mode === 'bullet' && bb.BULLET) return bb.BULLET.path(from.x, from.z, to.x, to.z);
     const r = bb.findRoute(from.x, from.z, to.x, to.z); return r && r.length > 1 ? [[from.x, from.z]].concat(r, [[to.x, to.z]]) : [[from.x, from.z], [to.x, to.z]]; }
-  function journey(mode, fromName, to, dist) { const [tk, maxT] = bb.CFG.travel[mode] || [0, 60]; const secs = Math.max(12, Math.round(maxT * Math.min(1, Math.max(.25, dist / 7000)))); const fl = FLAVOUR[mode === 'sleeper' || mode === 'ac' ? 'train' : mode] || FLAVOUR.bus;
+  function journey(mode, fromName, to, dist, elapsed) { elapsed = elapsed || 0; const [tk, maxT] = bb.CFG.travel[mode] || [0, 60]; const secs = Math.max(12, Math.round(maxT * Math.min(1, Math.max(.25, dist / 7000)))); const fl = FLAVOUR[mode === 'sleeper' || mode === 'ac' ? 'train' : mode] || FLAVOUR.bus;
     if (bb.player.mode === 'drive') bb.exitVehicle(true);
-    const arrive = () => { bb.teleport(to.x, to.z, to.rot || 0); bb.toast(`Welcome to ${to.zoneName || to.name}`, '#ffc93c'); bb.emit('travel', { mode, to: to.name }); bb.save(); };
-    if (!bb.CINE) { bb.openWait({ kind: MODE[mode], title: `${fromName} → ${to.name}`, sub: fl[0], total: secs, cancel: 'Get off and go back', onDone: arrive }); return; }
+    P().extra.trip = { mode, fromName, to, dist, t0: Date.now() - elapsed * 1000, secs, label: MODE[mode] }; bb.setDirty(); bb.save();
+    const endTrip = () => { delete P().extra.trip; bb.setDirty(); };
+    const arrive = () => { endTrip(); bb.teleport(to.x, to.z, to.rot || 0); bb.toast(`Welcome to ${to.zoneName || to.name}`, '#ffc93c'); bb.emit('travel', { mode, to: to.name }); bb.save(); };
+    if (!bb.CINE) { bb.openWait({ kind: MODE[mode], title: `${fromName} → ${to.name}`, sub: fl[0], total: secs, t: elapsed, cancel: 'Get off and go back', onDone: arrive, onCancel: endTrip }); return; }
     const R = RIDE[mode] || RIDE.bus; const pp = bb.ppos(); const pts = ridePath(mode, pp, to); const km = Math.round(dist * 2.4 / 1000);
     // flights take off, climb above the clouds, cruise and land; the rest stay on the ground (the metro runs on its viaduct)
     const rw = mode === 'flight' ? runway(pp).L : 0; const y = mode === 'flight' ? (fr, s, len) => { const up = Math.min(s, len - s); return 3 + Math.min(190, Math.max(0, up - rw * .55) * .4); } : R.y;
@@ -131,8 +134,12 @@ window.BBFeatures.push(function (bb) {
       label: MODE[mode], title: `${fromName} → ${to.name}`, sub: fl[0], lines: fl, look: R.look || 'side', clouds: mode === 'flight' ? 175 : 0, cancel: 'Get off · go back', skipLabel: 'Skip to arrival ⏭',
       timeText: (f) => { const l = Math.max(0, Math.ceil(secs * (1 - f))); return `${km} km · ${Math.floor(l / 60)}:${String(l % 60).padStart(2, '0')} to arrival · Bay ${bb.bayTime()}`; },
       onScene: k => bb.CINE.setSub(k === 1 ? `Half-way · ${Math.round(km / 2)} km to go` : `Arriving at ${to.name}`),
-      onDone: arrive }));
+      elapsed, onCancel: st => { endTrip(); if (st && st.start) bb.teleport(st.start.x, st.start.z, st.start.h); }, onDone: arrive }));
   }
+  // a trip still running from last time (the browser was closed or the screen was off)
+  bb.onStart(() => setTimeout(() => { const t = P().extra && P().extra.trip; if (!t) return; const el = (Date.now() - t.t0) / 1000;
+    if (el >= t.secs) { delete P().extra.trip; bb.teleport(t.to.x, t.to.z, t.to.rot || 0); bb.toast(`${t.label} · you arrived at ${t.to.zoneName || t.to.name} while you were away`, '#ffc93c'); bb.emit('travel', { mode: t.mode, to: t.to.name }); bb.save(); return; }
+    bb.toast(`Welcome back · your ${t.label.toLowerCase()} is still on the way`, '#d6c8e4'); journey(t.mode, t.fromName, t.to, t.dist, el); }, 900));
   function arrivalFor(type, zoneId) { const z = W.zones.find(q => q.id === zoneId); const p = bb.pois.find(q => q.type === type && q.zone === z) || bb.pois.find(q => q.zone === z); if (!p) return null; return { x: p.x + Math.sin(p.rot) * 2, z: p.z + Math.cos(p.rot) * 2, rot: p.rot, name: p.name, zoneName: z.name }; }
   function bookSheet(poi, modes, dests) { const here = poi.zone; let mode = modes[0];
     const draw = () => { const [tk] = bb.CFG.travel[mode]; bb.openSheet(poi.name, `${MODE[mode]} · Cash ${bb.inr(P().cash)}`, `<div class="chips">${modes.map(m => `<button class="chip${m === mode ? ' on' : ''}" data-m="${m}">${MODE[m]}</button>`).join('')}</div>` +

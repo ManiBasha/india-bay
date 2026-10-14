@@ -75,6 +75,8 @@ window.BBFeatures.push(function (bb) {
   const CHAPTER_BONUS = 5000;
   // save data: { chapters: { id: { step, cnt, done } }, paused }. Old saves (one Mumbai chapter) are carried over.
   function st() { const p = P(); const s = p.story = p.story || {}; if (!s.chapters) { s.chapters = {}; if (s.step || s.done) s.chapters.mumbai = { step: s.done ? 6 : Math.min(5, s.step || 0), cnt: 0, done: !!s.done }; } return s; }
+  // Beta v1.01.11: a chapter only runs once you start it (Story → Start). Chapters you were already playing carry on.
+  const isOn = c => { const x = cs(c); return !x.done && (x.on || (x.step > 0 && !x.paused)); };
   const chOf = id => CH.find(c => c.id === id); const cs = c => { const s = st(); return s.chapters[c.id] = s.chapters[c.id] || { step: 0, cnt: 0, done: false }; };
   function zoneId() { const pp = bb.ppos(); const z = bb.zoneAt(pp.x, pp.z, 60); return z ? z.id : null; }
   const hereCh = () => { const z = zoneId(); return z ? CH.find(c => c.zones.includes(z)) : null; };
@@ -84,25 +86,27 @@ window.BBFeatures.push(function (bb) {
     bb.setDirty(); bb.save(); }
   // events: a step listening for this event moves on (city steps only count while you are in that chapter's city)
   const EVS = new Set(); CH.forEach(c => c.steps.forEach(s => s.ev && EVS.add(s.ev)));
-  for (const ev of EVS) bb.on(ev, d => { if (st().paused) return; const z = zoneId(); for (const c of CH) { const x = cs(c); if (x.done) continue; const step = c.steps[x.step]; if (!step || step.ev !== ev) continue; if (step.inCity && !c.zones.includes(z)) continue; if (step.test && !step.test(d)) continue;
+  for (const ev of EVS) bb.on(ev, d => { if (st().paused) return; const z = zoneId(); for (const c of CH) { const x = cs(c); if (x.done) continue; const step = c.steps[x.step]; if (!step || step.ev !== ev) continue; if (step.inCity && !c.zones.includes(z)) continue; if (!isOn(c)) continue; if (step.test && !step.test(d)) continue;
       x.cnt = (x.cnt || 0) + 1; bb.setDirty(); if (x.cnt >= (step.count || 1)) advance(c); } });
-  bb.on('discover', n => { for (const c of CH) { const x = cs(c); if (x.done) continue; const step = c.steps[x.step]; if (step && step.kind === 'place' && step.place === n) advance(c); } });
+  bb.on('discover', n => { for (const c of CH) { const x = cs(c); if (x.done || !isOn(c)) continue; const step = c.steps[x.step]; if (step && step.kind === 'place' && step.place === n) advance(c); } });
   let introSeen = {}, tk = 0;
   bb.onUpdate(dt => { tk -= dt; if (tk > 0) return; tk = .5; const s = st(); if (s.paused) return; const c = hereCh(); if (!c) return; const x = cs(c); if (x.done) return;
-    if (!x.met) { x.met = 1; bb.setDirty(); if (!introSeen[c.id]) { introSeen[c.id] = 1; setTimeout(() => bb.toast(`📖 New chapter · ${bb.esc(c.title)}<br><span style="font-size:14px;font-weight:600">${bb.esc(c.intro)}</span>`, '#ffc93c'), 800); } }
+    if (!isOn(c)) { if (!introSeen[c.id]) { introSeen[c.id] = 1; const zn = W.zones.find(z => z.id === c.zones[0]).name; setTimeout(() => bb.toast(`📖 There are new chapters in "${bb.esc(zn)}"<br><span style="font-size:14px;font-weight:600">Phone → Bay → Story to start one</span>`, '#ffc93c'), 1500); } return; }
+    if (!x.met) { x.met = 1; bb.setDirty(); }
     const step = c.steps[x.step]; if (!step) return;
     if (step.kind === 'near' && bb.player.mode === 'foot') { const t = step.target(); const pp = bb.ppos(); if (t && Math.hypot(pp.x - t.x, pp.z - t.z) < step.near) { if (step.say) bb.toast(step.say, '#ffc93c'); advance(c); } }
     if (step.kind === 'place' && P().discovered[step.place]) advance(c); });
   bb.addMission(() => { const s = st(); if (s.paused) return null; let c = hereCh(); if (c && cs(c).done) c = null;
+    if (c && !isOn(c)) return { pri: 4, k: '📖 Story', t: `New chapters in ${W.zones.find(z => z.id === c.zones[0]).name}`, m: 'Phone → Bay → Story to start one' };
     if (c) { const x = cs(c); const step = c.steps[x.step]; if (!step) return null; const t = step.target && step.target(); return { pri: 30, k: `📖 ${c.title} · ${x.step + 1}/${c.steps.length}`, t: step.t, m: step.m + (step.count ? ` (${x.cnt || 0}/${step.count})` : ''), target: t ? { x: t.x, z: t.z, col: 0xffc93c } : null }; }
     // not in a story city: point to the nearest chapter you have not finished
-    const pp = bb.ppos(); const nx = CH.filter(q => !cs(q).done).map(q => ({ q, c: centre(q) })).sort((a, b) => Math.hypot(a.c.x - pp.x, a.c.z - pp.z) - Math.hypot(b.c.x - pp.x, b.c.z - pp.z))[0];
+    const pp = bb.ppos(); const nx = CH.filter(q => isOn(q)).map(q => ({ q, c: centre(q) })).sort((a, b) => Math.hypot(a.c.x - pp.x, a.c.z - pp.z) - Math.hypot(b.c.x - pp.x, b.c.z - pp.z))[0];
     if (!nx) return null; const started = cs(nx.q).step > 0; return { pri: 12, k: '📖 Story', t: `${started ? 'Continue' : 'Next chapter'}: ${nx.q.title.split(' · ')[0]}`, m: `Travel to ${W.zones.find(z => z.id === nx.q.zones[0]).name} to ${started ? 'carry on' : 'start'} its chapter`, target: { x: nx.c.x, z: nx.c.z, col: 0xffc93c } }; });
 
   function storySheet(open) { const s = st(); const done = CH.filter(c => cs(c).done).length;
     if (open) { const c = chOf(open); const x = cs(c); return bb.openSheet(`📖 ${bb.esc(c.title)}`, `${x.done ? 'Complete' : `Step ${x.step + 1} of ${c.steps.length}`} · chapter bonus ${bb.inr(bb.price(CHAPTER_BONUS))}`, `<p class="note" style="font-size:14px">${bb.esc(c.intro)}</p>` +
-      c.steps.map((q, i) => `<div class="row"><div class="nm">${i < x.step || x.done ? '✅' : i === x.step ? '➡️' : '▫️'} ${bb.esc(q.t)}<small>${bb.esc(q.m)}</small></div><b>${bb.inr(bb.price(q.reward))}</b></div>`).join('') + bb.rowHtml('dir', `Directions to ${W.zones.find(z => z.id === c.zones[0]).name}`, 'Chapters start when you arrive in the city', 'Go', 'ghost') + bb.rowHtml('back', 'All chapters', '', 'Back', 'ghost'),
-      sh => sh.onclick = e => { const id = e.target.dataset.id; if (id === 'back') storySheet(); if (id === 'dir' && bb.TRAVEL) { const p = centre(c); bb.TRAVEL.go(p.x, p.z, W.zones.find(z => z.id === c.zones[0]).name); } }); }
+      c.steps.map((q, i) => `<div class="row"><div class="nm">${i < x.step || x.done ? '✅' : i === x.step ? '➡️' : '▫️'} ${bb.esc(q.t)}<small>${bb.esc(q.m)}</small></div><b>${bb.inr(bb.price(q.reward))}</b></div>`).join('') + (x.done ? '' : isOn(c) ? bb.rowHtml('stop', '⏸ Pause this chapter', 'Your progress is kept · start again any time', 'Pause', 'ghost') : bb.rowHtml('start', '▶ Start this chapter', 'Its goals show in the tracker while you are in the city', 'Start', '')) + bb.rowHtml('dir', `Directions to ${W.zones.find(z => z.id === c.zones[0]).name}`, 'Its steps happen in this city', 'Go', 'ghost') + bb.rowHtml('back', 'All chapters', '', 'Back', 'ghost'),
+      sh => sh.onclick = e => { const id = e.target.dataset.id; if (id === 'back') storySheet(); if (id === 'start') { x.on = true; x.paused = false; bb.setDirty(); bb.save(); bb.toast(`📖 ${bb.esc(c.title)} started`, '#ffc93c'); return storySheet(open); } if (id === 'stop') { x.on = false; if (x.step > 0) x.paused = true; bb.setDirty(); return storySheet(open); } if (id === 'dir' && bb.TRAVEL) { const p = centre(c); bb.TRAVEL.go(p.x, p.z, W.zones.find(z => z.id === c.zones[0]).name); } }); }
     bb.openSheet('📖 Story', `${done} of ${CH.length} city chapters done · each step pays, each chapter pays ${bb.inr(bb.price(CHAPTER_BONUS))}`, CH.map(c => { const x = cs(c); return bb.rowHtml('c:' + c.id, `${x.done ? '✅' : x.step ? '➡️' : '📍'} ${bb.esc(c.title)}`, x.done ? 'Complete' : `${x.step}/${c.steps.length} steps · ${W.zones.find(z => z.id === c.zones[0]).name}`, 'Open', 'ghost'); }).join('') +
       bb.rowHtml('pause', s.paused ? 'Show story goals' : 'Hide story goals', 'Free roam without the story tracker', s.paused ? 'Show' : 'Hide', 'ghost'),
       sh => sh.onclick = e => { const id = e.target.dataset.id; if (!id) return; if (id === 'pause') { s.paused = !s.paused; bb.setDirty(); return storySheet(); } if (id.startsWith('c:')) storySheet(id.slice(2)); }); }

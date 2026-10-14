@@ -9,7 +9,7 @@
     'Follow @indiabaygame on Instagram for news and updates'];
   const T0 = performance.now(); let ready = false;
   function tick() { const bar = $('#iloadBar'), txt = $('#iloadTxt'); if (!bar) return;
-    if (window.BB && !ready) { ready = true; bar.style.width = '100%'; txt.textContent = 'Ready'; setTimeout(() => document.body.classList.add('iready'), 350); const go = $('#go'); if (go) { go.disabled = false; } return; }
+    if (window.BB && !ready) { ready = true; bar.style.width = '100%'; txt.textContent = 'Ready'; setTimeout(() => document.body.classList.add('iready'), 350); const go = $('#go'); if (go) { go.disabled = false; try { go.focus({ preventScroll: true }); } catch (e) {} } return; }
     if (ready) return; const t = (performance.now() - T0) / 1000; const f = 1 - Math.exp(-t / 6); bar.style.width = Math.round(f * 92) + '%';
     const steps = ['Building West India…', 'Laying highways and flyovers…', 'Lighting the streets…', 'Waking up the cities…', 'Parking the autos…', 'Almost there…']; txt.textContent = steps[Math.min(steps.length - 1, Math.floor(t / 3))];
     requestAnimationFrame(tick); }

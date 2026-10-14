@@ -132,22 +132,21 @@ code,pre{font-size:12.5px;background:var(--panel2);border-radius:8px;padding:2px
   async function settingsTab() {
     const c = await loadCfg();
     const S = [
-      ['Game', txt('name', 'Game name', 40) + txt('tagline', 'Tagline', 90) + `<label style="grid-column:1/-1">Announcement on the start screen<textarea data-p="announce" maxlength="240" placeholder="Diwali update: double fares this week"></textarea></label>`],
-      ['Look', sel('theme', 'Colour theme', Object.entries(K.THEMES).map(([k, t]) => [k, t.label])) + `<label>Accent colour<input type="color" data-p="accent"></label>`],
+      ['Announcements', `<label style="grid-column:1/-1">Announcement on the start screen<textarea data-p="announce" maxlength="240" placeholder="Diwali update: double fares this week"></textarea></label>`],
       ['Weather', sel('weather', 'Weather', [['auto', 'Follows the season'], ['clear', 'Always clear'], ['cloudy', 'Cloudy'], ['rain', 'Rain'], ['monsoon', 'Monsoon storm'], ['fog', 'Fog']])],
       ['Needs and activity times', ck('needs', 'Hunger, toilet and sleep needs') + num('foodHrs', 'Food lasts (game hours)', 2, 48) + num('wcHrs', 'Bladder lasts (game hours)', 2, 48) + num('awakeHrs', 'Awake before exhausted (game hours)', 4, 48) + Object.keys(ACT).map(k => num('act.' + k, ACT[k] + ' (game minutes)', 1, 720)).join('')],
       ['Queues (real seconds per person)', Object.keys(QUE).map(k => num('queue.' + k, QUE[k], 1, 300)).join('')],
       ['Travel tickets and times', Object.keys(TRV).map(k => num('travel.' + k + '.0', TRV[k] + ' ticket (₹)', 0, 100000, 10) + num('travel.' + k + '.1', TRV[k] + ' longest trip (s)', 5, 1800, 5)).join('')],
       ['Streets and police', num('traffic', 'Traffic vehicles near the player', 0, 60) + num('peds', 'Pedestrians near the player', 0, 80) + sel('police', 'Police', [['off', 'Off'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']]) + ck('weapons', 'Weapons and bank robbery')],
-      ['Online and moderation', ck('voiceChat', 'Voice messages between players (turn off if there is trouble; takes effect within a minute for everyone)') + ck('baygramOn', 'BayGram feed: players post photos and clips taken in the game (turn off to pause the feed and posting)') + ck('challansOn', 'Traffic challans: red lights, speed cameras, riding without a helmet')],
+      ['Online and moderation', ck('voiceChat', 'Voice messages between players (turn off if there is trouble; takes effect within a minute for everyone)') + ck('baygramOn', 'BayGram feed: players post photos and clips taken in the game (turn off to pause the feed and posting)') + ck('challansOn', 'Traffic challans: red lights, speed cameras, riding without a helmet') + ck('filmOn', 'Film mode for every player: cinematic cameras and video recording (Profile → Film mode)')],
       ['Regions', K.REGIONS.map(r => `<label class="ck"><input type="checkbox" data-p="regions.${r.id}" data-b="1"${r.map ? '' : ' disabled'}> ${esc(r.name)}${r.map ? '' : ' (map not built yet)'}</label>`).join('')]
     ];
     $('#pane').innerHTML = `<div class="card"><h2>Game settings</h2><p class="note">These apply to every player.</p><form id="f" novalidate>${S.map(([t, h], i) => `<details${i === 0 ? ' open' : ''}><summary>${t}</summary><div class="grid" style="margin-top:10px">${h}</div></details>`).join('')}
-      <details><summary>Changelog</summary><p class="note">Beta v1.0.0 has no change history. For each later update add an entry with a higher version (for example Beta v1.0.1) and players see a What's new pop-up once.</p><div id="l_changelog"></div></details></form>
+      <details><summary>News and announcements</summary><p class="note">Each item shows between its dates on the start screen ticker and in Phone → BayRadio.</p><div id="l_news"></div></details><details><summary>Changelog</summary><p class="note">Every version is listed. Edit any text, or set <b>Players see it</b> to Hide. Use | between lines in Notes. A new entry with a higher version shows players a What's new pop-up once.</p><div id="l_changelog"></div></details></form>
       <div class="bar"><button class="pri" id="save">Save for all players</button><button id="reset" class="danger">Reset to defaults</button><span class="note" id="msg" style="margin:0"></span></div></div>`;
     const f = $('#f');
     f.querySelectorAll('[data-p]').forEach(el => { const v = get(c, el.dataset.p); if (el.dataset.b) el.checked = !!v; else if (v != null) el.value = v; });
-    listEditor($('#l_changelog'), 'changelog');
+    c.changelog = K.fullChangelog(c.changelog); listEditor($('#l_news'), 'news'); listEditor($('#l_changelog'), 'changelog');
     f.addEventListener('input', e => { const el = e.target; if (!el.dataset.p) return; let v = el.dataset.b ? el.checked : el.type === 'number' ? Math.min(+el.max || 1e9, Math.max(+el.min || -1e9, +el.value || 0)) : el.value; if (el.dataset.p === 'theme') { f.querySelector('[data-p=accent]').value = K.THEMES[el.value].accent; set(c, 'accent', K.THEMES[el.value].accent); } set(c, el.dataset.p, v); });
     $('#save').onclick = () => saveCfg($('#msg'));
     $('#reset').onclick = () => { if (!confirm('Reset every setting to the defaults? You still need to press Save.')) return; cfg = JSON.parse(JSON.stringify(K.DEFAULTS)); settingsTab(); };

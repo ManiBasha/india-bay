@@ -36,7 +36,7 @@ window.BBFeatures.push(function (bb) {
   function toggleLook() { if (!cur) return; cur.look = cur.look === 'side' ? 'fwd' : 'side'; el.classList.toggle('lookfwd', cur.look === 'fwd'); const b = el.querySelector('[data-c="look"]'); if (b) b.textContent = cur.look === 'side' ? '👀 Look ahead' : '🪟 Window view'; }
 
   function play(o) { if (cur) stop(); if (bb.player.mode === 'drive') bb.exitVehicle(true); for (const k in keys) keys[k] = false;
-    const pp = bb.ppos(); cur = { o, t: 0, li: -1, look: o.look || 'side', start: { x: pp.x, z: pp.z, h: bb.player.h }, cp: new T.Vector3(), cl: new T.Vector3(), snap: true, seg: 0 };
+    const pp = bb.ppos(); cur = { o, t: o.elapsed || 0, t0: Date.now() - (o.elapsed || 0) * 1000, li: -1, look: o.look || 'side', start: { x: pp.x, z: pp.z, h: bb.player.h }, cp: new T.Vector3(), cl: new T.Vector3(), snap: true, seg: 0 };
     if (o.venue) bb.enterVenue(o.venue);
     if (o.clouds) addClouds(o.clouds);
     document.body.classList.add('cine'); el.hidden = false; el.className = 'k-' + (o.kind || 'none') + (o.hud ? ' hudless' : '') + ((o.look || 'side') === 'fwd' ? ' lookfwd' : '');
@@ -48,7 +48,7 @@ window.BBFeatures.push(function (bb) {
       if (k.startsWith('b:')) { const b = (o.buttons || []).find(q => q.id === k.slice(2)); if (b) b.fn(c); } };
     if (o.onStart) o.onStart(el, cur);
     bb.photo = dt => tick(dt); bb.avatar.visible = !!o.showAvatar; }
-  function tick(dt) { if (!cur) return; const o = cur.o; cur.t += dt; const f = o.dur ? Math.min(1, cur.t / o.dur) : 0; const st = cur;
+  function tick(dt) { if (!cur) return; const o = cur.o; cur.t = (Date.now() - cur.t0) / 1000; const f = o.dur ? Math.min(1, cur.t / o.dur) : 0; const st = cur;
     const c = o.cam(f, dt, st, keys); if (!c) return;
     const p = new T.Vector3(c.x, c.y, c.z), l = new T.Vector3(c.lx, c.ly, c.lz); if (cur.snap || c.snap) { cur.cp.copy(p); cur.cl.copy(l); cur.snap = false; }
     cur.cp.lerp(p, c.hard ? 1 : 1 - Math.exp(-dt * 8)); cur.cl.lerp(l, 1 - Math.exp(-dt * (c.lookK || 2.5))); bb.camera.position.copy(cur.cp); bb.camera.lookAt(cur.cl);
