@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.14';
+window.__ibOnlineV = '1.01.15';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -17,7 +17,9 @@ window.BBFeatures.push(function (bb) {
   let cityN = null; let lastErr = '', lastErrAt = 0; const noteErr = m => { lastErr = String(m || ''); lastErrAt = Date.now(); };
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
-  const muted = new Set((() => { try { return JSON.parse(localStorage.getItem('ib.muted') || '[]'); } catch (e) { return []; } })());
+  // players you muted (Beta v1.01.15: own key; 'ib.muted' is the sound on/off switch, which broke online when it held true/false)
+  const muted = new Set((() => { try { let L = JSON.parse(localStorage.getItem('ib.mutedPlayers') || 'null'); if (!Array.isArray(L)) { const old = JSON.parse(localStorage.getItem('ib.muted') || 'null'); L = Array.isArray(old) ? old : []; if (Array.isArray(old)) localStorage.setItem('ib.muted', 'false'); }
+    return L.filter(x => typeof x === 'string'); } catch (e) { return []; } })());
   const lastChat = {};
   const mats = {}; const mat = c => (mats[c] = mats[c] || bb.LMat(c));
   const $ = q => document.querySelector(q);
@@ -471,7 +473,7 @@ window.BBFeatures.push(function (bb) {
         if (id === 'voicein' && bb.VOICE) { bb.VOICE.hear = !bb.VOICE.hear; return sheet(); }
         if (id === 'riders') { allowRiders = !allowRiders; try { localStorage.setItem('ib.riders', allowRiders ? '1' : '0'); } catch (er) {} if (!allowRiders) { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; } return sheet(); }
         if (id === 'dropall') { for (const k of riders.keys()) vsend('drop', k); riders.clear(); lastSent = null; return sheet(); }
-        if (mu) { const k = mu.toLowerCase(); muted.has(k) ? muted.delete(k) : muted.add(k); try { localStorage.setItem('ib.muted', JSON.stringify([...muted])); } catch (er) {} bb.toast(muted.has(k) ? `${mu} muted` : `${mu} unmuted`, '#d6c8e4'); return sheet(); }
+        if (mu) { const k = mu.toLowerCase(); muted.has(k) ? muted.delete(k) : muted.add(k); try { localStorage.setItem('ib.mutedPlayers', JSON.stringify([...muted])); } catch (er) {} bb.toast(muted.has(k) ? `${mu} muted` : `${mu} unmuted`, '#d6c8e4'); return sheet(); }
         if (rep) return reportSheet(rep);
       });
   }
@@ -481,7 +483,7 @@ window.BBFeatures.push(function (bb) {
         e.preventDefault(); const reason = (s.querySelector('#rp_r').value + ' · ' + s.querySelector('#rp_t').value).slice(0, 300);
         const { error } = await sb.from('reports').insert({ target_name: name, reporter_name: profile ? profile.username : null, reason, last_chat: lastChat[name] || null });
         if (error) { const m = s.querySelector('#rp_m'); m.textContent = niceErr(error); m.className = 'note bad'; return; }
-        muted.add(name.toLowerCase()); try { localStorage.setItem('ib.muted', JSON.stringify([...muted])); } catch (er) {}
+        muted.add(name.toLowerCase()); try { localStorage.setItem('ib.mutedPlayers', JSON.stringify([...muted])); } catch (er) {}
         bb.closeSheet(); bb.toast(`Report sent · ${name} is muted for you`, '#3ddc97');
       };
     });
