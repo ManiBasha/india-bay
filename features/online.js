@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.12';
+window.__ibOnlineV = '1.01.13';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -23,9 +23,10 @@ window.BBFeatures.push(function (bb) {
   const $ = q => document.querySelector(q);
   const isAnon = () => !!(session && session.user && session.user.is_anonymous);
   const here = () => location.origin + location.pathname;
+  window.__ibOnlineStage = 'setup 1';
 
   /* ---------- page elements ---------- */
-  const lcol = $('#top .lcol');
+  const lcol = $('#top .lcol') || document.body;
   const chip = document.createElement('button'); chip.id = 'chat'; chip.className = 'pill'; chip.type = 'button'; chip.hidden = true; lcol.appendChild(chip);
   const log = document.createElement('div'); log.id = 'chatlog'; lcol.appendChild(log);
   const bar = document.createElement('form'); bar.id = 'chatbar'; bar.hidden = true; bar.setAttribute('novalidate', '');
@@ -36,7 +37,9 @@ window.BBFeatures.push(function (bb) {
   setTimeout(rngLabel, 0);
   document.body.appendChild(bar);
   const inp = bar.querySelector('input');
-  const introLine = document.createElement('div'); introLine.id = 'onl'; const cities = $('#cities'); if (cities) cities.after(introLine);
+  window.__ibOnlineStage = 'setup 2';
+  const introLine = document.createElement('div'); introLine.id = 'onl'; const cities = $('#cities'); if (cities && cities.parentNode) cities.parentNode.insertBefore(introLine, cities.nextSibling);
+  window.__ibOnlineStage = 'setup 3';
 
   /* ---------- Supabase ---------- */
   function loadScript() { return new Promise((res, rej) => { if (window.supabase && window.supabase.createClient) return res(); const s = document.createElement('script'); s.src = SB_JS; s.onload = res; s.onerror = () => rej(new Error('sign-in library did not load')); document.head.appendChild(s); }); }
