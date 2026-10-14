@@ -188,15 +188,16 @@ function startQueue(o){if(player.stars){toast('Lose the police first','#ff5d73')
 let sheetClose=null;const sheetOpen=()=>!$('#sheetWrap').hidden;
 // Every sheet has ‹ Back: it returns to the sheet you came from (Settings, Phone, Menu, apps, shops…), or closes the
 // first one. The phone's back gesture or button does the same.
-let sheetStack=[],curSheet=null,navBack=false,histOn=false,skipPop=0;
+let sheetStack=[],curSheet=null,navBack=false,histOn=false,skipPop=0;let pendingBack=0;
 function openSheet(title,sub,body,bind,onClose){const was=sheetOpen();if(!was)sheetStack=[];else if(curSheet&&!navBack&&curSheet.title!==title){sheetStack.push(curSheet);if(sheetStack.length>12)sheetStack.shift();}
   curSheet={title,sub,body,bind,onClose};$('#sheet').onclick=null;$('#sheetWrap').classList.remove('lookmode');
   $('#sheet').innerHTML=($('#sheetWrap').classList.contains('phonemode')?`<div class="pstat"><b>${bayTime()}</b><i class="notch"></i><span>📶 4G 🔋</span></div>`:'')+`<div class="shead"><button class="back" aria-label="Back" title="Back" data-back>‹</button><div class="stt"><h2>${title}</h2><div class="sub">${sub||''}</div></div><button class="x" aria-label="Close" data-close>×</button></div><div id="sbody">${body}</div>`;
   $('#sheetWrap').hidden=false;sheetClose=onClose||null;for(const k in keys)keys[k]=false;$$('.pad button').forEach(b=>b.classList.remove('on'));$('#sheet').querySelector('[data-close]').onclick=closeSheet;
   $('#sheet').querySelector('[data-back]').onclick=e=>{e.stopPropagation();sheetBack();};
+  if(pendingBack){clearTimeout(pendingBack);pendingBack=0;histOn=true;}   // a sheet that opens right after another closed reuses its history step
   if(!histOn){try{history.pushState({ibSheet:1},'');histOn=true;}catch(e){}}if(bind)bind($('#sheet'));}
 function sheetBack(){const prev=sheetStack.pop();if(!prev)return closeSheet();if(sheetClose){const f=sheetClose;sheetClose=null;try{f();}catch(e){}}navBack=true;try{openSheet(prev.title,prev.sub,prev.body,prev.bind,prev.onClose);}finally{navBack=false;}}
-function closeSheet(){$('#sheetWrap').hidden=true;$('#sheetWrap').classList.remove('phonemode');sheetStack=[];curSheet=null;if(histOn){histOn=false;try{skipPop++;history.back();}catch(e){skipPop=Math.max(0,skipPop-1);}}if(sheetClose){const f=sheetClose;sheetClose=null;f();}}
+function closeSheet(){$('#sheetWrap').hidden=true;$('#sheetWrap').classList.remove('phonemode');sheetStack=[];curSheet=null;if(histOn){histOn=false;clearTimeout(pendingBack);pendingBack=setTimeout(()=>{pendingBack=0;if(histOn)return;try{skipPop++;history.back();}catch(e){skipPop=Math.max(0,skipPop-1);}},80);}if(sheetClose){const f=sheetClose;sheetClose=null;f();}}
 addEventListener('popstate',()=>{if(skipPop){skipPop--;return;}if(!histOn)return;histOn=false;if(sheetOpen()){sheetBack();if(sheetOpen()&&!histOn){try{history.pushState({ibSheet:1},'');histOn=true;}catch(e){}}}});
 $('#sheetWrap').addEventListener('click',e=>{if(e.target.id==='sheetWrap')closeSheet();});
 const uiLock=()=>sheetOpen()||waitOpen()||!started||howOpen();

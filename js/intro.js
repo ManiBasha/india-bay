@@ -30,5 +30,13 @@
     // on a wide screen the city map stays open on the right
     if (matchMedia('(min-width: 980px)').matches) open(true);
   }
+  // problem finder (Beta v1.01.09): if the online box never appears, show why, without needing the browser console
+  const ERR = window.__ibErrors = []; addEventListener('error', e => { ERR.push(((e.filename || '').split('/').pop() || 'page') + ': ' + (e.message || 'error')); }, true);
+  addEventListener('unhandledrejection', e => { ERR.push('promise: ' + ((e.reason && e.reason.message) || e.reason)); });
+  setInterval(() => { const B = window.BB; if (!B || !B.started || document.querySelector('#chat') || document.querySelector('#ibDiag')) return; if (!window.__ibDiagT) { window.__ibDiagT = Date.now(); return; } if (Date.now() - window.__ibDiagT < 6000) return;
+    const lc = document.querySelector('#top .lcol'); if (!lc) return; const d = document.createElement('button'); d.id = 'ibDiag'; d.type = 'button'; d.className = 'pill'; d.style.cssText = 'pointer-events:auto;font:700 12px var(--f-display);color:#ffc93c;cursor:pointer;text-align:left;max-width:230px'; d.textContent = '⚠ Online did not load · tap';
+    d.onclick = () => { const lines = ['Online settings file: ' + (window.ONLINE && window.ONLINE.supabaseUrl ? 'found' : 'MISSING (js/online-config.js)'), 'Online code version: ' + (window.__ibOnlineV || 'old or not loaded'), 'Online step: ' + (window.__ibOnlineStage || 'never started'), 'Sign-in library: ' + (window.supabase ? 'loaded' : 'not loaded'), 'Game version: ' + ((document.querySelector('#ver') || {}).textContent || '?')].concat(ERR.slice(-4).map(e => 'Error: ' + e));
+      if (B.openSheet) B.openSheet('⚠ Online problem', 'Send a screenshot of this to the developer', lines.map(l => '<p class="note">' + l.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) + '</p>').join('')); else alert(lines.join('\n')); };
+    lc.appendChild(d); }, 1500);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();

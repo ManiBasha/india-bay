@@ -1,12 +1,15 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
+window.__ibOnlineV = '1.01.09';
 window.BBFeatures.push(function (bb) {
+  window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
   if (!C.supabaseUrl || !C.supabaseKey) {   // this copy has no online settings (for example the Claude preview): say so instead of showing nothing
     const lc = document.querySelector('#top .lcol'); if (lc) { const c = document.createElement('button'); c.id = 'chat'; c.className = 'pill'; c.type = 'button'; c.hidden = true; c.innerHTML = '<i class="dot"></i><b>Offline</b> <small>online play is on indiabaygame.com</small>'; lc.appendChild(c);
       c.onclick = () => bb.toast('This copy of the game has no online settings, so it plays offline. Play on indiabaygame.com to meet other players.', '#ffc93c'); bb.onStart(() => { c.hidden = false; }); }
     return; }
+  window.__ibOnlineStage = 'config ok';
   const THREE = bb.THREE;
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
@@ -72,7 +75,7 @@ window.BBFeatures.push(function (bb) {
   }
   const ready = (async () => {
     try {
-      await loadScript();
+      window.__ibOnlineStage = 'loading sign-in library'; await loadScript(); window.__ibOnlineStage = 'sign-in library loaded';
       sb = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' } });
       const q = new URLSearchParams(location.search);
       try { const st = await fetch(C.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: C.supabaseKey } }); if (st.ok) { const j = await st.json(); googleOn = !!(j.external && j.external.google); } } catch (e) {}
@@ -83,9 +86,9 @@ window.BBFeatures.push(function (bb) {
       loadConfig(); setInterval(loadConfig, 60 * 1000);
       if (session) await afterSignIn();
       if (sessionStorage.getItem('ib.cloudLoaded')) { sessionStorage.removeItem('ib.cloudLoaded'); setTimeout(() => bb.toast('☁ Loaded your cloud save', '#3ddc97'), 600); }
-      renderIntro(); serverStatus();
+      renderIntro(); serverStatus(); window.__ibOnlineStage = 'ready' + (session ? (isAnon() ? ' · guest' : ' · google') : ' · not signed in');
       return true;
-    } catch (e) { console.warn('Online unavailable', e); noteErr('Could not start online: ' + (e && e.message || e)); status = 'error'; renderIntro(); return false; }
+    } catch (e) { console.warn('Online unavailable', e); window.__ibOnlineStage = 'failed: ' + (e && e.message || e); noteErr('Could not start online: ' + (e && e.message || e)); status = 'error'; renderIntro(); return false; }
   })();
 
   /* ---------- Sign in with Google on the start screen (Beta v1.01.05) ----------
