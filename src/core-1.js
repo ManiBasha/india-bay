@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.07';
+const VERSION='Beta v1.01.08';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -12,6 +12,7 @@ const {REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg}
 // Beta v1.0.0 is the first public beta: no change history for it, the game's features are listed in Settings → Features.
 // Later updates add their notes here (or in Admin → Changelog) and players see a What's new pop-up once.
 const CHANGELOG=[
+  {v:'Beta v1.01.08',date:'2026-10-14',title:'Always the newest version',notes:'🔄 Fixed: after an update some browsers kept running old game files, so online play and other new features did not work until the cache was cleared. Every update now loads fresh files automatically.'},
   {v:'Beta v1.01.07',date:'2026-10-13',title:'Smoother traffic, online box',notes:'🟢 A new online box under your money shows Online or Offline, how many players are in your city and how many are near you.\n💬 Chat and voice can reach just the players within 50 m (📍) or the whole area (🏙). Hold to talk is for Google accounts.\n🚦 Traffic: vehicles turn in smooth curves, take turns at junctions instead of driving through each other, stop at new signals where highways meet, and U-turn properly or leave at the end of a road.\n🛣 Sharp bends on highways are now curves, joins are rounded, and roads no longer run off into the sea. Bridge walls open where another road crosses.\n⛴ Ferries wait in the water by their jetty, not on land. Beaches and shacks sit on the shore.\n🐄 Far fewer animals on city roads; they live along forest roads and in the zoos.'},
   {v:'Beta v1.01.06',date:'2026-10-13',title:'Online fixes',notes:'👥 Fixed: players near each other could stay invisible. Your position was not sent while a menu or pop-up was open, so others never saw you appear. It is now sent every few seconds.\n🌐 The online chip under your money always shows now (Online, Not signed in, Offline), and ⚙ Settings → Online status explains what is wrong and how to fix it.\n🔐 A Google sign-in that did not finish now tells you why.'},
   {v:'Beta v1.01.05',date:'2026-10-13',title:'A new start screen',notes:'🎬 A new game start screen: the camera tours famous places (Gateway of India, Hawa Mahal, the Statue of Unity, Mysore Palace and more) behind a game menu, with a loading bar, a player card and a BAY NEWS ticker.\n🔐 Sign in with Google is now right on the start screen, and a guest player can link Google to keep their progress.'},

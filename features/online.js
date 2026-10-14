@@ -3,7 +3,10 @@
 // Does nothing until js/online-config.js is filled in.
 window.BBFeatures.push(function (bb) {
   const C = window.ONLINE || {};
-  if (!C.supabaseUrl || !C.supabaseKey) return;
+  if (!C.supabaseUrl || !C.supabaseKey) {   // this copy has no online settings (for example the Claude preview): say so instead of showing nothing
+    const lc = document.querySelector('#top .lcol'); if (lc) { const c = document.createElement('button'); c.id = 'chat'; c.className = 'pill'; c.type = 'button'; c.hidden = true; c.innerHTML = '<i class="dot"></i><b>Offline</b> <small>online play is on indiabaygame.com</small>'; lc.appendChild(c);
+      c.onclick = () => bb.toast('This copy of the game has no online settings, so it plays offline. Play on indiabaygame.com to meet other players.', '#ffc93c'); bb.onStart(() => { c.hidden = false; }); }
+    return; }
   const THREE = bb.THREE;
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
