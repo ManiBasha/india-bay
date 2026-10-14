@@ -253,8 +253,8 @@ function openPoi(poi){const T=poi.type;if(player.stars&&!['police','home'].inclu
 
 /* ================= phone ================= */
 function addApp(a){apps.push(a);}
-const ORDER={phone:['calls','messages','map','rewards','invite','swiggy','zomato','baycart','foodbag','sports','challans','baypay','roadside','radio','baygame','camera','baygram','story'],menu:['garage','addgarage','property','jobs','localwork','wardrobe','business'],settings:['online','look','steer','clock','features','ach','admin']};
-function appGrid(group,skip){const smart=P.phone==='smart';const list=apps.filter(a=>(a.group||'phone')===group&&(!a.admin||adminOK)&&!(skip&&skip.includes(a.id))).sort((a,b)=>(ORDER[group].indexOf(a.id)+99)%99-(ORDER[group].indexOf(b.id)+99)%99);
+const ORDER={phone:['calls','messages','map','rewards','invite','swiggy','zomato','baycart','foodbag','sports','challans','baypay','roadside','radio','baygame','camera','baygram','story'],menu:['garage','addgarage','property','jobs','localwork','wardrobe','business'],settings:['online','look','steer','clock','features','film','ach','admin']};
+function appGrid(group,skip){const smart=P.phone==='smart';const list=apps.filter(a=>(a.group||'phone')===group&&(!a.admin||adminOK)&&(!a.show||a.show())&&!(skip&&skip.includes(a.id))).sort((a,b)=>(ORDER[group].indexOf(a.id)+99)%99-(ORDER[group].indexOf(b.id)+99)%99);
   return `<div class="apps">${list.map(a=>`<button class="app${a.smart&&!smart?' locked':''}" data-app="${a.id}" style="--h:${appHue(a.id)}"><span>${esc(a.icon||'•')}</span>${esc(a.label)}</button>`).join('')}</div>`;}
 function appClick(e){const b=e.target.closest('[data-app]');if(!b)return false;const a=apps.find(x=>x.id===b.dataset.app);if(a.smart&&P.phone!=='smart'){toast('Needs a smartphone · Mobile Point sells them','#ff9f1c');return true;}a.fn(api);return true;}
 function phoneSheet(){const smart=P.phone==='smart';$('#sheetWrap').classList.add('phonemode');
@@ -691,18 +691,18 @@ var startPick=null;
 const stateRegion=st=>{const IS=window.INDIA_STATES;const q=IS&&IS.states.find(x=>x.id===st.toLowerCase());return q?q.region:null;};
 function statePlayable(st){const r=REGIONS.find(q=>q.id===stateRegion(st));return !!(r&&r.map&&CFG.regions[r.id]&&W.startZones&&W.startZones[st]&&W.zones.some(z=>z.st===st));}
 function drawStartMap(){const el=$('#cities');const IS=window.INDIA_STATES;if(!IS){el.innerHTML='';return;}
-  if(!startPick&&!hadSave){const z=W.zones.find(q=>q.id===W.startZones.MH);if(z)startPick={st:'MH',zone:z};}
   const sel=startPick?startPick.st.toLowerCase():'';
   el.innerHTML=`<div class="smap"><svg viewBox="${IS.viewBox}" role="img" aria-label="Map of India. Tap a bright state to start there.">${IS.states.map(q=>{const st=q.id.toUpperCase(),ok=statePlayable(st);return `<path data-st="${st}" d="${q.d}" class="${ok?'ok':'no'}${q.id===sel?' on':''}"><title>${esc(q.name)}${ok?'':' · coming soon'}</title></path>`;}).join('')}</svg></div><div class="spick" id="spick"></div>`;
   el.querySelector('svg').onclick=e=>{const p=e.target.closest('path[data-st]');if(!p)return;const st=p.dataset.st;const q=IS.states.find(x=>x.id===st.toLowerCase());if(!statePlayable(st)){toast(`${esc(q?q.name:st)} opens in a coming update`,'#d6c8e4');return;}
     const z=W.zones.find(x=>x.id===W.startZones[st]);startPick={st,zone:z};el.querySelectorAll('path.on').forEach(x=>x.classList.remove('on'));p.classList.add('on');pickRow();};
   pickRow();}
 function pickRow(){const el=$('#spick');if(!el)return;const go0=$('#go'),go=go0.querySelector('.gt')||go0;
-  if(!startPick){el.innerHTML=`<p>Tap a bright state to travel there, or continue where you left off.</p>`;go.textContent='Continue';return;}
+  if(!startPick){const lz=lastZone();el.innerHTML=hadSave?`<p>Continue where you left off${lz?' in <b>'+esc(lz.name)+'</b>':''}, or tap a bright state to travel somewhere new.</p>`:`<p><b>Choose your city</b> · tap a bright state, then a city.</p>`;go.textContent=hadSave?(lz?'Continue in '+lz.name:'Continue'):'Start';return;}
   const st=startPick.st,zs=W.zones.filter(z=>z.st===st).sort((a,b)=>({big:0,mid:1,small:2}[a.size]-{big:0,mid:1,small:2}[b.size]));
   el.innerHTML=`<b>${esc(W.states[st])}</b><div class="chips">${zs.slice(0,8).map(z=>`<button class="chip${z===startPick.zone?' on':''}" data-z="${z.id}">${esc(z.name)}</button>`).join('')}</div>`;
   el.onclick=e=>{const id=e.target.dataset.z;if(!id)return;startPick.zone=W.zones.find(z=>z.id===id);pickRow();};
-  go.textContent=(hadSave?'Go to ':'Start in ')+startPick.zone.name;}
+  go.textContent=(hadSave?'Go to ':'Start at ')+startPick.zone.name;}
+function lastZone(){if(!hadSave||!P.pos)return null;return zoneAt(P.pos.x,P.pos.z,300)||W.zones.slice().sort((a,b)=>Math.hypot(a.x0+a.nx*40-P.pos.x,a.z0+a.nz*40-P.pos.z)-Math.hypot(b.x0+b.nx*40-P.pos.x,b.z0+b.nz*40-P.pos.z))[0];}
 function startSpot(z){const cx=z.x0+z.nx*40,cz=z.z0+z.nz*40;const r=nearestRoadPoint(cx,cz,400);if(!r)return{x:cx,z:cz,h:0};return{x:r.x,z:r.z,h:Math.atan2(r.e.dx,r.e.dz)};}
 $('#newGame').onclick=e=>{if(e.target.dataset.sure){P=newSave();store.set(SAVEKEY,P);location.reload();}else{e.target.dataset.sure=1;e.target.textContent='Tap again to reset';}};
 let camSnap=true;
@@ -727,12 +727,12 @@ const api={onFire:f=>fireHooks.push(f),setBotScale,get botScale(){return botScal
   toast,big,openSheet,closeSheet,rowHtml,spend,earn,inr,price,esc,addWanted,damage,save,makeVeh,removeVeh,spawnOwned,ownedVeh,buyVehicle,ppos,edgePos,box,boxRot,addStatic,flushStatic,LMat,buildPerson,addSign,
   addPoi(o){const p=makePoi(o);return p;},addApp,addMission,addPrompt,addFirstPrompt(f){firstPrompts.push(f);},poiHandlers,speedMods,on,emit,openWait,closeWait,startActivity,startQueue,startSleep,teleport,nearestRoadPoint,roadAt,drivable,isWater,isLand,zoneAt,stateAt,
   fareMultAt,activeFestivals,activeEvents,addChallan,istISO,istText,bayTime,gameMin,enterVehicle,exitVehicle,applyOutfit,homeById,buildInterior,nearestPoi,phoneSheet,profileSheet,hornSfx,areaName,
-  onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},get photo(){return hooks.photo;},
+  onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},set viewAt(f){hooks.viewAt=f;},get tourSpots(){return TOUR;},get photo(){return hooks.photo;},
   PICON,PLABEL,findRoute,get route(){return nav.route;},menuSheet,settingsSheet,get curMission(){return curMission;},
   CONG,sigState,sigJunction,
   blocks,get db(){return db;},get adminOK(){return adminOK;},buildVeh,nameOk,ageFromDob:IBCONF.ageFromDob,get adSlots(){return SLOTS;},updBillboards,billboardMeshes,adSheet,pickBillboard,personErr,personFields,refreshBillboards,openApp,set introClick(f){hooks.introClick=f;},set starterSheet(f){hooks.starterSheet=f;},enterHome,homeById,set introLabel(f){hooks.introLabel=f;setAvatar();},cloudConfig,hubSheet,supportSheet,setAvatar,addProfileRows(f){profileRows.push(f);},set profileEdit(f){hooks.profileEdit=f;},set displayName(f){hooks.displayName=f;setAvatar();},set userEmail(f){hooks.userEmail=f;},setCfgBackend(b){cfgBackend=b;adminOK=!!(b&&b.admin);adminLocal=false;},get hadSave(){return hadSave;},
   setDirty(){dirty=true;},buildPlane,addAdSlot,setSteer(v){steerIn=v==null?null:clamp(v,-1,1);},addCol,applyLook,lookCode,decodeLook,lookSheet,LOOKS,buildAnimal,animGait,ASPEC,get strays(){return cows;},animals,MR,mpick,clamp,hash,canvasTex,EDGES,ROADS,laneRandom:randomLaneNear,lanePos,uiLock};
-api.howTo=howTo;api.whatsNew=whatsNew;api.featuresSheet=featuresSheet;window.BB=api;
+api.needCity=()=>!hadSave&&!startPick;api.startName=()=>startPick?startPick.zone.name:(lastZone()||{}).name||'';api.openCityPick=()=>{const p=$('#iMapPanel');if(p)p.classList.add('open');document.body.classList.add('imap');const s=$('#spick');if(s){s.classList.remove('flash');void s.offsetWidth;s.classList.add('flash');}};api.lastZone=lastZone;api.howTo=howTo;api.whatsNew=whatsNew;api.featuresSheet=featuresSheet;window.BB=api;
 const queued=Array.isArray(window.BBFeatures)?window.BBFeatures:[];window.BBFeatures={push(f){try{f(api);}catch(e){console.error('Feature failed',e);}}};queued.forEach(f=>window.BBFeatures.push(f));
 flushStatic();
 
@@ -745,6 +745,7 @@ let last=performance.now(),orbit=0,frame=0;
 const TOUR_SPOTS=[['Gateway of India','Mumbai',170,58,10],['Hawa Mahal','Jaipur',120,40,14],['Statue of Unity','Kevadia',260,90,60],['Marine Drive','Mumbai',200,50,6],['Mysore Palace','Mysuru',140,46,16],['Jaisalmer Fort','Jaisalmer',160,55,18],['Chinese Fishing Nets','Fort Kochi',110,30,6],['Murudeshwar Shiva Statue','Murudeshwar',170,60,30],['Bandra–Worli Sea Link','Mumbai',230,70,10],['Mehrangarh Fort','Jodhpur',190,70,24]];
 const TOUR=TOUR_SPOTS.map(([n,c,r,h,ly])=>{const p=(W.places||[]).find(q=>q[0]===n);return p?{name:`${n}, ${c}`,cx:p[1],cz:p[2],r,h,ly}:null;}).filter(Boolean);
 let tourI=0,tourT=0,tourA=0;
+{const lz=lastZone();if(lz&&P.pos){TOUR.unshift({name:'Where you left off · '+lz.name,cx:P.pos.x,cz:P.pos.z,r:110,h:42,ly:4});setTimeout(()=>{const n=$('#tourName');if(n)n.textContent=TOUR[0].name;},0);}}
 function tourShot(rdt){if(!TOUR.length)return{cx:2990,cz:8800,r:170,h:60,ly:10,a:orbit+=rdt*.05};tourT+=rdt;tourA+=rdt*.07;
   if(tourT>13){tourT=0;tourI=(tourI+1)%TOUR.length;tourA=Math.random()*6;const n=$('#tourName');if(n){n.textContent=TOUR[tourI].name;const c=$('#tourCap');if(c){c.classList.remove('in');void c.offsetWidth;c.classList.add('in');}}}
   const q=TOUR[tourI];const k=Math.min(1,tourT/1.2,(13-tourT)/1.2);const v=$('#intro');if(v)v.style.setProperty('--fade',String(1-Math.max(0,k)));return Object.assign({a:tourA},q);}
@@ -757,11 +758,11 @@ function loop(ms){requestAnimationFrame(loop);const now=ms/1000;const rdt=Math.m
   overT=Math.max(0,overT-dt);player.fireCd=Math.max(0,player.fireCd-dt);player.hitCd=Math.max(0,player.hitCd-dt);if(fireHeld&&P.weapon==='pistol')fire();
   if(inside){updFoot(dt,inter);}
   else{updTraffic(dt);updPeds(dt,now);updAnimals(dt,now);updTrains(dt);updPlanes(dt);updPolice(dt,now);
-    if(overT<=0&&!hooks.photo){if(player.mode==='drive'&&player.veh)updDrive(dt,now);else updFoot(dt,null);}
+    if(overT<=0&&(!hooks.photo||hooks.photo.live)){if(player.mode==='drive'&&player.veh)updDrive(dt,now);else updFoot(dt,null);}
     for(const v of vehicles)if(v.state==='parked'&&v.fallen)v.m.rotation.set(0,v.h,Math.PI/2.2,'YXZ');
     seaTex.offset.x+=dt*.004;seaTex.offset.y+=dt*.002;for(const f of flags)f.rotation.y=Math.sin(now*3+f.position.x)*.25;
     marker.rotation.y+=dt;beamMat.opacity=.22+Math.sin(now*3)*.07;for(const p of pois){if(p.sp)p.ring.material.opacity=.55+Math.sin(now*4)*.3;}
-    if(frame%20===0)updDiscover();if(frame%20===5)updLabels();if(frame%15===2)updChunks(ppos().x,ppos().z);if(frame%60===3)updBillboards(ppos().x,ppos().z);if(frame%3===1)fadeBoards();
+    if(frame%20===0)updDiscover();if(frame%20===5)updLabels();if(frame%15===2){const vp=hooks.viewAt?hooks.viewAt():ppos();updChunks(vp.x,vp.z);}if(frame%60===3){const vp=hooks.viewAt?hooks.viewAt():ppos();updBillboards(vp.x,vp.z);}if(frame%3===1)fadeBoards();
     if(sir)sir.g.gain.value=muted?0:(vehicles.some(v=>v.state==='police'&&!v.dead&&v.pos.distanceTo(ppos())<90)?.03:0);
     const an=areaName();if(frame%30===0&&an!==lastArea){const z=zoneAt(ppos().x,ppos().z,30);if(z)emit('zone',z);lastArea=an;$('#area').textContent=an;}}
   updNeeds(rdt);updSmoke(dt);

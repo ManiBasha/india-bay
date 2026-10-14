@@ -26,6 +26,9 @@
     const h = $('#iHow'); if (h) h.onclick = () => window.BB && window.BB.howTo && window.BB.howTo(0);
     const n = $('#iNew'); if (n) n.onclick = () => window.BB && (window.BB.whatsNew ? window.BB.whatsNew(false) : null);
     addEventListener('keydown', e => { if (e.code !== 'Enter' || !$('#intro') || $('#intro').hidden) return; if (document.querySelector('#sheetWrap:not([hidden])')) return; const go = $('#go'); if (go && !go.disabled) { e.preventDefault(); go.click(); } });
+    // Beta v1.01.10: a new player chooses a city first (no default city). Runs before the online sign-in step.
+    addEventListener('click', e => { const g = e.target.closest && e.target.closest('#go'); if (!g || !window.BB || !window.BB.needCity || !window.BB.needCity() || window.BB.cloudHas) return;
+      e.preventDefault(); e.stopImmediatePropagation(); open(true); if (window.BB.openCityPick) window.BB.openCityPick(); if (window.BB.toast) window.BB.toast('Choose a city to start in · tap a bright state', '#ffc93c'); }, true);
     news(); setInterval(news, 5000); tick();
     // on a wide screen the city map stays open on the right
     if (matchMedia('(min-width: 980px)').matches) open(true);

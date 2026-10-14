@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.09';
+window.__ibOnlineV = '1.01.10';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -86,6 +86,7 @@ window.BBFeatures.push(function (bb) {
       loadConfig(); setInterval(loadConfig, 60 * 1000);
       if (session) await afterSignIn();
       if (sessionStorage.getItem('ib.cloudLoaded')) { sessionStorage.removeItem('ib.cloudLoaded'); setTimeout(() => bb.toast('☁ Loaded your cloud save', '#3ddc97'), 600); }
+      if (session && !isAnon() && !bb.hadSave) sb.from('saves').select('user_id').eq('user_id', session.user.id).maybeSingle().then(r => { bb.cloudHas = !!(r && r.data); renderIntro(); }, () => {});
       renderIntro(); serverStatus(); window.__ibOnlineStage = 'ready' + (session ? (isAnon() ? ' · guest' : ' · google') : ' · not signed in');
       return true;
     } catch (e) { console.warn('Online unavailable', e); window.__ibOnlineStage = 'failed: ' + (e && e.message || e); noteErr('Could not start online: ' + (e && e.message || e)); status = 'error'; renderIntro(); return false; }
@@ -117,33 +118,42 @@ window.BBFeatures.push(function (bb) {
     e.preventDefault(); e.stopImmediatePropagation();
     next = pass; flow();
   }, true);
+  let guestOk = false;
+  const NOTE = '<p class="stnote">☁ <b>Continue with Google</b> to save your gameplay and continue where you left off, on any device.</p>';
   function pass() { passed = true; $('#go').click(); }
+  const startTitle = () => { const n = bb.startName ? bb.startName() : ''; return n ? 'Start at ' + n : 'Start'; };
   async function flow() {
     const ok = await ready;
     if (!ok) { bb.toast('Online is unavailable right now · playing offline', '#ffc93c'); offline = true; return next(); }
     if (offline) return next();
     if (!session) return signInSheet();
+    if (isAnon() && !guestOk) return guestSheet();
     if (!profile || !priv) return nameSheet();
     if (await syncSave()) return;
     offline = false; next();
   }
 
   function signInSheet() {
-    bb.openSheet('Play online', 'Play India with everyone', `<div class="stack"><button class="go gbtn" data-id="google"><b>G</b> Sign in with Google</button><button class="go alt" data-id="guest">Play as guest</button>${passed ? '' : '<button class="buy ghost" data-id="offline">Play offline</button>'}</div>
-      <p class="note">Google keeps your progress on every device and lets you post on BayGram, call and text friends. A guest account lives in this browser only; you can link Google later from 👤 Profile.</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
+    bb.openSheet(startTitle(), 'How do you want to play?', `<div class="stack">${passed ? '' : '<button class="buy ghost" data-id="offline">1 · Continue offline</button>'}<button class="go gbtn" data-id="google"><b>G</b> ${passed ? '' : '2 · '}Continue with Google</button><button class="go alt" data-id="guest">${passed ? '' : '3 · '}Continue as guest</button></div>
+      ${NOTE}<p class="note">A guest player lives in this browser only (you can link Google later from 👤 Profile). Offline play has no other players.</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
       s.onclick = async e => {
-        const id = e.target.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
+        const b = e.target.closest('[data-id]'); const id = b && b.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
         const bad = t => { msg.textContent = t; msg.className = 'note bad'; };
         if (id === 'offline') { offline = true; bb.closeSheet(); return next(); }
         if (id === 'google') { if (!googleOn) return bad('Google sign-in is switched off on the server. Admin: Supabase → Authentication → Providers → Google → Enable, then add the Client ID and secret.'); msg.textContent = 'Opening Google…'; msg.className = 'note'; const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: here() } }); if (error) bad(niceErr(error)); return; }
         if (id === 'guest') {
           msg.textContent = 'Creating your guest account…'; msg.className = 'note';
           const { data, error } = await sb.auth.signInAnonymously(); if (error) return bad(niceErr(error));
-          session = data.session; try { await afterSignIn(); } catch (err) { return bad(niceErr(err)); }
+          session = data.session; guestOk = true; try { await afterSignIn(); } catch (err) { return bad(niceErr(err)); }
           bb.closeSheet(); flow();
         }
       };
     });
+  }
+  // a returning guest: keep going as the guest, or move this player to Google
+  function guestSheet() {
+    bb.openSheet(startTitle(), profile ? 'Welcome back, ' + bb.esc(profile.username) : 'Welcome back', `<div class="stack"><button class="go alt" data-id="guest">1 · Continue as guest</button><button class="go gbtn" data-id="google"><b>G</b> 2 · Continue with Google</button></div>${NOTE}<p class="note">Your guest player moves to Google with all its progress.</p>`,
+      s => s.onclick = e => { const b = e.target.closest('[data-id]'); const id = b && b.dataset.id; if (id === 'guest') { guestOk = true; bb.closeSheet(); flow(); } else if (id === 'google') googleIn(); });
   }
   // Create (or finish) the player: username for everyone to see, name and date of birth kept private.
   function nameSheet(editing) {
@@ -419,10 +429,15 @@ window.BBFeatures.push(function (bb) {
   }
 
   /* ---------- start screen line ---------- */
+  // under the Start button: who you are
+  function whoLine() { const m = $('.imenu'); if (!m) return; let w = $('#iWho'); if (!w) { w = document.createElement('div'); w.id = 'iWho'; const g = $('#go'); if (g && g.parentNode === m) g.after(w); else m.prepend(w); }
+    w.innerHTML = session && !isAnon() ? `✓ Signed in as <b>${bb.esc(session.user.email || (profile && profile.username) || 'Google')}</b>` : session ? `Playing as guest${profile ? ' <b>' + bb.esc(profile.username) + '</b>' : ''} · Continue with Google to save your gameplay` : 'Continue with Google to save your gameplay and continue where you left off'; }
   async function serverStatus() { if (!C.serverUrl) return; try { const r = await fetch(String(C.serverUrl).replace(/\/$/, '') + '/status'); const j = await r.json(); if (typeof j[REGION] === 'number') { online = j[REGION]; renderIntro(); } } catch (e) {} }
   function renderIntro() {
+    whoLine();
+    if (bb.cloudHas && bb.needCity && bb.needCity()) { const g = $('#go'), t = g && (g.querySelector('.gt') || g); if (t) t.textContent = 'Continue from cloud save'; const sp = $('#spick'); if (sp && !sp.querySelector('.chips')) sp.innerHTML = '<p>Your Google save will continue where you left off.</p>'; }
     if (!introLine) return;
-    const who = session && profile ? `Signed in as <b>${bb.esc(profile.username)}</b>${isAnon() ? ' (guest)' : ''} · <button type="button" class="lnk" data-out>Sign out</button>` : session ? 'Signed in · pick a username when you start' : status === 'error' ? 'Online is unavailable right now' : 'Sign in when you start to play online';
+    const who = session && profile ? `Signed in as <b>${bb.esc(!isAnon() && session.user.email ? session.user.email : profile.username)}</b>${isAnon() ? ' (guest)' : ''} · <button type="button" class="lnk" data-out>Sign out</button>` : session ? 'Signed in · pick a username when you start' : status === 'error' ? 'Online is unavailable right now' : 'Sign in when you start to play online';
     introLine.innerHTML = `🌐 India online${online ? ` · <b>${online}</b> playing now` : ''}<br><small>${who}</small>`;
     const o = introLine.querySelector('[data-out]'); if (o) o.onclick = signOut;
   }

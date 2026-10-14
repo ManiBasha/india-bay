@@ -501,3 +501,11 @@ body.iready #intro .iload{opacity:0;height:0;padding-bottom:0;overflow:hidden}
 #chat .dot{flex:none;width:9px;height:9px;border-radius:50%;background:#8a8496}#chat .dot.on{background:#3ddc97;box-shadow:0 0 6px #3ddc97}#chat .dot.wait{background:#ffc93c;animation:livep 1.4s infinite}
 #chatbar .crng{flex:none;padding:6px 8px;font-size:13px;white-space:nowrap}
 @media (max-width:760px){#chat{max-width:170px;font-size:11px}#chat small{display:inline}}
+/* Beta v1.01.10: start flow */
+@keyframes spflash{0%,100%{box-shadow:none}30%,70%{box-shadow:0 0 0 3px #ffc93c}}.spick.flash{animation:spflash 1.4s ease 2;border-radius:10px}
+#iWho{font:600 13px var(--f-display);color:var(--muted);margin:6px 2px 0}#iWho b{color:#fff}
+.stnote{font-size:13px;background:rgba(66,133,244,.14);border:1px solid rgba(66,133,244,.4);border-radius:10px;padding:8px 10px;margin:10px 0 0}
+body.film .hud,body.film #chat,body.film #chatbar,body.film #toast:not(.show){display:none!important}
+#filmBar{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:60;background:rgba(10,8,20,.82);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;max-width:calc(100vw - 24px);pointer-events:auto}
+#filmBar .frow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}#filmBar .chip{font-size:12.5px}#filmBar .go,#filmBar .buy{padding:8px 14px;font-size:13px}
+body.filmbars::before,body.filmbars::after{content:'';position:fixed;left:0;right:0;height:10vh;background:#000;z-index:50;pointer-events:none}body.filmbars::before{top:0}body.filmbars::after{bottom:0}
