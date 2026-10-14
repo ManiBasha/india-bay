@@ -8,7 +8,7 @@ window.BBFeatures.push(function (bb) {
   const lcol = document.querySelector('#top .lcol'); if (lcol) { const chat = document.querySelector('#chat'); if (chat && chat.nextSibling) lcol.insertBefore(btn, chat.nextSibling); else lcol.appendChild(btn); }
   const allowed = () => bb.CFG.voiceChat !== false;
   const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
-  setInterval(() => { btn.hidden = !(bb.started && supported && allowed() && bb.ONLINE && bb.ONLINE.status === 'on'); }, 1000);
+  setInterval(() => { btn.hidden = !(bb.started && supported && allowed() && bb.ONLINE && bb.ONLINE.status === 'on' && !bb.ONLINE.guest); }, 1000);
   let stream = null, rec = null, chunks = [], t0 = 0, timer = null, mime = '';
   function pickMime() { for (const m of ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm']) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m; return ''; }
   async function start() { if (rec || !allowed()) { if (!allowed()) bb.toast('Voice messages are switched off right now', '#d6c8e4'); return; } if (!bb.ONLINE || bb.ONLINE.status !== 'on') return bb.toast('Go online to send voice messages', '#d6c8e4');
@@ -21,7 +21,7 @@ window.BBFeatures.push(function (bb) {
   function send() { const ms = Math.round(performance.now() - t0); const blob = new Blob(chunks, { type: (mime || 'audio/webm').split(';')[0] }); chunks = [];
     if (ms < MIN_MS || blob.size < 200) return bb.toast('Too short · hold the button while you talk', '#d6c8e4');
     const fr = new FileReader(); fr.onload = () => { const a = String(fr.result).split(',')[1] || ''; if (a.length > 46000) return bb.toast('Too long · keep it under 8 seconds', '#ff9f1c');
-      if (!bb.ONLINE.send({ t: 'vc', a, ms: Math.min(MAX_MS, ms), mime: mime || 'audio/webm' })) bb.toast('Not connected', '#ff8b8b'); }; fr.readAsDataURL(blob); }
+      if (!bb.ONLINE.send({ t: 'vc', a, ms: Math.min(MAX_MS, ms), mime: mime || 'audio/webm', r: bb.ONLINE.chatR || 'close' })) bb.toast('Not connected', '#ff8b8b'); }; fr.readAsDataURL(blob); }
   // hold-to-talk: finger or mouse on the button, or the V key
   let held = false;
   btn.addEventListener('pointerdown', e => { e.preventDefault(); held = true; try { btn.setPointerCapture(e.pointerId); } catch (_) {} start(); });

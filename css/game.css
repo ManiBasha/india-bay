@@ -495,3 +495,9 @@ body.iready #intro .iload{opacity:0;height:0;padding-bottom:0;overflow:hidden}
 @media (max-height:560px) and (max-width:979px){#intro .logo .hi,#intro .logo p{display:none}#intro .logo h1{font-size:44px}#intro .imenu{gap:6px}#intro .ibig{height:52px;font-size:20px}#intro .mbtn{height:40px;font-size:15px}#intro .imain{padding-bottom:104px}}
 @media (min-width:980px){#intro .iright #iMapClose{display:none}}
 #intro #ann{display:none!important}
+/* online box (Beta v1.01.07) */
+#chat{display:flex;align-items:center;gap:7px;padding:6px 10px;min-height:34px;max-width:230px;font-size:12.5px;line-height:1.2}
+#chat b{font-weight:800}#chat small{margin-left:0;font-weight:600}#chat em{font-style:normal;margin-left:2px}
+#chat .dot{flex:none;width:9px;height:9px;border-radius:50%;background:#8a8496}#chat .dot.on{background:#3ddc97;box-shadow:0 0 6px #3ddc97}#chat .dot.wait{background:#ffc93c;animation:livep 1.4s infinite}
+#chatbar .crng{flex:none;padding:6px 8px;font-size:13px;white-space:nowrap}
+@media (max-width:760px){#chat{max-width:170px;font-size:11px}#chat small{display:inline}}

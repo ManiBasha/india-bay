@@ -6,7 +6,8 @@ import { DurableObject } from 'cloudflare:workers';
 const REGIONS = ['west'];          // regions that have a live map
 const MAX_PLAYERS = 150;           // per region
 const NEAR = 700;                  // metres: players closer than this see each other
-const CHAT_NEAR = 250;             // metres: chat reaches this far
+const CHAT_NEAR = 250;             // map units: chat and voice reach this far ("this area")
+const CHAT_CLOSE = 21;             // map units (about 50 m in the game): "nearby only" chat and voice
 const VOICE_MAX = 46000;           // characters of base64 audio in one voice message (about 8 seconds)
 const VOICE_MIME = new Set(['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/aac']);
 const IDLE_MS = 60_000;            // drop sockets silent for a minute
@@ -140,7 +141,7 @@ export class Region extends DurableObject {
     const p = { id: crypto.randomUUID().slice(0, 8), uid, name, anon: req.headers.get('x-anon') === '1', x: 0, z: 0, y: 0, h: 0, m: 'f', v: '', c: '', s: 0, seen: Date.now(), chatAt: 0, ready: false };
     s.serializeAttachment(p);
     this.players.set(s, p);
-    s.send(JSON.stringify({ t: 'hello', id: p.id, name, online: this.players.size }));
+    s.send(JSON.stringify({ t: 'hello', id: p.id, name, online: this.players.size, guest: p.anon }));
     return new Response(null, { status: 101, webSocket: c });
   }
 
@@ -186,6 +187,7 @@ export class Region extends DurableObject {
       p.l = typeof d.l === 'string' && /^[mf][0-9]{7,12}$/.test(d.l) ? d.l : '';   // the player's look (Beta v1.0.0): gender and 7 digits
       // The vehicle this player last got out of, so others see it parked where they left it.
       p.pv = p.m !== 'd' && VEH.has(d.pv) ? d.pv : '';
+      p.zn = typeof d.zn === 'string' && /^[a-z0-9_]{1,24}$/.test(d.zn) ? d.zn : '';   // the town or city you are in (for "N in your city")
       p.px = num(d.px, -1e5, 1e5); p.pz = num(d.pz, -1e5, 1e5); p.py = num(d.py, -50, 500); p.ph = num(d.ph, -100, 100);
       const first = !p.ready; p.ready = true;
       ws.serializeAttachment(p);
@@ -202,8 +204,9 @@ export class Region extends DurableObject {
       const text = clean(d.text);
       if (!text) return;
       p.chatAt = now;
-      const out = JSON.stringify({ t: 'chat', id: p.id, n: p.name, text });
-      for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, CHAT_NEAR))) this.send(w, out);
+      const R = d.r === 'close' ? CHAT_CLOSE : CHAT_NEAR;
+      const out = JSON.stringify({ t: 'chat', id: p.id, n: p.name, text, r: d.r === 'close' ? 'close' : 'area' });
+      for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, R))) this.send(w, out);
     } else if (d.t === 'v') {
       // Vehicle sharing (ride requests, seat replies, getting off, taking a parked vehicle): sent only to the named player nearby.
       if (!VACT.has(d.a) || typeof d.to !== 'string') return;
@@ -213,13 +216,15 @@ export class Region extends DurableObject {
     } else if (d.t === 'vc') {
       // Push-to-talk voice message: a short recorded clip, sent to players within chat range.
       // The admin can switch voice off for everyone (Admin → Online and moderation); the server checks it.
+      if (p.anon) return this.send(ws, JSON.stringify({ t: 'vcguest' }));   // hold to talk is for Google accounts
       if (!(await this.voiceOn())) return this.send(ws, JSON.stringify({ t: 'vcoff' }));
       if (now - (p.vcAt || 0) < 4000) return this.send(ws, JSON.stringify({ t: 'slow' }));
       if (typeof d.a !== 'string' || d.a.length < 200 || d.a.length > VOICE_MAX || !/^[A-Za-z0-9+/=]+$/.test(d.a)) return;
       const mime = VOICE_MIME.has(d.mime) ? d.mime : 'audio/webm'; const ms = num(d.ms, 300, 10000) | 0;
       p.vcAt = now;
       const out = JSON.stringify({ t: 'vc', id: p.id, n: p.name, a: d.a, ms, mime });
-      for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, CHAT_NEAR))) this.send(w, out);
+      const VR = d.r === 'close' ? CHAT_CLOSE : CHAT_NEAR;
+      for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, VR))) this.send(w, out);
     } else if (d.t === 'call') {
       // Phone calls and text pings between players by username, anywhere on the map (Beta v1.01.03).
       // Only Google accounts (not guests) can call; the person called sees who it is and can decline or block.
@@ -235,7 +240,8 @@ export class Region extends DurableObject {
       if (d.k === 'vc') Object.assign(out, { a: d.a, ms: num(d.ms, 300, 10000) | 0, mime: VOICE_MIME.has(d.mime) ? d.mime : 'audio/webm' });
       this.send(target, JSON.stringify(out));
     } else if (d.t === 'ping') {
-      this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size }));
+      let city = 0, near1 = 0; for (const q of this.players.values()) { if (!q.ready) continue; if (p.zn && q.zn === p.zn) city++; if (near(p, q, NEAR)) near1++; }
+      this.send(ws, JSON.stringify({ t: 'pong', online: this.players.size, city, near: near1, zn: p.zn }));
     }
     this.sweep(now);
   }

@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.06';
+const VERSION='Beta v1.01.07';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -12,6 +12,7 @@ const {REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg}
 // Beta v1.0.0 is the first public beta: no change history for it, the game's features are listed in Settings → Features.
 // Later updates add their notes here (or in Admin → Changelog) and players see a What's new pop-up once.
 const CHANGELOG=[
+  {v:'Beta v1.01.07',date:'2026-10-13',title:'Smoother traffic, online box',notes:'🟢 A new online box under your money shows Online or Offline, how many players are in your city and how many are near you.\n💬 Chat and voice can reach just the players within 50 m (📍) or the whole area (🏙). Hold to talk is for Google accounts.\n🚦 Traffic: vehicles turn in smooth curves, take turns at junctions instead of driving through each other, stop at new signals where highways meet, and U-turn properly or leave at the end of a road.\n🛣 Sharp bends on highways are now curves, joins are rounded, and roads no longer run off into the sea. Bridge walls open where another road crosses.\n⛴ Ferries wait in the water by their jetty, not on land. Beaches and shacks sit on the shore.\n🐄 Far fewer animals on city roads; they live along forest roads and in the zoos.'},
   {v:'Beta v1.01.06',date:'2026-10-13',title:'Online fixes',notes:'👥 Fixed: players near each other could stay invisible. Your position was not sent while a menu or pop-up was open, so others never saw you appear. It is now sent every few seconds.\n🌐 The online chip under your money always shows now (Online, Not signed in, Offline), and ⚙ Settings → Online status explains what is wrong and how to fix it.\n🔐 A Google sign-in that did not finish now tells you why.'},
   {v:'Beta v1.01.05',date:'2026-10-13',title:'A new start screen',notes:'🎬 A new game start screen: the camera tours famous places (Gateway of India, Hawa Mahal, the Statue of Unity, Mysore Palace and more) behind a game menu, with a loading bar, a player card and a BAY NEWS ticker.\n🔐 Sign in with Google is now right on the start screen, and a guest player can link Google to keep their progress.'},
   {v:'Beta v1.01.04',date:'2026-10-13',title:'Maharashtra, Gujarat and Rajasthan grow',notes:'🗺 45 more cities and towns: Thane, Navi Mumbai, Kalyan, Vasai–Virar, Matheran, Ahilyanagar, Jalgaon, Dhule, Akola, Chikhaldara, Chandrapur, Nanded, Latur, Tuljapur, Sangli–Miraj and Panchgani; Anand, Nadiad, Dakor, Bharuch, Navsari, Valsad, Vapi, Mehsana, Modhera, Vadnagar, Palanpur, Ambaji, Gandhidham–Kandla, Mandvi, Morbi, Palitana and Dholera; Alwar, Bharatpur, Sikar, Mandawa, Tonk, Bhilwara, Nathdwara, Ranakpur, Pali, Osian, Barmer and Banswara. New landmarks include Hazur Sahib, Modhera Sun Temple, Kirti Toran, the Statue of Belief and the Ranakpur temple.\n🛣 The Delhi–Mumbai, Amritsar–Jamnagar and Ahmedabad–Dholera expressways, with flyovers where they cross other roads and interchanges to the towns. Also Atal Setu, the Mumbai Coastal Road and Sudarshan Setu to Bet Dwarka.\n🚄 The Mumbai–Ahmedabad bullet train: a high viaduct with 12 stations from Mumbai BKC to Sabarmati. Ride it from any station.\n🛠 Local work (Menu → Local work): 74 regional jobs. Weave Paithani and patola, polish diamonds in Surat, carry fish crates at Sassoon Dock, drive a JNPT container truck or a Gir safari jeep, play the dhol, and much more.\n🎡 Fairs and festivals: the Pushkar camel fair, Kumbh Mela, Desert Festival, Tarnetar and more, with fairgrounds and giant wheels. Also the Pandharpur wari, the Rath Yatra, Gangaur, Teej swings, Dahi Handi pyramids, Pola, Gudi Padwa, music and art festivals, and the Mumbai Marathon. Many have something to join.'},
@@ -202,6 +203,24 @@ const LCTX={THREE,M,rnd,pick,add:(g,m,c,r)=>addStatic(g,m,c!==false,r!==false),b
   flag:(x,y,z,big)=>addFlag(x,y,z,big),tree:(x,z,s)=>tree(x,z,s),palm:(x,z)=>palm(x,z),building:ctxBuilding,col:(x,z,hw,hd)=>{const b=LCTX._blk;if(b){const x0=Math.max(x-hw,b.x-30.5),x1=Math.min(x+hw,b.x+30.5),z0=Math.max(z-hd,b.z-30.5),z1=Math.min(z+hd,b.z+30.5);if(x1<=x0||z1<=z0)return;return addCol((x0+x1)/2,(z0+z1)/2,(x1-x0)/2,(z1-z0)/2);}return addCol(x,z,hw,hd);},far:()=>{LCTX._far=true;}};
 
 /* roads first so buildings avoid them */
+/* Beta v1.01.07: tidy the highway lines before they are built.
+   1. A road never runs off into the sea: each end is trimmed back to dry land (bridges and causeways are left alone).
+   2. Sharp bends become smooth curves: a corner is replaced by a short arc, except where another road joins at that point. */
+{const wet=(x,z)=>!isLand(x,z)||!!inLake(x,z);
+  const hwPtNear=(h,x,z,r)=>W.highways.some(o=>o!==h&&(o.pts.some(p=>Math.hypot(p[0]-x,p[1]-z)<r)||o.pts.some((p,i)=>i<o.pts.length-1&&segD(x,z,p[0],p[1],o.pts[i+1][0],o.pts[i+1][1])<r*.6)))||W.zones.some(q=>x>q.x0-r&&x<q.x0+q.nx*80+r&&z>q.z0-r&&z<q.z0+q.nz*80+r)||W.airports.some(a=>a.access.some(p=>Math.hypot(p[0]-x,p[1]-z)<r));
+  function trimEnd(P){// walk in from the first point until the road is on land, then keep 3 m of margin
+    let i=0,acc=null;while(i<P.length-1){const a=P[i],b=P[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);let hit=-1;for(let t=0;t<=L;t+=3){if(!wet(a[0]+(b[0]-a[0])*t/L,a[1]+(b[1]-a[1])*t/L)){hit=t;break;}}if(hit<0){i++;continue;}
+      if(i===0&&hit===0)return P;const t=Math.min(L,hit+3);acc=[a[0]+(b[0]-a[0])*t/L,a[1]+(b[1]-a[1])*t/L];return [acc].concat(P.slice(i+1));}return null;}
+  W.highways=W.highways.filter(h=>{if(h.kind==='bridge'||h.fly)return true;let P=trimEnd(h.pts);if(!P||P.length<2)return false;P=trimEnd(P.slice().reverse());if(!P||P.length<2)return false;P=P.reverse();
+    const L=P.reduce((s,p,i)=>i?s+Math.hypot(p[0]-P[i-1][0],p[1]-P[i-1][1]):0,0);if(L<12)return false;h.pts=P;return true;});
+  for(const h of W.highways){if(h.fly||h.kind==='bridge'||h.pts.length<3)continue;const P=h.pts,out=[P[0]];
+    for(let i=1;i<P.length-1;i++){const a=P[i-1],b=P[i],c=P[i+1];const l1=Math.hypot(b[0]-a[0],b[1]-a[1]),l2=Math.hypot(c[0]-b[0],c[1]-b[1]);
+      const u=[(b[0]-a[0])/l1,(b[1]-a[1])/l1],v=[(c[0]-b[0])/l2,(c[1]-b[1])/l2];const turn=Math.acos(clamp(u[0]*v[0]+u[1]*v[1],-1,1));
+      if(turn<.12||l1<24||l2<24||hwPtNear(h,b[0],b[1],22)){out.push(b);continue;}
+      const r=Math.min(l1*.38,l2*.38,18+turn*30);const p0=[b[0]-u[0]*r,b[1]-u[1]*r],p2=[b[0]+v[0]*r,b[1]+v[1]*r];const n=Math.max(3,Math.ceil(turn*6));const arc=[];
+      for(let k=0;k<=n;k++){const t=k/n,q=[(1-t)*(1-t)*p0[0]+2*(1-t)*t*b[0]+t*t*p2[0],(1-t)*(1-t)*p0[1]+2*(1-t)*t*b[1]+t*t*p2[1]];arc.push(q);}
+      if(arc.some(q=>wet(q[0],q[1]))&&!wet(b[0],b[1])){out.push(b);continue;}out.push(...arc);}
+    out.push(P[P.length-1]);h.pts=out;}}
 // coast roads (Marine Drive): the grid stops at the coast road instead of running through it into the sea
 const COASTS=W.highways.filter(h=>h.kind==='coast').map(h=>{const segs=[];for(let k=0;k<h.pts.length-1;k++){const [ax,az]=h.pts[k],[bx,bz]=h.pts[k+1];const l=Math.hypot(bx-ax,bz-az);segs.push({ax,az,dx:(bx-ax)/l,dz:(bz-az)/l,l});}
   const m=segs[Math.floor(segs.length/2)];const mx=m.ax+m.dx*m.l/2,mz=m.az+m.dz*m.l/2;const sea=isLand(mx-m.dz*40,mz+m.dx*40)?-1:1;return {segs,sea};});
@@ -278,10 +297,14 @@ function kerbsAndCrossings(e,y){const zz=zoneAt((e.ax+e.bx)/2,(e.az+e.bz)/2,0);c
 // Where a road crosses a river or lake, add a concrete deck with side walls and pillars under it.
 function riverBridges(e,y){const st=6;let t0=-1;const ang=Math.atan2(e.dx,e.dz);const span=(a,b)=>{a=Math.max(0,a-10);b=Math.min(e.len,b+10);const l=b-a;if(l<8)return;const mx=e.ax+e.dx*(a+b)/2,mz=e.az+e.dz*(a+b)/2;
     const d=new THREE.BoxGeometry(e.w+1.4,.9,l);d.rotateY(ang);d.translate(mx,y-.47,mz);addStatic(d,M.concrete,false,true);
-    for(const sd of [-1,1]){const w=new THREE.BoxGeometry(.35,.75,l);w.rotateY(ang);w.translate(mx+e.dz*sd*(e.w/2+.5),y+.36,mz-e.dx*sd*(e.w/2+.5));addStatic(w,M.concrete,false,true);}
+    for(const sd of [-1,1]){let r0=-1;const wall=(u0,u1)=>{if(u1-u0<1.5)return;const wl=new THREE.BoxGeometry(.35,.75,u1-u0);wl.rotateY(ang);const um=(u0+u1)/2;wl.translate(e.ax+e.dx*um+e.dz*sd*(e.w/2+.5),y+.36,e.az+e.dz*um-e.dx*sd*(e.w/2+.5));addStatic(wl,M.concrete,false,true);};
+      for(let q=a;q<=b+.01;q+=1.5){const qq=Math.min(q,b);const px=e.ax+e.dx*qq+e.dz*sd*(e.w/2+.5),pz=e.az+e.dz*qq-e.dx*sd*(e.w/2+.5);let open=false;for(const id of edgesNear(px,pz)){const f=EDGES[id];if(f===e||f.road===e.road||f.fly)continue;if(segD(px,pz,f.ax,f.az,f.bx,f.bz)<f.w/2+1.2){open=true;break;}}
+        if(!open&&r0<0)r0=qq;if(open&&r0>=0){wall(r0,qq-.6);r0=-1;}}if(r0>=0)wall(r0,b);}
     for(let q=a+8;q<b-4;q+=28){const px=e.ax+e.dx*q,pz=e.az+e.dz*q;const pl=new THREE.BoxGeometry(e.w*.6,4,1.6);pl.rotateY(ang);pl.translate(px,y-2.8,pz);addStatic(pl,M.concrete,false,true);}};
   for(let t=0;t<=e.len;t+=st){const w=isWater(e.ax+e.dx*t,e.az+e.dz*t);if(w&&t0<0)t0=t;if(!w&&t0>=0){span(t0,t);t0=-1;}}if(t0>=0)span(t0,e.len);}
 roadRibbons();
+{const disc=new Map();for(const r of ROADS){if(r.fly||r.kind==='city'||r.kind==='service')continue;for(const p of r.pts){const k=Math.round(p[0]/3)+','+Math.round(p[1]/3);const w=r.w/2;if(!disc.has(k)||disc.get(k).w<w)disc.set(k,{x:p[0],z:p[1],w,m:r.kind==='coast'?M.road:M.hw,y:r.kind==='bridge'?.075:.031});}}
+  for(const d of disc.values()){if(isWater(d.x,d.z)&&d.y<.07)continue;const g=new THREE.CircleGeometry(d.w,18);g.rotateX(-Math.PI/2);g.translate(d.x,d.y,d.z);addStatic(g,d.m,false,true);}}
 for(const z of W.zones)for(let i=0;i<=z.nx;i++)for(let j=0;j<=z.nz;j++){const x=z.x0+i*80,zz=z.z0+j*80;if(!isLand(x,zz)||inLake(x,zz))continue;const p=new THREE.PlaneGeometry(16,16);p.rotateX(-Math.PI/2);p.translate(x,.04,zz);addStatic(p,M.asphalt,false,true);}
 function nearHighway(x,z,r){for(const id of edgesNear(x,z)){const e=EDGES[id];if(e.kind==='city')continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+r)return true;}for(const [ox,oz] of [[r,0],[-r,0],[0,r],[0,-r]])for(const id of edgesNear(x+ox,z+oz)){const e=EDGES[id];if(e.kind==='city')continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+r)return true;}return false;}
 
@@ -348,6 +371,11 @@ function streetLamp(x,z,ax,az,h,arm,pool){const p=new THREE.CylinderGeometry(.1,
 
 /* free-standing landmarks */
 const lmPois=[];
+// beaches and shacks sit on the sand at the shore, never out in the sea (Beta v1.01.07)
+{const landFrac=(x,z)=>{let n=0,k=0;for(let r=8;r<=30;r+=11)for(let a=0;a<6.28;a+=.78){k++;if(!isWater(x+Math.cos(a)*r,z+Math.sin(a)*r))n++;}return n/k;};
+  for(const l of W.landmarks){if(!/beach|shack|lagoon/i.test(l.kind))continue;if(!isWater(l.x,l.z)&&landFrac(l.x,l.z)>=.6)continue;let best=null,bd=1e9;
+    for(let r=10;r<=240&&!best;r+=10)for(let a=0;a<6.28;a+=.3){const x=l.x+Math.cos(a)*r,z=l.z+Math.sin(a)*r;if(isWater(x,z))continue;const f=landFrac(x,z);if(f>=.6&&r<bd){bd=r;best=[x,z];}}
+    if(best){const dx=best[0]-l.x,dz=best[1]-l.z;for(const pl of W.places)if(Math.hypot(pl[1]-l.x,pl[2]-l.z)<40){pl[1]+=dx;pl[2]+=dz;}l.x=best[0];l.z=best[1];}}}
 for(const l of W.landmarks){const [lk,...la]=l.kind.split(':');const fn=LM[lk];if(!fn)continue;LCTX._far=false;lmCollect=[];const res=fn(LCTX,l.x,l.z,{arg:la.join(':')})||{};const list=lmCollect;lmCollect=null;
   if(LCTX._far)flushFar(list,l.x,l.z);else for(const a of list)addStatic(...a);for(const p of res.poi||[])lmPois.push(p);}
 
@@ -664,7 +692,9 @@ function placeLane(v){lanePos(v.lane,_lp);v.pos.set(_lp.x,v.lane.e.fly?flyY(v.la
 function nextLane(l){const e=l.e;const r=e.road;const nk=e.k+(l.dir>0?1:-1);const ne=r.edges.find(q=>q.k===nk);if(ne){l.e=ne;l.s=l.dir>0?0:ne.len;return;}
   const px=l.dir>0?e.bx:e.ax,pz=l.dir>0?e.bz:e.az;const cand=[];for(const ox of [-RH,0,RH])for(const oz of [-RH,0,RH])for(const id of edgesNear(px+ox,pz+oz)){const q=EDGES[id];if(q===e||q.kind==='bridge'&&q.road.name.includes('Haji'))continue;
     if(Math.hypot(q.ax-px,q.az-pz)<14)cand.push([q,1]);else if(Math.hypot(q.bx-px,q.bz-pz)<14)cand.push([q,-1]);}
-  if(cand.length){const [q,d]=mpick(cand);l.e=q;l.dir=d;l.s=d>0?0:q.len;return;}l.dir=-l.dir;}
+  if(cand.length){const hx=e.dx*l.dir,hz=e.dz*l.dir;const ok=cand.filter(([q,d])=>q.road!==e.road||q.k!==e.k?(q.dx*d*hx+q.dz*d*hz)>-.5:false);const pool=ok.length?ok:cand;
+    // mostly carry on straight or turn gently; the busier the turn, the less likely
+    const w=pool.map(([q,d])=>.3+Math.max(0,q.dx*d*hx+q.dz*d*hz)*1.4+(q.road===e.road?1.2:0));let r=Math.random()*w.reduce((a,b)=>a+b,0),i=0;while(i<w.length-1&&(r-=w[i])>0)i++;const [q,d]=pool[i];l.e=q;l.dir=d;l.s=d>0?0:q.len;return;}l.dir=-l.dir;l.dead=true;}
 function randomLaneNear(cx,cz,rmin,rmax){for(let k=0;k<25;k++){const a=Math.random()*6.283,r=MR(rmin,rmax);const x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;const ids=edgesNear(x,z);if(!ids.length)continue;const e=EDGES[mpick(ids)];if(e.road.name.includes('Haji'))continue;
   const l={e,dir:Math.random()<.5?1:-1,s:MR(0,e.len)};lanePos(l,_lp);const d=Math.hypot(_lp.x-cx,_lp.z-cz);if(d>=rmin*.8&&d<=rmax*1.1)return l;}return null;}
 const TT=['taxi','taxi','taxi','car','car','car','sedan','bus','truck','auto','auto','auto','bike','bike','suv','cycle'];
@@ -963,7 +993,7 @@ function updAnimals(dt,now){const pp=ppos();
     a.g.position.set(a.x,0,a.z);a.g.rotation.y=a.h;animGait(a,now,spd);}
   const zz=zoneAt(pp.x,pp.z,200);const forest=!zz&&W.zones.some(q=>FOREST.includes(q.id)&&Math.hypot(q.x0+q.nx*40-pp.x,q.z0+q.nz*40-pp.z)<900);
   const list=zz?(zz.id==='mumbai'?STRAYS.mumbai:STRAYS[zz.st]||STRAYS.def):forest?[['elephant',30],['deer',40],['monkey',30]]:null;
-  strayT-=dt;if(list&&!inside&&strayT<=0&&cows.filter(c=>c.active).length<(zz?6:3)){strayT=MR(1,3);const r=randomLaneNear(pp.x,pp.z,60,200);if(r&&(zz?r.e.kind==='city':r.e.kind!=='city')){const kind=wpick(list);const c=getStray(kind);if(c){lanePos(r,_lp);c.x=_lp.x;c.z=_lp.z;c.h=_lp.h+MR(-.4,.4);c.active=true;c.g.visible=true;c.t=MR(30,80);c.hp=100;c.state='ok';c.g.rotation.set(0,c.h,0);c.g.position.y=0;}}}
+  strayT-=dt;if(list&&!inside&&strayT<=0&&cows.filter(c=>c.active).length<(zz?(zz.size==='big'?0:zz.size==='mid'?1:2):forest?5:2)){strayT=MR(1,3)*(zz?3:1);const r=randomLaneNear(pp.x,pp.z,60,200);if(r&&(zz?r.e.kind==='city':r.e.kind!=='city')){const kind=wpick(list);const c=getStray(kind);if(c){lanePos(r,_lp);c.x=_lp.x;c.z=_lp.z;c.h=_lp.h+MR(-.4,.4);c.active=true;c.g.visible=true;c.t=MR(30,80);c.hp=100;c.state='ok';c.g.rotation.set(0,c.h,0);c.g.position.y=0;}}}
   for(const c of cows){if(!c.active)continue;c.t-=dt;const d=Math.hypot(c.x-pp.x,c.z-pp.z);if(c.state!=='down'&&(c.t<=0&&d>120||d>320)||inside){c.active=false;c.g.visible=false;c.state='ok';c.g.rotation.z=0;continue;}
     if(!updAnimal(c,dt,now))continue;if(c.state==='down')continue;
     if(c.kind==='elephant'&&c.state==='angry'&&player.mode!=='foot'&&d<30){c.h=Math.atan2(pp.x-c.x,pp.z-c.z);}
@@ -1492,7 +1522,7 @@ function routeEta(R){let t=0,heavy=false;for(let i=0;i<R.length-1;i++){const l=M
 const SIG=34;
 function sigJunction(x,z){const zz=zoneAt(x,z);if(!zz||zz.size==='small')return null;const i=Math.round((x-zz.x0)/80),j=Math.round((z-zz.z0)/80);if(i<=0||j<=0||i>=zz.nx||j>=zz.nz)return null;const jx=zz.x0+i*80,jz=zz.z0+j*80;if(isWater(jx,jz))return null;return{x:jx,z:jz,zone:zz,i,j};}
 function sigState(jx,jz,axis){const t=((Date.now()/1000)+hash(jx*.13+jz*.71)*SIG)%SIG;if(axis==='ns')return t<15?'g':t<17?'a':'r';return t<17?'r':t<32?'g':t<34?'a':'r';}
-function sigStop(c){const e=c.lane.e;if(e.kind!=='city')return Infinity;const ew=Math.abs(e.dx)>.5;const f=ew?Math.sign(e.dx*c.lane.dir):Math.sign(e.dz*c.lane.dir);const zz=zoneAt(c.pos.x,c.pos.z);if(!zz||zz.size==='small')return Infinity;
+function sigStop(c){const e=c.lane.e;if(e.kind!=='city'){if(e.fly)return Infinity;const ex=c.lane.dir>0?e.bx:e.ax,ez=c.lane.dir>0?e.bz:e.az;const d=c.lane.dir>0?e.len-c.lane.s:c.lane.s;if(d>34)return Infinity;const j=hwjAt(ex,ez,14);if(!j)return Infinity;return sigState(j.x,j.z,hwjAxis(j,Math.atan2(e.dx*c.lane.dir,e.dz*c.lane.dir)))==='g'?Infinity:d-11;}const ew=Math.abs(e.dx)>.5;const f=ew?Math.sign(e.dx*c.lane.dir):Math.sign(e.dz*c.lane.dir);const zz=zoneAt(c.pos.x,c.pos.z);if(!zz||zz.size==='small')return Infinity;
   const a=ew?c.pos.x:c.pos.z,base=ew?zz.x0:zz.z0;let k=f>0?Math.ceil((a-base)/80):Math.floor((a-base)/80);let jc=base+k*80;let d=(jc-a)*f;if(d<9){k+=f;jc=base+k*80;d=(jc-a)*f;}if(d>32)return Infinity;
   const jx=ew?jc:c.pos.x,jz=ew?c.pos.z:jc;const J=sigJunction(jx,jz);if(!J)return Infinity;return sigState(J.x,J.z,ew?'ew':'ns')==='g'?Infinity:d-11;}
 const sigMats={r:new THREE.MeshBasicMaterial({color:0xff2a2a}),a:new THREE.MeshBasicMaterial({color:0xffb000}),g:new THREE.MeshBasicMaterial({color:0x2aff6a})};
@@ -1500,6 +1530,16 @@ const sigPool=[];for(let k=0;k<14;k++){const grp=new THREE.Group();const heads=[
   for(const ry of faces){const hd=new THREE.Group();hd.position.set(cx,4.6,cz);hd.rotation.y=ry;const box=new THREE.Mesh(G.box,VM.black);box.scale.set(.5,1.4,.35);box.position.z=.3;hd.add(box);const lamp=new THREE.Mesh(G.box,sigMats.g);lamp.scale.set(.36,.36,.08);lamp.position.z=.5;hd.add(lamp);grp.add(hd);heads.push({lamp,axis:Math.abs(Math.sin(ry))>.5?'ew':'ns'});}}
   grp.visible=false;scene.add(grp);sigPool.push({grp,heads,key:''});}
 let sigNear=[];const redSeen=new Map();
+/* Beta v1.01.07: signals where three or more roads meet outside the city grids (highway junctions, town entries) */
+const HWJ=[];{const ends=new Map();for(const e of EDGES){if(e.fly||e.kind==='service')continue;for(const [x,z,dir] of [[e.ax,e.az,-1],[e.bx,e.bz,1]]){const k=Math.round(x/12)+','+Math.round(z/12);let a=ends.get(k);if(!a)ends.set(k,a=[]);a.push({e,x,z,h:Math.atan2(-e.dx*dir,-e.dz*dir)});}}
+  for(const a of ends.values()){const roads=new Set(a.map(q=>q.e.road));if(a.length<3||roads.size<2)continue;const x=a[0].x,z=a[0].z;const zz=zoneAt(x,z,-1);if(zz&&zz.size!=='small'){const i=Math.round((x-zz.x0)/80),j=Math.round((z-zz.z0)/80);if(i>0&&j>0&&i<zz.nx&&j<zz.nz)continue;}
+    if(a.every(q=>q.e.kind==='city')||isWater(x,z))continue;const th=Math.atan2(a[0].e.dx,a[0].e.dz);HWJ.push({x,z,th,app:a});}}
+const hwjAt=(x,z,r)=>{let best=null,bd=r;for(const j of HWJ){const d=Math.abs(j.x-x)+Math.abs(j.z-z);if(d<bd){bd=d;best=j;}}return best;};
+const hwjAxis=(j,h)=>Math.abs(Math.cos(h-j.th))>.7?'ns':'ew';
+const hwSigPool=[];for(let k=0;k<12;k++){const grp=new THREE.Group();const pole=new THREE.Mesh(G.cyl,M.pole);pole.scale.set(.14,5,.14);pole.position.y=2.5;grp.add(pole);const hd=new THREE.Group();hd.position.y=4.6;const box=new THREE.Mesh(G.box,VM.black);box.scale.set(.5,1.4,.35);hd.add(box);const lamp=new THREE.Mesh(G.box,sigMats.g);lamp.scale.set(.36,.36,.08);lamp.position.z=.2;hd.add(lamp);grp.add(hd);grp.visible=false;scene.add(grp);hwSigPool.push({grp,lamp});}
+function updHwSignals(){const pp=ppos();const list=[];for(const j of HWJ){const d=Math.abs(j.x-pp.x)+Math.abs(j.z-pp.z);if(d<300)for(const q of j.app)list.push([d,j,q]);}list.sort((a,b)=>a[0]-b[0]);
+  hwSigPool.forEach((p,k)=>{const it=list[k];if(!it||inside){p.grp.visible=false;return;}const [,j,q]=it;const ax=Math.sin(q.h),az=Math.cos(q.h);const w=q.e.w/2+1.6;p.grp.visible=true;p.grp.position.set(j.x-ax*10+az*w,0,j.z-az*10-ax*w);p.grp.rotation.y=q.h+Math.PI;
+    const st=sigState(j.x,j.z,hwjAxis(j,q.h));p.lamp.material=sigMats[st];p.lamp.position.y=st==='r'?.42:st==='a'?0:-.42;});}
 function updSignals(){const pp=ppos();const list=[];const zz=zoneAt(pp.x,pp.z,100);if(zz&&zz.size!=='small'&&!inside){for(let i=1;i<zz.nx;i++)for(let j=1;j<zz.nz;j++){const x=zz.x0+i*80,z=zz.z0+j*80;const d=Math.abs(x-pp.x)+Math.abs(z-pp.z);if(d<360&&!isWater(x,z))list.push([d,x,z]);}}
   list.sort((a,b)=>a[0]-b[0]);sigNear=list.slice(0,sigPool.length);sigPool.forEach((p,k)=>{const j=sigNear[k];if(!j){p.grp.visible=false;return;}p.grp.visible=true;p.grp.position.set(j[1],0,j[2]);for(const h of p.heads){const st=sigState(j[1],j[2],h.axis);h.lamp.material=sigMats[st];h.lamp.position.y=st==='r'?.42:st==='a'?0:-.42;}});}
 function checkRedLight(now){if(player.mode!=='drive'||!player.veh)return;const v=player.veh;if(Math.abs(v.v)<4)return;const J=sigJunction(v.pos.x,v.pos.z);if(!J)return;if(Math.abs(v.pos.x-J.x)>7||Math.abs(v.pos.z-J.z)>7)return;
@@ -1605,20 +1645,40 @@ function updFoot(dt,bounds){if(player.knock>0){player.knock-=dt;avatar.position.
   player.anim=Math.max(0,player.anim-dt);const ph=performance.now()/1000*(player.run?13:9),sw=Math.min(1,Math.abs(player.v)/4)*.7;
   AU.legs[0].rotation.x=Math.sin(ph)*sw;AU.legs[1].rotation.x=-Math.sin(ph)*sw;AU.arms[0].rotation.x=-Math.sin(ph)*sw;AU.arms[1].rotation.x=player.anim>0?-1.5:(P.weapon==='fist'?Math.sin(ph)*sw:-.5);
   avatar.position.set(player.pos.x,inside?0:.3,player.pos.z);avatar.rotation.set(0,player.h,0);avatar.visible=camMode!==2;if(eng)eng.g.gain.value=0;}
+const JCL=new Map();let TIDN=0;
 function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos:null;let n=0;
   for(const c of vehicles.slice()){if(c.state!=='traffic')continue;n++;if(c.pos.distanceTo(pp)>390){removeVeh(c);n--;continue;}const l=c.lane;let target=c.stopT>0?0:l.vmax;c.stopT=Math.max(0,c.stopT-dt);let blocked=null;
-    const fx=Math.sin(c.h),fz=Math.cos(c.h);const look=c.spec.len/2+6;
+    if(!c.tid)c.tid=++TIDN;const fx=Math.sin(c.h),fz=Math.cos(c.h);const look=c.spec.len/2+6;
     // cars ignore oncoming cars (lanes can touch where roads meet) and a car stuck behind traffic for 6 s squeezes through,
     // so junctions at the ends of highways never lock up
     c.ghostT=Math.max(0,(c.ghostT||0)-dt);let jam=false;
     if(!(c.ghostT>0))for(const o of vehicles){if(o===c)continue;const dx=o.pos.x-c.pos.x,dz=o.pos.z-c.pos.z;if(Math.abs(dx)>30||Math.abs(dz)>30||Math.abs(o.pos.y-c.pos.y)>2)continue;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);
-      if(o.state==='traffic'&&Math.sin(o.h)*fx+Math.cos(o.h)*fz<-.3)continue;
+      const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz;if(o.state==='traffic'&&dot<-.3)continue;
+      // crossing traffic: the vehicle that got there first (lower number) goes, the other waits its turn
+      if(o.state==='traffic'&&Math.abs(dot)<.6&&(o.tid||0)>c.tid)continue;
       if(along>0&&along<look+o.spec.len/2&&lat<2.4){target=Math.min(target,o.state==='traffic'?o.v*.8:0);if(o.state!=='traffic')blocked=o;else jam=true;}}
-    if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>6){c.jamT=0;c.ghostT=3;}}else c.jamT=0;
+    if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>7){c.jamT=0;if(c.pos.distanceTo(pp)>45){removeVeh(c);n--;continue;}else if(c.jamT===0&&(c.jamN=(c.jamN||0)+1)>2)c.ghostT=2;}}else{c.jamT=0;c.jamN=0;}
     for(const q of [fp,...cows.filter(k=>k.active)]){if(!q)continue;const dx=q.x-c.pos.x,dz=q.z-c.pos.z;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);if(along>0&&along<look+2&&lat<2.4)target=0;}
     if(blocked&&c.v<.5){c.blockT+=dt;if(c.blockT>9&&c.pos.distanceTo(pp)>60){removeVeh(c);n--;continue;}}else c.blockT=0;
     if(frame%3===0)c.sigD=sigStop(c);if(c.sigD!=null&&c.sigD<Infinity)target=Math.min(target,c.sigD<1?0:Math.max(0,c.sigD*.7));
-    c.v+=clamp(target-c.v,-20*dt,5*dt);l.s+=l.dir*c.v*dt;if(l.s>l.e.len||l.s<0){nextLane(l);}placeLane(c);c.m.visible=Math.abs(c.pos.x-pp.x)+Math.abs(c.pos.z-pp.z)<Math.max(240,scene.fog.far*.6);for(const w of c.m.userData.wheels)w.rotation.x+=c.v*dt/.4;}
+    if(c.turn&&c.turn.wait){const T=c.turn;const o=JCL.get(T.key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===T.key&&(T.waited=(T.waited||0)+dt)<8)target=0;else{T.wait=false;JCL.set(T.key,c);}}
+    c.v+=clamp(target-c.v,-20*dt,5*dt);
+    if(c.turn&&!c.turn.wait){const T=c.turn;T.t=Math.min(1,T.t+c.v*dt/T.len);const t=T.t,u=1-t;let x,z,tx,tz;
+      if(T.c2){x=u*u*u*T.p0[0]+3*u*u*t*T.c[0]+3*u*t*t*T.c2[0]+t*t*t*T.p2[0];z=u*u*u*T.p0[1]+3*u*u*t*T.c[1]+3*u*t*t*T.c2[1]+t*t*t*T.p2[1];tx=3*u*u*(T.c[0]-T.p0[0])+6*u*t*(T.c2[0]-T.c[0])+3*t*t*(T.p2[0]-T.c2[0]);tz=3*u*u*(T.c[1]-T.p0[1])+6*u*t*(T.c2[1]-T.c[1])+3*t*t*(T.p2[1]-T.c2[1]);}
+      else{x=u*u*T.p0[0]+2*u*t*T.c[0]+t*t*T.p2[0];z=u*u*T.p0[1]+2*u*t*T.c[1]+t*t*T.p2[1];tx=2*u*(T.c[0]-T.p0[0])+2*t*(T.p2[0]-T.c[0]);tz=2*u*(T.c[1]-T.p0[1])+2*t*(T.p2[1]-T.c[1]);}
+      c.pos.set(x,(T.y0||0)+((T.y2||0)-(T.y0||0))*t,z);if(Math.abs(tx)+Math.abs(tz)>1e-6)c.h=Math.atan2(tx,tz);c.m.rotation.y=c.h;if(T.t>=1){if(JCL.get(T.key)===c)JCL.delete(T.key);c.turn=null;placeLane(c);}}
+    else if(!c.turn){l.s+=l.dir*c.v*dt;const left=l.dir>0?l.e.len-l.s:l.s;const TR=Math.min(9,l.e.len*.4);
+      if(left<=TR){const pk={e:l.e,s:l.s,dir:l.dir};nextLane(pk);
+        if(pk.dead){// a road that ends: far from you the vehicle simply leaves; near you it makes a proper U-turn
+          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir},_lp);
+          c.turn={p0:[c.pos.x,c.pos.z],c:[c.pos.x+fx2*r*1.4,c.pos.z+fz2*r*1.4],c2:[_lp.x+fx2*r*1.4,_lp.z+fz2*r*1.4],p2:[_lp.x,_lp.z],t:0,len:r*3.4+2,key:'u'+(c.tid||(c.tid=++TIDN)),y0:c.pos.y,y2:c.pos.y};l.dir=-l.dir;}
+        else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
+          const d=Math.hypot(p2[0]-p0[0],p2[1]-p0[1]);let dh=h2-h0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));const k=d*.45;const cc=Math.abs(dh)<.15?[(p0[0]+p2[0])/2,(p0[1]+p2[1])/2]:null;
+          const ex=l.dir>0?l.e.bx:l.e.ax,ez=l.dir>0?l.e.bz:l.e.az;const key=Math.round(ex/10)+','+Math.round(ez/10);const busy=pk.e.road!==l.e.road||Math.abs(dh)>.5;
+          c.turn=cc?{p0,c:cc,p2,t:0,len:Math.max(1,d)}:{p0,c:[p0[0]+Math.sin(h0)*k,p0[1]+Math.cos(h0)*k],c2:[p2[0]-Math.sin(h2)*k,p2[1]-Math.cos(h2)*k],p2,t:0,len:Math.max(1,d*(1+Math.abs(dh)*.25))};c.turn.key=busy?key:'s'+(c.tid||(c.tid=++TIDN));c.turn.y0=c.pos.y;c.turn.y2=pk.e.fly?flyY(pk.e,s1):0;
+          if(busy){const o=JCL.get(key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===key){c.turn.wait=true;}else JCL.set(key,c);}
+          l.e=pk.e;l.dir=pk.dir;l.s=s1;}}
+      if(!c.turn)placeLane(c);}c.m.visible=Math.abs(c.pos.x-pp.x)+Math.abs(c.pos.z-pp.z)<Math.max(240,scene.fog.far*.6);for(const w of c.m.userData.wheels)w.rotation.x+=c.v*dt/.4;}
   let spawns=0;while(n<Math.round(CFG.traffic*botScale)&&spawns<3){spawns++;const v=spawnTraffic(started);if(v){const c=CONG[v.lane.e.id];if(Math.random()>.35+c){removeVeh(v);continue;}v.lane.vmax*=1-.55*c;n++;}}}
 // people jump out of the way of a speeding vehicle (yours or traffic) and run from fights and gunfire
 function dodgeCheck(p,dt){if(p.state==='down'||p.state==='idle')return;p.ox=p.ox||0;p.oz=p.oz||0;let hx=0,hz=0;
@@ -1764,7 +1824,7 @@ function loop(ms){requestAnimationFrame(loop);const now=ms/1000;const rdt=Math.m
   for(let i=tracers.length-1;i>=0;i--){tracers[i].t-=dt;if(tracers[i].t<=0){scene.remove(tracers[i].l);tracers[i].l.geometry.dispose();tracers.splice(i,1);}}flash.intensity=Math.max(0,flash.intensity-dt*40);
   if(frame%6===0){curMission=evalMission();showMission(curMission);}
   if(frame%10===0)updNav(dt*10);
-  if(frame%8===0&&!inside)updSignals();if(frame%4===0&&CFG.challansOn&&!inside)checkRedLight(now);congT+=rdt;if(congT>20){congT=0;updCongestion();}
+  if(frame%8===0&&!inside){updSignals();updHwSignals();}if(frame%4===0&&CFG.challansOn&&!inside)checkRedLight(now);congT+=rdt;if(congT>20){congT=0;updCongestion();}
   arrow.visible=false;
   if(frame%5===0)updPrompt();updHud();if(frame%2===0&&!inside)drawMini(now);
   if(dirty&&ms-lastSave>15000){lastSave=ms;save();}

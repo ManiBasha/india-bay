@@ -466,7 +466,7 @@ function routeEta(R){let t=0,heavy=false;for(let i=0;i<R.length-1;i++){const l=M
 const SIG=34;
 function sigJunction(x,z){const zz=zoneAt(x,z);if(!zz||zz.size==='small')return null;const i=Math.round((x-zz.x0)/80),j=Math.round((z-zz.z0)/80);if(i<=0||j<=0||i>=zz.nx||j>=zz.nz)return null;const jx=zz.x0+i*80,jz=zz.z0+j*80;if(isWater(jx,jz))return null;return{x:jx,z:jz,zone:zz,i,j};}
 function sigState(jx,jz,axis){const t=((Date.now()/1000)+hash(jx*.13+jz*.71)*SIG)%SIG;if(axis==='ns')return t<15?'g':t<17?'a':'r';return t<17?'r':t<32?'g':t<34?'a':'r';}
-function sigStop(c){const e=c.lane.e;if(e.kind!=='city')return Infinity;const ew=Math.abs(e.dx)>.5;const f=ew?Math.sign(e.dx*c.lane.dir):Math.sign(e.dz*c.lane.dir);const zz=zoneAt(c.pos.x,c.pos.z);if(!zz||zz.size==='small')return Infinity;
+function sigStop(c){const e=c.lane.e;if(e.kind!=='city'){if(e.fly)return Infinity;const ex=c.lane.dir>0?e.bx:e.ax,ez=c.lane.dir>0?e.bz:e.az;const d=c.lane.dir>0?e.len-c.lane.s:c.lane.s;if(d>34)return Infinity;const j=hwjAt(ex,ez,14);if(!j)return Infinity;return sigState(j.x,j.z,hwjAxis(j,Math.atan2(e.dx*c.lane.dir,e.dz*c.lane.dir)))==='g'?Infinity:d-11;}const ew=Math.abs(e.dx)>.5;const f=ew?Math.sign(e.dx*c.lane.dir):Math.sign(e.dz*c.lane.dir);const zz=zoneAt(c.pos.x,c.pos.z);if(!zz||zz.size==='small')return Infinity;
   const a=ew?c.pos.x:c.pos.z,base=ew?zz.x0:zz.z0;let k=f>0?Math.ceil((a-base)/80):Math.floor((a-base)/80);let jc=base+k*80;let d=(jc-a)*f;if(d<9){k+=f;jc=base+k*80;d=(jc-a)*f;}if(d>32)return Infinity;
   const jx=ew?jc:c.pos.x,jz=ew?c.pos.z:jc;const J=sigJunction(jx,jz);if(!J)return Infinity;return sigState(J.x,J.z,ew?'ew':'ns')==='g'?Infinity:d-11;}
 const sigMats={r:new THREE.MeshBasicMaterial({color:0xff2a2a}),a:new THREE.MeshBasicMaterial({color:0xffb000}),g:new THREE.MeshBasicMaterial({color:0x2aff6a})};
@@ -474,6 +474,16 @@ const sigPool=[];for(let k=0;k<14;k++){const grp=new THREE.Group();const heads=[
   for(const ry of faces){const hd=new THREE.Group();hd.position.set(cx,4.6,cz);hd.rotation.y=ry;const box=new THREE.Mesh(G.box,VM.black);box.scale.set(.5,1.4,.35);box.position.z=.3;hd.add(box);const lamp=new THREE.Mesh(G.box,sigMats.g);lamp.scale.set(.36,.36,.08);lamp.position.z=.5;hd.add(lamp);grp.add(hd);heads.push({lamp,axis:Math.abs(Math.sin(ry))>.5?'ew':'ns'});}}
   grp.visible=false;scene.add(grp);sigPool.push({grp,heads,key:''});}
 let sigNear=[];const redSeen=new Map();
+/* Beta v1.01.07: signals where three or more roads meet outside the city grids (highway junctions, town entries) */
+const HWJ=[];{const ends=new Map();for(const e of EDGES){if(e.fly||e.kind==='service')continue;for(const [x,z,dir] of [[e.ax,e.az,-1],[e.bx,e.bz,1]]){const k=Math.round(x/12)+','+Math.round(z/12);let a=ends.get(k);if(!a)ends.set(k,a=[]);a.push({e,x,z,h:Math.atan2(-e.dx*dir,-e.dz*dir)});}}
+  for(const a of ends.values()){const roads=new Set(a.map(q=>q.e.road));if(a.length<3||roads.size<2)continue;const x=a[0].x,z=a[0].z;const zz=zoneAt(x,z,-1);if(zz&&zz.size!=='small'){const i=Math.round((x-zz.x0)/80),j=Math.round((z-zz.z0)/80);if(i>0&&j>0&&i<zz.nx&&j<zz.nz)continue;}
+    if(a.every(q=>q.e.kind==='city')||isWater(x,z))continue;const th=Math.atan2(a[0].e.dx,a[0].e.dz);HWJ.push({x,z,th,app:a});}}
+const hwjAt=(x,z,r)=>{let best=null,bd=r;for(const j of HWJ){const d=Math.abs(j.x-x)+Math.abs(j.z-z);if(d<bd){bd=d;best=j;}}return best;};
+const hwjAxis=(j,h)=>Math.abs(Math.cos(h-j.th))>.7?'ns':'ew';
+const hwSigPool=[];for(let k=0;k<12;k++){const grp=new THREE.Group();const pole=new THREE.Mesh(G.cyl,M.pole);pole.scale.set(.14,5,.14);pole.position.y=2.5;grp.add(pole);const hd=new THREE.Group();hd.position.y=4.6;const box=new THREE.Mesh(G.box,VM.black);box.scale.set(.5,1.4,.35);hd.add(box);const lamp=new THREE.Mesh(G.box,sigMats.g);lamp.scale.set(.36,.36,.08);lamp.position.z=.2;hd.add(lamp);grp.add(hd);grp.visible=false;scene.add(grp);hwSigPool.push({grp,lamp});}
+function updHwSignals(){const pp=ppos();const list=[];for(const j of HWJ){const d=Math.abs(j.x-pp.x)+Math.abs(j.z-pp.z);if(d<300)for(const q of j.app)list.push([d,j,q]);}list.sort((a,b)=>a[0]-b[0]);
+  hwSigPool.forEach((p,k)=>{const it=list[k];if(!it||inside){p.grp.visible=false;return;}const [,j,q]=it;const ax=Math.sin(q.h),az=Math.cos(q.h);const w=q.e.w/2+1.6;p.grp.visible=true;p.grp.position.set(j.x-ax*10+az*w,0,j.z-az*10-ax*w);p.grp.rotation.y=q.h+Math.PI;
+    const st=sigState(j.x,j.z,hwjAxis(j,q.h));p.lamp.material=sigMats[st];p.lamp.position.y=st==='r'?.42:st==='a'?0:-.42;});}
 function updSignals(){const pp=ppos();const list=[];const zz=zoneAt(pp.x,pp.z,100);if(zz&&zz.size!=='small'&&!inside){for(let i=1;i<zz.nx;i++)for(let j=1;j<zz.nz;j++){const x=zz.x0+i*80,z=zz.z0+j*80;const d=Math.abs(x-pp.x)+Math.abs(z-pp.z);if(d<360&&!isWater(x,z))list.push([d,x,z]);}}
   list.sort((a,b)=>a[0]-b[0]);sigNear=list.slice(0,sigPool.length);sigPool.forEach((p,k)=>{const j=sigNear[k];if(!j){p.grp.visible=false;return;}p.grp.visible=true;p.grp.position.set(j[1],0,j[2]);for(const h of p.heads){const st=sigState(j[1],j[2],h.axis);h.lamp.material=sigMats[st];h.lamp.position.y=st==='r'?.42:st==='a'?0:-.42;}});}
 function checkRedLight(now){if(player.mode!=='drive'||!player.veh)return;const v=player.veh;if(Math.abs(v.v)<4)return;const J=sigJunction(v.pos.x,v.pos.z);if(!J)return;if(Math.abs(v.pos.x-J.x)>7||Math.abs(v.pos.z-J.z)>7)return;
@@ -579,20 +589,40 @@ function updFoot(dt,bounds){if(player.knock>0){player.knock-=dt;avatar.position.
   player.anim=Math.max(0,player.anim-dt);const ph=performance.now()/1000*(player.run?13:9),sw=Math.min(1,Math.abs(player.v)/4)*.7;
   AU.legs[0].rotation.x=Math.sin(ph)*sw;AU.legs[1].rotation.x=-Math.sin(ph)*sw;AU.arms[0].rotation.x=-Math.sin(ph)*sw;AU.arms[1].rotation.x=player.anim>0?-1.5:(P.weapon==='fist'?Math.sin(ph)*sw:-.5);
   avatar.position.set(player.pos.x,inside?0:.3,player.pos.z);avatar.rotation.set(0,player.h,0);avatar.visible=camMode!==2;if(eng)eng.g.gain.value=0;}
+const JCL=new Map();let TIDN=0;
 function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos:null;let n=0;
   for(const c of vehicles.slice()){if(c.state!=='traffic')continue;n++;if(c.pos.distanceTo(pp)>390){removeVeh(c);n--;continue;}const l=c.lane;let target=c.stopT>0?0:l.vmax;c.stopT=Math.max(0,c.stopT-dt);let blocked=null;
-    const fx=Math.sin(c.h),fz=Math.cos(c.h);const look=c.spec.len/2+6;
+    if(!c.tid)c.tid=++TIDN;const fx=Math.sin(c.h),fz=Math.cos(c.h);const look=c.spec.len/2+6;
     // cars ignore oncoming cars (lanes can touch where roads meet) and a car stuck behind traffic for 6 s squeezes through,
     // so junctions at the ends of highways never lock up
     c.ghostT=Math.max(0,(c.ghostT||0)-dt);let jam=false;
     if(!(c.ghostT>0))for(const o of vehicles){if(o===c)continue;const dx=o.pos.x-c.pos.x,dz=o.pos.z-c.pos.z;if(Math.abs(dx)>30||Math.abs(dz)>30||Math.abs(o.pos.y-c.pos.y)>2)continue;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);
-      if(o.state==='traffic'&&Math.sin(o.h)*fx+Math.cos(o.h)*fz<-.3)continue;
+      const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz;if(o.state==='traffic'&&dot<-.3)continue;
+      // crossing traffic: the vehicle that got there first (lower number) goes, the other waits its turn
+      if(o.state==='traffic'&&Math.abs(dot)<.6&&(o.tid||0)>c.tid)continue;
       if(along>0&&along<look+o.spec.len/2&&lat<2.4){target=Math.min(target,o.state==='traffic'?o.v*.8:0);if(o.state!=='traffic')blocked=o;else jam=true;}}
-    if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>6){c.jamT=0;c.ghostT=3;}}else c.jamT=0;
+    if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>7){c.jamT=0;if(c.pos.distanceTo(pp)>45){removeVeh(c);n--;continue;}else if(c.jamT===0&&(c.jamN=(c.jamN||0)+1)>2)c.ghostT=2;}}else{c.jamT=0;c.jamN=0;}
     for(const q of [fp,...cows.filter(k=>k.active)]){if(!q)continue;const dx=q.x-c.pos.x,dz=q.z-c.pos.z;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);if(along>0&&along<look+2&&lat<2.4)target=0;}
     if(blocked&&c.v<.5){c.blockT+=dt;if(c.blockT>9&&c.pos.distanceTo(pp)>60){removeVeh(c);n--;continue;}}else c.blockT=0;
     if(frame%3===0)c.sigD=sigStop(c);if(c.sigD!=null&&c.sigD<Infinity)target=Math.min(target,c.sigD<1?0:Math.max(0,c.sigD*.7));
-    c.v+=clamp(target-c.v,-20*dt,5*dt);l.s+=l.dir*c.v*dt;if(l.s>l.e.len||l.s<0){nextLane(l);}placeLane(c);c.m.visible=Math.abs(c.pos.x-pp.x)+Math.abs(c.pos.z-pp.z)<Math.max(240,scene.fog.far*.6);for(const w of c.m.userData.wheels)w.rotation.x+=c.v*dt/.4;}
+    if(c.turn&&c.turn.wait){const T=c.turn;const o=JCL.get(T.key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===T.key&&(T.waited=(T.waited||0)+dt)<8)target=0;else{T.wait=false;JCL.set(T.key,c);}}
+    c.v+=clamp(target-c.v,-20*dt,5*dt);
+    if(c.turn&&!c.turn.wait){const T=c.turn;T.t=Math.min(1,T.t+c.v*dt/T.len);const t=T.t,u=1-t;let x,z,tx,tz;
+      if(T.c2){x=u*u*u*T.p0[0]+3*u*u*t*T.c[0]+3*u*t*t*T.c2[0]+t*t*t*T.p2[0];z=u*u*u*T.p0[1]+3*u*u*t*T.c[1]+3*u*t*t*T.c2[1]+t*t*t*T.p2[1];tx=3*u*u*(T.c[0]-T.p0[0])+6*u*t*(T.c2[0]-T.c[0])+3*t*t*(T.p2[0]-T.c2[0]);tz=3*u*u*(T.c[1]-T.p0[1])+6*u*t*(T.c2[1]-T.c[1])+3*t*t*(T.p2[1]-T.c2[1]);}
+      else{x=u*u*T.p0[0]+2*u*t*T.c[0]+t*t*T.p2[0];z=u*u*T.p0[1]+2*u*t*T.c[1]+t*t*T.p2[1];tx=2*u*(T.c[0]-T.p0[0])+2*t*(T.p2[0]-T.c[0]);tz=2*u*(T.c[1]-T.p0[1])+2*t*(T.p2[1]-T.c[1]);}
+      c.pos.set(x,(T.y0||0)+((T.y2||0)-(T.y0||0))*t,z);if(Math.abs(tx)+Math.abs(tz)>1e-6)c.h=Math.atan2(tx,tz);c.m.rotation.y=c.h;if(T.t>=1){if(JCL.get(T.key)===c)JCL.delete(T.key);c.turn=null;placeLane(c);}}
+    else if(!c.turn){l.s+=l.dir*c.v*dt;const left=l.dir>0?l.e.len-l.s:l.s;const TR=Math.min(9,l.e.len*.4);
+      if(left<=TR){const pk={e:l.e,s:l.s,dir:l.dir};nextLane(pk);
+        if(pk.dead){// a road that ends: far from you the vehicle simply leaves; near you it makes a proper U-turn
+          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir},_lp);
+          c.turn={p0:[c.pos.x,c.pos.z],c:[c.pos.x+fx2*r*1.4,c.pos.z+fz2*r*1.4],c2:[_lp.x+fx2*r*1.4,_lp.z+fz2*r*1.4],p2:[_lp.x,_lp.z],t:0,len:r*3.4+2,key:'u'+(c.tid||(c.tid=++TIDN)),y0:c.pos.y,y2:c.pos.y};l.dir=-l.dir;}
+        else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
+          const d=Math.hypot(p2[0]-p0[0],p2[1]-p0[1]);let dh=h2-h0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));const k=d*.45;const cc=Math.abs(dh)<.15?[(p0[0]+p2[0])/2,(p0[1]+p2[1])/2]:null;
+          const ex=l.dir>0?l.e.bx:l.e.ax,ez=l.dir>0?l.e.bz:l.e.az;const key=Math.round(ex/10)+','+Math.round(ez/10);const busy=pk.e.road!==l.e.road||Math.abs(dh)>.5;
+          c.turn=cc?{p0,c:cc,p2,t:0,len:Math.max(1,d)}:{p0,c:[p0[0]+Math.sin(h0)*k,p0[1]+Math.cos(h0)*k],c2:[p2[0]-Math.sin(h2)*k,p2[1]-Math.cos(h2)*k],p2,t:0,len:Math.max(1,d*(1+Math.abs(dh)*.25))};c.turn.key=busy?key:'s'+(c.tid||(c.tid=++TIDN));c.turn.y0=c.pos.y;c.turn.y2=pk.e.fly?flyY(pk.e,s1):0;
+          if(busy){const o=JCL.get(key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===key){c.turn.wait=true;}else JCL.set(key,c);}
+          l.e=pk.e;l.dir=pk.dir;l.s=s1;}}
+      if(!c.turn)placeLane(c);}c.m.visible=Math.abs(c.pos.x-pp.x)+Math.abs(c.pos.z-pp.z)<Math.max(240,scene.fog.far*.6);for(const w of c.m.userData.wheels)w.rotation.x+=c.v*dt/.4;}
   let spawns=0;while(n<Math.round(CFG.traffic*botScale)&&spawns<3){spawns++;const v=spawnTraffic(started);if(v){const c=CONG[v.lane.e.id];if(Math.random()>.35+c){removeVeh(v);continue;}v.lane.vmax*=1-.55*c;n++;}}}
 // people jump out of the way of a speeding vehicle (yours or traffic) and run from fights and gunfire
 function dodgeCheck(p,dt){if(p.state==='down'||p.state==='idle')return;p.ox=p.ox||0;p.oz=p.oz||0;let hx=0,hz=0;
@@ -738,7 +768,7 @@ function loop(ms){requestAnimationFrame(loop);const now=ms/1000;const rdt=Math.m
   for(let i=tracers.length-1;i>=0;i--){tracers[i].t-=dt;if(tracers[i].t<=0){scene.remove(tracers[i].l);tracers[i].l.geometry.dispose();tracers.splice(i,1);}}flash.intensity=Math.max(0,flash.intensity-dt*40);
   if(frame%6===0){curMission=evalMission();showMission(curMission);}
   if(frame%10===0)updNav(dt*10);
-  if(frame%8===0&&!inside)updSignals();if(frame%4===0&&CFG.challansOn&&!inside)checkRedLight(now);congT+=rdt;if(congT>20){congT=0;updCongestion();}
+  if(frame%8===0&&!inside){updSignals();updHwSignals();}if(frame%4===0&&CFG.challansOn&&!inside)checkRedLight(now);congT+=rdt;if(congT>20){congT=0;updCongestion();}
   arrow.visible=false;
   if(frame%5===0)updPrompt();updHud();if(frame%2===0&&!inside)drawMini(now);
   if(dirty&&ms-lastSave>15000){lastSave=ms;save();}

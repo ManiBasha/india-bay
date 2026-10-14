@@ -8,7 +8,7 @@ window.BBFeatures.push(function (bb) {
   const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js';
   const REGION = 'west', IDLE_MIN = 10;
   let priv = null, googleOn = true, sb = null, session = null, profile = null, isAdmin = false, isTester = false, offline = false, passed = false, next = null;
-  let lastErr = '', lastErrAt = 0; const noteErr = m => { lastErr = String(m || ''); lastErrAt = Date.now(); };
+  let cityN = null; let lastErr = '', lastErrAt = 0; const noteErr = m => { lastErr = String(m || ''); lastErrAt = Date.now(); };
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
   const muted = new Set((() => { try { return JSON.parse(localStorage.getItem('ib.muted') || '[]'); } catch (e) { return []; } })());
@@ -23,7 +23,11 @@ window.BBFeatures.push(function (bb) {
   const chip = document.createElement('button'); chip.id = 'chat'; chip.className = 'pill'; chip.type = 'button'; chip.hidden = true; lcol.appendChild(chip);
   const log = document.createElement('div'); log.id = 'chatlog'; lcol.appendChild(log);
   const bar = document.createElement('form'); bar.id = 'chatbar'; bar.hidden = true; bar.setAttribute('novalidate', '');
-  bar.innerHTML = '<input maxlength="120" placeholder="Say something to players nearby" enterkeyhint="send" aria-label="Chat message"><button class="go" type="submit">Send</button><button class="buy ghost" type="button" data-x>✕</button>';
+  let chatR = (() => { try { return localStorage.getItem('ib.chatR') || 'close'; } catch (e) { return 'close'; } })();
+  bar.innerHTML = '<button class="buy ghost crng" type="button" data-r title="Who hears you"></button><input maxlength="120" placeholder="Say something to players nearby" enterkeyhint="send" aria-label="Chat message"><button class="go" type="submit">Send</button><button class="buy ghost" type="button" data-x>✕</button>';
+  const rngLabel = () => { const b = bar.querySelector('[data-r]'); if (b) b.textContent = chatR === 'close' ? '📍 50 m' : '🏙 Area'; };
+  bar.addEventListener('click', e => { if (!e.target.closest('[data-r]')) return; chatR = chatR === 'close' ? 'area' : 'close'; try { localStorage.setItem('ib.chatR', chatR); } catch (er) {} rngLabel(); bb.toast(chatR === 'close' ? '📍 Chat and voice reach players within 50 m' : '🏙 Chat and voice reach the whole area around you (about 600 m)', '#d6c8e4'); });
+  setTimeout(rngLabel, 0);
   document.body.appendChild(bar);
   const inp = bar.querySelector('input');
   const introLine = document.createElement('div'); introLine.id = 'onl'; const cities = $('#cities'); if (cities) cities.after(introLine);
@@ -206,11 +210,12 @@ window.BBFeatures.push(function (bb) {
   function later() { retry = Math.min(retry + 1, 6); setTimeout(() => { if (!ws && !kicked && !offline && bb.started) connect(); }, 1000 * Math.pow(2, retry)); }
   function disconnect(silent) { kicked = true; if (ws) { const w = ws; ws = null; try { w.close(); } catch (e) {} } myId = null; clearRemotes(); status = 'off'; renderChip(); if (!silent) bb.toast('Offline', '#d6c8e4'); }
   async function handle(d) {
-    if (d.t === 'hello') { authRetry = false; myId = d.id; online = d.online; status = 'on'; retry = 0; lastSent = null; renderChip(); bb.toast(`🌐 Online in India as ${d.name}`, '#3ddc97'); }
+    if (d.t === 'hello') { authRetry = false; myId = d.id; online = d.online; setTimeout(() => { if (ws && ws.readyState === 1) ws.send('{"t":"ping"}'); }, 1500); status = 'on'; retry = 0; lastSent = null; renderChip(); bb.toast(`🌐 Online in India as ${d.name}`, '#3ddc97'); }
     else if (d.t === 'snap') { online = d.online; for (const p of d.list) upsert(p); renderChip(); }
     else if (d.t === 'p') { upsert(d); }
     else if (d.t === 'leave') { drop(d.id); renderChip(); }
-    else if (d.t === 'pong') { online = d.online; renderChip(); }
+    else if (d.t === 'pong') { online = d.online; if (d.city != null) cityN = d.city; renderChip(); }
+    else if (d.t === 'vcguest') bb.toast('🎙 Hold to talk is for Google accounts · sign in with Google in ⚙ Settings → Online status', '#ffc93c');
     else if (d.t === 'slow') bb.toast('Wait a moment before sending again', '#ffc93c');
     else if (d.t === 'chat') chat(d);
     else if (d.t === 'v') onV(d);
@@ -225,7 +230,7 @@ window.BBFeatures.push(function (bb) {
   function input() { lastInput = Date.now(); if (idleOff && !ws && bb.started) { idleOff = false; connect(); } }
   ['keydown', 'pointerdown', 'touchstart'].forEach(ev => addEventListener(ev, input, { passive: true }));
   setInterval(() => { if (ws && Date.now() - lastInput > IDLE_MIN * 60000) { disconnect(true); idleOff = true; bb.toast(`Went offline after ${IDLE_MIN} idle minutes · press any key to rejoin`, '#ffc93c'); } }, 30000);
-  setInterval(() => { if (ws && ws.readyState === 1) ws.send('{"t":"ping"}'); }, 30000);
+  setInterval(() => { if (ws && ws.readyState === 1) ws.send('{"t":"ping"}'); }, 10000);
   // Keep others seeing you while a menu is open (the game loop pauses then).
   setInterval(() => { if (ws && ws.readyState === 1 && myId && bb.started && (!lastSent || Date.now() - lastSent.at > 3500)) { const st = state(); ws.send(JSON.stringify(st)); st.at = Date.now(); lastSent = st; } }, 2000);
   bb.onStart(() => { if (session && profile && !offline) connect(); renderChip(); });
@@ -280,8 +285,9 @@ window.BBFeatures.push(function (bb) {
     if (drive) lastVeh = pl.veh;
     const lv = !drive && lastVeh && !lastVeh.dead && bb.vehicles.includes(lastVeh) && Math.hypot(lastVeh.pos.x - p.x, lastVeh.pos.z - p.z) < 600 ? lastVeh : null;
     const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
-    if (ride) return { t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', r: ride.id, rs: ride.s };
-    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '' };
+    if (ride) return { zn: (bb.zoneAt(p.x, p.z, 40) || {}).id || '', t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', r: ride.id, rs: ride.s };
+    const zq = bb.zoneAt(p.x, p.z, 40); const zn = zq ? zq.id : '';
+    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), zn, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '' };
   }
   bb.onUpdate(dt => {
     const now = performance.now(), k = 1 - Math.exp(-8 * Math.min(dt, .2)), hide = bb.inside;
@@ -385,7 +391,7 @@ window.BBFeatures.push(function (bb) {
   }
   function openBar() { if (status !== 'on') { if (lastErr || !session) return onlineSheet(); offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
   function closeBar() { bar.hidden = true; inp.blur(); }
-  bar.onsubmit = e => { e.preventDefault(); const t = inp.value.trim(); if (t && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'chat', text: t.slice(0, 120) })); closeBar(); };
+  bar.onsubmit = e => { e.preventDefault(); const t = inp.value.trim(); if (t && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'chat', text: t.slice(0, 120), r: chatR })); closeBar(); };
   bar.querySelector('[data-x]').onclick = closeBar;
   inp.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeBar(); } });
   chip.onclick = openBar;
@@ -401,7 +407,8 @@ window.BBFeatures.push(function (bb) {
   bb.addApp({ id: 'online', label: 'Online status', icon: '🌐', group: 'settings', fn: onlineSheet });
   function renderChip() {
     chip.hidden = !bb.started;
-    chip.innerHTML = status === 'on' ? `💬 Chat <small>${remotes.size} near · ${online} online</small>` : status === 'connecting' ? '🌐 Joining…' : status === 'retry' ? '🌐 Reconnecting…' : !session ? '🌐 Not signed in · tap' : offline ? '🌐 Offline · go online' : '🌐 Offline · tap to rejoin';
+    const pz = bb.ppos(); const zq = bb.started ? bb.zoneAt(pz.x, pz.z, 40) : null;
+    chip.innerHTML = status === 'on' ? `<i class="dot on"></i><b>Online</b> <small>${cityN != null && zq ? `${cityN} in ${bb.esc(zq.name)}` : `${online} in India`} · ${remotes.size} near</small><em>💬</em>` : status === 'connecting' ? '<i class="dot wait"></i><b>Joining…</b>' : status === 'retry' ? '<i class="dot wait"></i><b>Reconnecting…</b>' : !session ? '<i class="dot"></i><b>Offline</b> <small>Not signed in · tap</small>' : offline ? '<i class="dot"></i><b>Offline</b> <small>tap to go online</small>' : '<i class="dot"></i><b>Offline</b> <small>tap to rejoin</small>';
     chip.classList.toggle('on', status === 'on');
   }
 
@@ -482,7 +489,8 @@ window.BBFeatures.push(function (bb) {
   // bubble over a player (or yourself) without adding a chat line; used by voice messages
   function bubble(id, text) { if (id === myId) { freeSprite(selfBub); selfBub = tag(text, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 5000; return; }
     const r = remotes.get(id); if (r) { freeSprite(r.bub); r.bub = tag(text, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 5000; } }
-  bb.ONLINE = { get client() { return sb; }, get uid() { return session && session.user ? session.user.id : null; }, get username() { return profile ? profile.username : ""; }, signOut, get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
+  bb.on('zone', () => renderChip());
+  bb.ONLINE = { get chatR() { return chatR; }, get client() { return sb; }, get uid() { return session && session.user ? session.user.id : null; }, get username() { return profile ? profile.username : ""; }, signOut, get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
     send(o) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); return true; } return false; }, isMuted: n => muted.has(String(n).toLowerCase()), openChat: () => openBar(),
     rpc: (n, a) => (sb ? sb.rpc(n, a) : Promise.resolve({ error: { message: 'offline' } })), get signedIn() { return !!(session && profile); }, get isTester() { return isTester; }, get isAdmin() { return isAdmin; }, get guest() { return !!(session && isAnon()); } };
 

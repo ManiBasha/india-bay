@@ -170,10 +170,13 @@ window.BBFeatures.push(function (bb) {
     m(new T3.BoxGeometry(4.2, .12, 9), L('#c9c2b2'), 0, 3.05, -.8); for (const s of [-1, 1]) m(new T3.BoxGeometry(.06, .6, 9), L('#9aa4ae'), s * 2.08, 3.4, -.8);
     m(new T3.BoxGeometry(2, 1.2, 2), L('#f4f1ea'), 0, 3.7, 2.4); m(new T3.BoxGeometry(2.05, .4, .05), L('#24323d'), 0, 3.9, 3.42);
     m(new T3.CylinderGeometry(.35, .4, 1.6, 10), L('#d62f2f'), 0, 4, -4); bb.scene.add(g); return g; }
-  const FERRY = W.ferries.map(f => ({ f, g: ferryBoat(), s: Math.random(), dir: 1, wait: 0 }));
+  // each ferry waits at the water's edge by its jetty (never on the land), Beta v1.01.07
+  const FERRY = W.ferries.map(f => { const L = Math.hypot(f.bx - f.ax, f.bz - f.az) || 1; const wetAt = u => bb.isWater(f.ax + (f.bx - f.ax) * u, f.az + (f.bz - f.az) * u);
+    let s0 = -1, s1 = -1; for (let d = 0; d <= L; d += 2) if (wetAt(d / L)) { s0 = Math.min(1, (d + 7) / L); break; } for (let d = 0; d <= L; d += 2) if (wetAt(1 - d / L)) { s1 = Math.max(0, 1 - (d + 7) / L); break; }
+    const ok = s0 >= 0 && s1 >= 0 && s1 > s0; return { f, g: ferryBoat(), s0: ok ? s0 : .04, s1: ok ? s1 : .96, ok, s: ok ? s0 + Math.random() * (s1 - s0) : .5, dir: 1, wait: 0 }; });
   bb.onUpdate(dt => { const pp = bb.ppos(); for (const q of FERRY) { const f = q.f; const L = Math.hypot(f.bx - f.ax, f.bz - f.az) || 1; const near = !bb.inside && Math.min(Math.hypot(f.ax - pp.x, f.az - pp.z), Math.hypot(f.bx - pp.x, f.bz - pp.z)) < 1400; q.g.visible = near; if (!near) continue;
-      if (q.wait > 0) q.wait -= dt; else { q.s += q.dir * 7 * dt / L; if (q.s > .96 || q.s < .04) { q.s = Math.max(.04, Math.min(.96, q.s)); q.dir *= -1; q.wait = 12; } }
-      const x = f.ax + (f.bx - f.ax) * q.s, z = f.az + (f.bz - f.az) * q.s; q.g.position.set(x, (bb.isLand(x, z) ? .04 : -1.1) + .45 + Math.sin(bb.clock * 40) * .05, z); q.g.rotation.y = Math.atan2((f.bx - f.ax) * q.dir, (f.bz - f.az) * q.dir); q.g.rotation.z = Math.sin(performance.now() / 900) * .02; } });
+      if (!q.ok) { q.g.visible = false; continue; } if (q.wait > 0) q.wait -= dt; else { q.s += q.dir * 7 * dt / L; if (q.s > q.s1 || q.s < q.s0) { q.s = Math.max(q.s0, Math.min(q.s1, q.s)); q.dir *= -1; q.wait = 12; } }
+      const x = f.ax + (f.bx - f.ax) * q.s, z = f.az + (f.bz - f.az) * q.s; q.g.position.set(x, -1.1 + .45 + Math.sin(bb.clock * 40) * .05, z); q.g.rotation.y = Math.atan2((f.bx - f.ax) * q.dir, (f.bz - f.az) * q.dir); q.g.rotation.z = Math.sin(performance.now() / 900) * .02; } });
   W.ferries.forEach((f, i) => { bb.addPoi({ type: 'ferry', name: f.a, x: f.ax, z: f.az, rot: -Math.PI / 2, extra: i + 'b' }); bb.addPoi({ type: 'ferry', name: f.b, x: f.bx, z: f.bz, rot: Math.PI / 2, extra: i + 'a' }); });
   bb.poiHandlers.ferry = poi => { const ex = String(poi.extra); const i = ex.length > 1 ? +ex.slice(0, -1) : 0, side = ex.slice(-1); const f = W.ferries[i]; const zn = id => { const q = W.zones.find(z => z.id === id); return q ? q.name : ''; };
     const toB = side === 'b'; const d = toB ? { key: 'b', name: f.b, x: f.bx, z: f.bz, arrive: { x: f.bx, z: f.bz, rot: Math.PI / 2, name: f.b, zoneName: f.zb ? zn(f.zb) : 'Alibaug' } } : { key: 'a', name: f.a, x: f.ax, z: f.az, arrive: { x: f.ax, z: f.az, rot: -Math.PI / 2, name: f.a, zoneName: f.za ? zn(f.za) : 'Mumbai' } };

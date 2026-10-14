@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.06';
+const VERSION='Beta v1.01.07';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -12,6 +12,7 @@ const {REGIONS,FEST_DEFAULT,EVENT_DEFAULT,BILL_DEFAULT,DEFAULTS,THEMES,mergeCfg}
 // Beta v1.0.0 is the first public beta: no change history for it, the game's features are listed in Settings → Features.
 // Later updates add their notes here (or in Admin → Changelog) and players see a What's new pop-up once.
 const CHANGELOG=[
+  {v:'Beta v1.01.07',date:'2026-10-13',title:'Smoother traffic, online box',notes:'🟢 A new online box under your money shows Online or Offline, how many players are in your city and how many are near you.\n💬 Chat and voice can reach just the players within 50 m (📍) or the whole area (🏙). Hold to talk is for Google accounts.\n🚦 Traffic: vehicles turn in smooth curves, take turns at junctions instead of driving through each other, stop at new signals where highways meet, and U-turn properly or leave at the end of a road.\n🛣 Sharp bends on highways are now curves, joins are rounded, and roads no longer run off into the sea. Bridge walls open where another road crosses.\n⛴ Ferries wait in the water by their jetty, not on land. Beaches and shacks sit on the shore.\n🐄 Far fewer animals on city roads; they live along forest roads and in the zoos.'},
   {v:'Beta v1.01.06',date:'2026-10-13',title:'Online fixes',notes:'👥 Fixed: players near each other could stay invisible. Your position was not sent while a menu or pop-up was open, so others never saw you appear. It is now sent every few seconds.\n🌐 The online chip under your money always shows now (Online, Not signed in, Offline), and ⚙ Settings → Online status explains what is wrong and how to fix it.\n🔐 A Google sign-in that did not finish now tells you why.'},
   {v:'Beta v1.01.05',date:'2026-10-13',title:'A new start screen',notes:'🎬 A new game start screen: the camera tours famous places (Gateway of India, Hawa Mahal, the Statue of Unity, Mysore Palace and more) behind a game menu, with a loading bar, a player card and a BAY NEWS ticker.\n🔐 Sign in with Google is now right on the start screen, and a guest player can link Google to keep their progress.'},
   {v:'Beta v1.01.04',date:'2026-10-13',title:'Maharashtra, Gujarat and Rajasthan grow',notes:'🗺 45 more cities and towns: Thane, Navi Mumbai, Kalyan, Vasai–Virar, Matheran, Ahilyanagar, Jalgaon, Dhule, Akola, Chikhaldara, Chandrapur, Nanded, Latur, Tuljapur, Sangli–Miraj and Panchgani; Anand, Nadiad, Dakor, Bharuch, Navsari, Valsad, Vapi, Mehsana, Modhera, Vadnagar, Palanpur, Ambaji, Gandhidham–Kandla, Mandvi, Morbi, Palitana and Dholera; Alwar, Bharatpur, Sikar, Mandawa, Tonk, Bhilwara, Nathdwara, Ranakpur, Pali, Osian, Barmer and Banswara. New landmarks include Hazur Sahib, Modhera Sun Temple, Kirti Toran, the Statue of Belief and the Ranakpur temple.\n🛣 The Delhi–Mumbai, Amritsar–Jamnagar and Ahmedabad–Dholera expressways, with flyovers where they cross other roads and interchanges to the towns. Also Atal Setu, the Mumbai Coastal Road and Sudarshan Setu to Bet Dwarka.\n🚄 The Mumbai–Ahmedabad bullet train: a high viaduct with 12 stations from Mumbai BKC to Sabarmati. Ride it from any station.\n🛠 Local work (Menu → Local work): 74 regional jobs. Weave Paithani and patola, polish diamonds in Surat, carry fish crates at Sassoon Dock, drive a JNPT container truck or a Gir safari jeep, play the dhol, and much more.\n🎡 Fairs and festivals: the Pushkar camel fair, Kumbh Mela, Desert Festival, Tarnetar and more, with fairgrounds and giant wheels. Also the Pandharpur wari, the Rath Yatra, Gangaur, Teej swings, Dahi Handi pyramids, Pola, Gudi Padwa, music and art festivals, and the Mumbai Marathon. Many have something to join.'},
@@ -202,6 +203,24 @@ const LCTX={THREE,M,rnd,pick,add:(g,m,c,r)=>addStatic(g,m,c!==false,r!==false),b
   flag:(x,y,z,big)=>addFlag(x,y,z,big),tree:(x,z,s)=>tree(x,z,s),palm:(x,z)=>palm(x,z),building:ctxBuilding,col:(x,z,hw,hd)=>{const b=LCTX._blk;if(b){const x0=Math.max(x-hw,b.x-30.5),x1=Math.min(x+hw,b.x+30.5),z0=Math.max(z-hd,b.z-30.5),z1=Math.min(z+hd,b.z+30.5);if(x1<=x0||z1<=z0)return;return addCol((x0+x1)/2,(z0+z1)/2,(x1-x0)/2,(z1-z0)/2);}return addCol(x,z,hw,hd);},far:()=>{LCTX._far=true;}};
 
 /* roads first so buildings avoid them */
+/* Beta v1.01.07: tidy the highway lines before they are built.
+   1. A road never runs off into the sea: each end is trimmed back to dry land (bridges and causeways are left alone).
+   2. Sharp bends become smooth curves: a corner is replaced by a short arc, except where another road joins at that point. */
+{const wet=(x,z)=>!isLand(x,z)||!!inLake(x,z);
+  const hwPtNear=(h,x,z,r)=>W.highways.some(o=>o!==h&&(o.pts.some(p=>Math.hypot(p[0]-x,p[1]-z)<r)||o.pts.some((p,i)=>i<o.pts.length-1&&segD(x,z,p[0],p[1],o.pts[i+1][0],o.pts[i+1][1])<r*.6)))||W.zones.some(q=>x>q.x0-r&&x<q.x0+q.nx*80+r&&z>q.z0-r&&z<q.z0+q.nz*80+r)||W.airports.some(a=>a.access.some(p=>Math.hypot(p[0]-x,p[1]-z)<r));
+  function trimEnd(P){// walk in from the first point until the road is on land, then keep 3 m of margin
+    let i=0,acc=null;while(i<P.length-1){const a=P[i],b=P[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);let hit=-1;for(let t=0;t<=L;t+=3){if(!wet(a[0]+(b[0]-a[0])*t/L,a[1]+(b[1]-a[1])*t/L)){hit=t;break;}}if(hit<0){i++;continue;}
+      if(i===0&&hit===0)return P;const t=Math.min(L,hit+3);acc=[a[0]+(b[0]-a[0])*t/L,a[1]+(b[1]-a[1])*t/L];return [acc].concat(P.slice(i+1));}return null;}
+  W.highways=W.highways.filter(h=>{if(h.kind==='bridge'||h.fly)return true;let P=trimEnd(h.pts);if(!P||P.length<2)return false;P=trimEnd(P.slice().reverse());if(!P||P.length<2)return false;P=P.reverse();
+    const L=P.reduce((s,p,i)=>i?s+Math.hypot(p[0]-P[i-1][0],p[1]-P[i-1][1]):0,0);if(L<12)return false;h.pts=P;return true;});
+  for(const h of W.highways){if(h.fly||h.kind==='bridge'||h.pts.length<3)continue;const P=h.pts,out=[P[0]];
+    for(let i=1;i<P.length-1;i++){const a=P[i-1],b=P[i],c=P[i+1];const l1=Math.hypot(b[0]-a[0],b[1]-a[1]),l2=Math.hypot(c[0]-b[0],c[1]-b[1]);
+      const u=[(b[0]-a[0])/l1,(b[1]-a[1])/l1],v=[(c[0]-b[0])/l2,(c[1]-b[1])/l2];const turn=Math.acos(clamp(u[0]*v[0]+u[1]*v[1],-1,1));
+      if(turn<.12||l1<24||l2<24||hwPtNear(h,b[0],b[1],22)){out.push(b);continue;}
+      const r=Math.min(l1*.38,l2*.38,18+turn*30);const p0=[b[0]-u[0]*r,b[1]-u[1]*r],p2=[b[0]+v[0]*r,b[1]+v[1]*r];const n=Math.max(3,Math.ceil(turn*6));const arc=[];
+      for(let k=0;k<=n;k++){const t=k/n,q=[(1-t)*(1-t)*p0[0]+2*(1-t)*t*b[0]+t*t*p2[0],(1-t)*(1-t)*p0[1]+2*(1-t)*t*b[1]+t*t*p2[1]];arc.push(q);}
+      if(arc.some(q=>wet(q[0],q[1]))&&!wet(b[0],b[1])){out.push(b);continue;}out.push(...arc);}
+    out.push(P[P.length-1]);h.pts=out;}}
 // coast roads (Marine Drive): the grid stops at the coast road instead of running through it into the sea
 const COASTS=W.highways.filter(h=>h.kind==='coast').map(h=>{const segs=[];for(let k=0;k<h.pts.length-1;k++){const [ax,az]=h.pts[k],[bx,bz]=h.pts[k+1];const l=Math.hypot(bx-ax,bz-az);segs.push({ax,az,dx:(bx-ax)/l,dz:(bz-az)/l,l});}
   const m=segs[Math.floor(segs.length/2)];const mx=m.ax+m.dx*m.l/2,mz=m.az+m.dz*m.l/2;const sea=isLand(mx-m.dz*40,mz+m.dx*40)?-1:1;return {segs,sea};});
@@ -278,10 +297,14 @@ function kerbsAndCrossings(e,y){const zz=zoneAt((e.ax+e.bx)/2,(e.az+e.bz)/2,0);c
 // Where a road crosses a river or lake, add a concrete deck with side walls and pillars under it.
 function riverBridges(e,y){const st=6;let t0=-1;const ang=Math.atan2(e.dx,e.dz);const span=(a,b)=>{a=Math.max(0,a-10);b=Math.min(e.len,b+10);const l=b-a;if(l<8)return;const mx=e.ax+e.dx*(a+b)/2,mz=e.az+e.dz*(a+b)/2;
     const d=new THREE.BoxGeometry(e.w+1.4,.9,l);d.rotateY(ang);d.translate(mx,y-.47,mz);addStatic(d,M.concrete,false,true);
-    for(const sd of [-1,1]){const w=new THREE.BoxGeometry(.35,.75,l);w.rotateY(ang);w.translate(mx+e.dz*sd*(e.w/2+.5),y+.36,mz-e.dx*sd*(e.w/2+.5));addStatic(w,M.concrete,false,true);}
+    for(const sd of [-1,1]){let r0=-1;const wall=(u0,u1)=>{if(u1-u0<1.5)return;const wl=new THREE.BoxGeometry(.35,.75,u1-u0);wl.rotateY(ang);const um=(u0+u1)/2;wl.translate(e.ax+e.dx*um+e.dz*sd*(e.w/2+.5),y+.36,e.az+e.dz*um-e.dx*sd*(e.w/2+.5));addStatic(wl,M.concrete,false,true);};
+      for(let q=a;q<=b+.01;q+=1.5){const qq=Math.min(q,b);const px=e.ax+e.dx*qq+e.dz*sd*(e.w/2+.5),pz=e.az+e.dz*qq-e.dx*sd*(e.w/2+.5);let open=false;for(const id of edgesNear(px,pz)){const f=EDGES[id];if(f===e||f.road===e.road||f.fly)continue;if(segD(px,pz,f.ax,f.az,f.bx,f.bz)<f.w/2+1.2){open=true;break;}}
+        if(!open&&r0<0)r0=qq;if(open&&r0>=0){wall(r0,qq-.6);r0=-1;}}if(r0>=0)wall(r0,b);}
     for(let q=a+8;q<b-4;q+=28){const px=e.ax+e.dx*q,pz=e.az+e.dz*q;const pl=new THREE.BoxGeometry(e.w*.6,4,1.6);pl.rotateY(ang);pl.translate(px,y-2.8,pz);addStatic(pl,M.concrete,false,true);}};
   for(let t=0;t<=e.len;t+=st){const w=isWater(e.ax+e.dx*t,e.az+e.dz*t);if(w&&t0<0)t0=t;if(!w&&t0>=0){span(t0,t);t0=-1;}}if(t0>=0)span(t0,e.len);}
 roadRibbons();
+{const disc=new Map();for(const r of ROADS){if(r.fly||r.kind==='city'||r.kind==='service')continue;for(const p of r.pts){const k=Math.round(p[0]/3)+','+Math.round(p[1]/3);const w=r.w/2;if(!disc.has(k)||disc.get(k).w<w)disc.set(k,{x:p[0],z:p[1],w,m:r.kind==='coast'?M.road:M.hw,y:r.kind==='bridge'?.075:.031});}}
+  for(const d of disc.values()){if(isWater(d.x,d.z)&&d.y<.07)continue;const g=new THREE.CircleGeometry(d.w,18);g.rotateX(-Math.PI/2);g.translate(d.x,d.y,d.z);addStatic(g,d.m,false,true);}}
 for(const z of W.zones)for(let i=0;i<=z.nx;i++)for(let j=0;j<=z.nz;j++){const x=z.x0+i*80,zz=z.z0+j*80;if(!isLand(x,zz)||inLake(x,zz))continue;const p=new THREE.PlaneGeometry(16,16);p.rotateX(-Math.PI/2);p.translate(x,.04,zz);addStatic(p,M.asphalt,false,true);}
 function nearHighway(x,z,r){for(const id of edgesNear(x,z)){const e=EDGES[id];if(e.kind==='city')continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+r)return true;}for(const [ox,oz] of [[r,0],[-r,0],[0,r],[0,-r]])for(const id of edgesNear(x+ox,z+oz)){const e=EDGES[id];if(e.kind==='city')continue;if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+r)return true;}return false;}
 
@@ -348,6 +371,11 @@ function streetLamp(x,z,ax,az,h,arm,pool){const p=new THREE.CylinderGeometry(.1,
 
 /* free-standing landmarks */
 const lmPois=[];
+// beaches and shacks sit on the sand at the shore, never out in the sea (Beta v1.01.07)
+{const landFrac=(x,z)=>{let n=0,k=0;for(let r=8;r<=30;r+=11)for(let a=0;a<6.28;a+=.78){k++;if(!isWater(x+Math.cos(a)*r,z+Math.sin(a)*r))n++;}return n/k;};
+  for(const l of W.landmarks){if(!/beach|shack|lagoon/i.test(l.kind))continue;if(!isWater(l.x,l.z)&&landFrac(l.x,l.z)>=.6)continue;let best=null,bd=1e9;
+    for(let r=10;r<=240&&!best;r+=10)for(let a=0;a<6.28;a+=.3){const x=l.x+Math.cos(a)*r,z=l.z+Math.sin(a)*r;if(isWater(x,z))continue;const f=landFrac(x,z);if(f>=.6&&r<bd){bd=r;best=[x,z];}}
+    if(best){const dx=best[0]-l.x,dz=best[1]-l.z;for(const pl of W.places)if(Math.hypot(pl[1]-l.x,pl[2]-l.z)<40){pl[1]+=dx;pl[2]+=dz;}l.x=best[0];l.z=best[1];}}}
 for(const l of W.landmarks){const [lk,...la]=l.kind.split(':');const fn=LM[lk];if(!fn)continue;LCTX._far=false;lmCollect=[];const res=fn(LCTX,l.x,l.z,{arg:la.join(':')})||{};const list=lmCollect;lmCollect=null;
   if(LCTX._far)flushFar(list,l.x,l.z);else for(const a of list)addStatic(...a);for(const p of res.poi||[])lmPois.push(p);}
 
