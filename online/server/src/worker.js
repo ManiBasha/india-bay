@@ -115,7 +115,7 @@ function clean(t) {
   for (const w of BAD) t = t.replace(new RegExp('\\b' + w + '\\b', 'gi'), m => m[0] + '*'.repeat(m.length - 1));
   return t;
 }
-const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.l) o.l = p.l; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph });
+const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.l) o.l = p.l; if (p.w) o.w = p.w; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph });
   if (p.m === 'r' && p.r) Object.assign(o, { r: p.r, rs: p.rs }); if (p.m === 'd' && p.o) o.o = p.o; return o; };
 const VACT = new Set(['ride', 'seat', 'full', 'slow', 'no', 'leave', 'drop', 'take']);
 const near = (a, b, r) => Math.abs(a.x - b.x) < r && Math.abs(a.z - b.z) < r;
@@ -146,14 +146,16 @@ export class Region extends DurableObject {
   }
 
   // Reads the admin's voice switch from the game settings in Supabase, at most once a minute.
-  async voiceOn() {
-    const now = Date.now(); if (this.vcCheck && now - this.vcCheck.at < 60_000) return this.vcCheck.on;
-    let on = true;
+  // Reads the admin's switches (voice, chat, calls) from the game settings in Supabase, at most once a minute.
+  async flags() {
+    const now = Date.now(); if (this.cfgCheck && now - this.cfgCheck.at < 60_000) return this.cfgCheck;
+    const f = { at: now, voice: true, chat: true, calls: true, note: '' };
     try { const base = String(this.env.SUPABASE_URL || '').trim().replace(/\/(rest|auth)\/v1.*$/, '').replace(/\/+$/, '');
       const r = await fetch(base + '/rest/v1/game_config?select=data&id=eq.1', { headers: { apikey: this.env.SUPABASE_KEY } });
-      if (r.ok) { const rows = await r.json(); if (rows[0] && rows[0].data && rows[0].data.voiceChat === false) on = false; } } catch (e) {}
-    this.vcCheck = { at: now, on }; return on;
+      if (r.ok) { const rows = await r.json(); const d = (rows[0] && rows[0].data) || {}; f.voice = d.voiceChat !== false; f.chat = d.chatOn !== false; f.calls = d.callsOn !== false; f.note = typeof d.chatNote === 'string' ? d.chatNote.slice(0, 200) : ''; } } catch (e) {}
+    this.cfgCheck = f; return f;
   }
+  async voiceOn() { return (await this.flags()).voice; }
 
   send(ws, msg) { try { ws.send(msg); } catch (e) { this.players.delete(ws); } }
 
@@ -173,7 +175,7 @@ export class Region extends DurableObject {
   async webSocketMessage(ws, raw) {
     let p = this.players.get(ws);
     if (!p) { p = ws.deserializeAttachment(); if (!p) { try { ws.close(4003, 'Unknown'); } catch (e) {} return; } this.players.set(ws, p); }
-    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') || raw.startsWith('{"t":"call"') ? VOICE_MAX + 300 : 600)) return;
+    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') || raw.startsWith('{"t":"call"') ? VOICE_MAX + 300 : raw.startsWith('{"t":"tr"') ? 4000 : 600)) return;
     let d; try { d = JSON.parse(raw); } catch (e) { return; }
     const now = Date.now();
     p.seen = now;
@@ -184,7 +186,8 @@ export class Region extends DurableObject {
       p.r = p.m === 'r' && /^[0-9a-f]{8}$/.test(d.r) ? d.r : ''; p.rs = num(d.rs, 0, 40) | 0; p.o = p.m === 'd' ? num(d.o, 0, 40) | 0 : 0;
       p.v = p.m === 'd' && VEH.has(d.v) ? d.v : '';
       p.c = /^#[0-9a-fA-F]{6}$/.test(d.c) ? d.c : '';
-      p.l = typeof d.l === 'string' && /^[mf][0-9]{7,12}$/.test(d.l) ? d.l : '';   // the player's look (Beta v1.0.0): gender and 7 digits
+      p.l = typeof d.l === 'string' && /^[mf][0-9]{7,12}$/.test(d.l) ? d.l : '';
+      p.w = typeof d.w === 'string' && /^(shirt|kurta|saree)[0-9a-f]{6}[gc]{0,2}$/.test(d.w) ? d.w : '';   // clothes (Beta v1.01.16)   // the player's look (Beta v1.0.0): gender and 7 digits
       // The vehicle this player last got out of, so others see it parked where they left it.
       p.pv = p.m !== 'd' && VEH.has(d.pv) ? d.pv : '';
       p.zn = typeof d.zn === 'string' && /^[a-z0-9_]{1,24}$/.test(d.zn) ? d.zn : '';   // the town or city you are in (for "N in your city")
@@ -200,6 +203,7 @@ export class Region extends DurableObject {
       }
       if (first) this.send(ws, JSON.stringify({ t: 'snap', list: snap, online: this.players.size }));
     } else if (d.t === 'chat') {
+      { const f = await this.flags(); if (!f.chat) return this.send(ws, JSON.stringify({ t: 'chatoff', msg: f.note })); }
       if (now - p.chatAt < 1500) return this.send(ws, JSON.stringify({ t: 'slow' }));
       const text = clean(d.text);
       if (!text) return;
@@ -230,15 +234,24 @@ export class Region extends DurableObject {
       // Only Google accounts (not guests) can call; the person called sees who it is and can decline or block.
       // During a call, push-to-talk clips go only to the other person. Nothing is recorded or stored.
       if (p.anon) return this.send(ws, JSON.stringify({ t: 'call', k: 'noguest' }));
-      const K = new Set(['ring', 'accept', 'decline', 'busy', 'end', 'vc', 'text']); if (!K.has(d.k) || typeof d.to !== 'string' || !/^[A-Za-z0-9]{1,10}$/.test(d.to)) return;
+      const K = new Set(['ring', 'accept', 'decline', 'busy', 'end', 'vc', 'text', 'sdp', 'ice']); if (!K.has(d.k) || typeof d.to !== 'string' || !/^[A-Za-z0-9]{1,10}$/.test(d.to)) return;
+      if (['ring', 'accept', 'sdp', 'ice', 'vc'].includes(d.k)) { const f = await this.flags(); if (!f.calls) return this.send(ws, JSON.stringify({ t: 'call', k: 'off', msg: f.note })); }
       if (d.k === 'ring' && now - (p.ringAt || 0) < 8000) return this.send(ws, JSON.stringify({ t: 'slow' }));
       if (d.k === 'vc') { if (!(await this.voiceOn())) return this.send(ws, JSON.stringify({ t: 'vcoff' })); if (now - (p.cvAt || 0) < 1500) return this.send(ws, JSON.stringify({ t: 'slow' })); if (typeof d.a !== 'string' || d.a.length < 200 || d.a.length > VOICE_MAX || !/^[A-Za-z0-9+/=]+$/.test(d.a)) return; p.cvAt = now; }
       if (d.k === 'ring') p.ringAt = now;
       let target = null; for (const [w, q] of this.players) if (q.ready && q.name.toLowerCase() === d.to.toLowerCase()) { target = w; break; }
       if (!target) { if (d.k === 'ring') this.send(ws, JSON.stringify({ t: 'call', k: 'offline', n: d.to })); return; }
       const out = { t: 'call', k: d.k, n: p.name };
+      if ((d.k === 'sdp' || d.k === 'ice') && typeof d.s === 'string' && d.s.length <= 12000) out.s = d.s;   // live call set-up (WebRTC), Beta v1.01.16
       if (d.k === 'vc') Object.assign(out, { a: d.a, ms: num(d.ms, 300, 10000) | 0, mime: VOICE_MIME.has(d.mime) ? d.mime : 'audio/webm' });
       this.send(target, JSON.stringify(out));
+    } else if (d.t === 'tr') {
+      // Shared traffic (Beta v1.01.16): one player near a group drives the traffic and sends where each vehicle is;
+      // the others nearby show the same vehicles. Up to 3 times a second, at most 4 kB.
+      if (now - (p.trAt || 0) < 300 || !Array.isArray(d.L) || d.L.length > 40) return; p.trAt = now;
+      const L = []; for (const q of d.L) { if (!Array.isArray(q) || q.length !== 8) continue; L.push(q.map(v => num(v, -1e6, 1e9))); }
+      const out = JSON.stringify({ t: 'tr', id: p.id, L });
+      for (const [w, q] of this.players) if (w !== ws && q.ready && near(p, q, 260)) this.send(w, out);
     } else if (d.t === 'mg') {
       // Mini games between players near each other (Beta v1.01.12): invites, replies and moves, sent only to the named player.
       const K = new Set(['inv', 'acc', 'dec', 'mv', 'bye']); if (!K.has(d.k) || typeof d.to !== 'string') return;
