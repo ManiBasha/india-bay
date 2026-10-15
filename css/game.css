@@ -615,3 +615,37 @@ body.tmr #topc{top:calc(env(safe-area-inset-top,0px) + 40px)}
 .sexpick .sx input{position:absolute;opacity:0;pointer-events:none}
 .sexpick .sx.on{border-color:var(--acc,#ffc93c);background:color-mix(in srgb,var(--acc,#ffc93c) 18%,transparent)}
 .sexpick .sx:focus-within{outline:2px solid var(--acc,#ffc93c);outline-offset:2px}
+/* ===== Beta v1.01.21 ===== */
+/* Sound pop-up: switches */
+.sndrow .nm{flex:1}.tgl{position:relative;width:52px;height:30px;border-radius:999px;border:0;background:rgba(255,255,255,.18);cursor:pointer;flex:none;padding:0;transition:background .2s}
+.tgl i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .2s}
+.tgl.on{background:var(--acc,#ffc93c)}.tgl.on i{transform:translateX(22px)}
+.sndsub.off{opacity:.45;pointer-events:none}
+.sndvol{display:flex;align-items:center;gap:10px;margin:2px 0 8px;font:700 13px var(--f-display);color:var(--ink,#f3eefc)}.sndvol input{flex:1;accent-color:var(--acc,#ffc93c)}
+/* notifications you can tap (very sleepy, hungry or hurt; tickets; requests) */
+#notif{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;max-width:min(440px,calc(100vw - 24px));width:max-content;padding:10px 12px 10px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.2);background:rgba(20,14,38,.94);color:#fff;font-family:var(--f-display);text-align:left;cursor:pointer;pointer-events:auto;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#notif[hidden]{display:none}#notif.in{animation:notifIn .35s ease}@keyframes notifIn{from{transform:translate(-50%,-14px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+#notif .ni{font-size:26px}#notif .nt{display:flex;flex-direction:column;min-width:0}#notif .nt b{font-size:15px}#notif .nt small{font-size:12.5px;opacity:.8}#notif .nx{font-style:normal;margin-left:6px;opacity:.6;font-size:20px;padding:0 4px}
+body.cine #notif,body.film #notif{display:none}
+/* tickets */
+.tkrow{background:rgba(61,220,151,.1);border-radius:12px;padding-left:8px;padding-right:8px}
+/* BayGram groups */
+.grphead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}.grphead .sub{margin:6px 0}
+.bgav.grp i{font-style:normal;font-size:16px}
+.grppick{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 10px;margin:6px 0 10px}
+.grpbtns{flex-wrap:wrap;gap:6px}.gfrom{display:block;font-size:11.5px;color:var(--acc,#ffc93c);cursor:pointer}
+.bgtot{margin:-4px 0 8px;font-size:11.5px}
+#gcallUI{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);transform:translateX(-50%);z-index:13;width:min(420px,calc(100vw - 24px));border-radius:20px;background:linear-gradient(170deg,rgba(20,40,60,.96),rgba(10,8,22,.97));color:#fff;font-family:var(--f-display);padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#gcallUI[hidden]{display:none}#gcallUI .ccard{display:grid;gap:6px;justify-items:center;text-align:center}#gcallUI b{font-size:18px}#gcallUI small{opacity:.8}
+#gcallUI .gcp{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}#gcallUI .gcp span{background:rgba(255,255,255,.08);border-radius:999px;padding:3px 10px;font-size:13px}#gcallUI .gcp span.live{background:rgba(61,220,151,.18)}
+#gcallUI .cbtns2{display:flex;gap:14px;justify-content:center;margin-top:4px}
+/* events: the reaction bar near a stage */
+#evbar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);transform:translateX(-50%);z-index:9;display:flex;gap:4px;align-items:center;background:rgba(20,14,38,.86);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 6px;pointer-events:auto;max-width:calc(100vw - 24px)}
+#evbar[hidden]{display:none}#evbar button{border:0;background:none;font-size:20px;cursor:pointer;padding:4px 6px;border-radius:999px;color:#fff}#evbar button:active{transform:scale(1.25)}
+#evbar .evt{font:800 12px var(--f-display);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(195,139,255,.25)}
+body.cine #evbar,body.film #evbar,body.photo #evbar{display:none}
+.evreact .chip{font-size:20px;padding:4px 10px}
+/* camera: a flash when you take a photo */
+#photoBar.flash{animation:camflash .4s ease}@keyframes camflash{0%{box-shadow:0 0 0 0 rgba(255,255,255,.9)}100%{box-shadow:0 0 0 30px rgba(255,255,255,0)}}
+/* the in-game sound button sits with the others */
+#sndBtn{font-size:18px}

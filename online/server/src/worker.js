@@ -11,7 +11,8 @@ const CHAT_CLOSE = 21;             // map units (about 50 m in the game): "nearb
 const VOICE_MAX = 46000;           // characters of base64 audio in one voice message (about 8 seconds)
 const VOICE_MIME = new Set(['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/aac']);
 const IDLE_MS = 60_000;            // drop sockets silent for a minute
-const VEH = new Set(['cycle', 'rickshaw', 'bike', 'sportsbike', 'auto', 'taxi', 'car', 'sedan', 'suv', 'sports', 'police', 'bus', 'truck']);
+const VEH = new Set(['cycle', 'rickshaw', 'bike', 'sportsbike', 'auto', 'taxi', 'car', 'sedan', 'suv', 'sports', 'police', 'bus', 'truck', 'camel', 'horse', 'elephant']);
+const REACT = new Set(['👏', '❤️', '🔥', '😂', '🎉', '💃', '🙏', '⭐']);
 const BAD = ['fuck', 'shit', 'bitch', 'chutiya', 'madarchod', 'bhenchod', 'gandu', 'randi', 'harami', 'kamina', 'bastard', 'asshole', 'mc', 'bc'];
 
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' } });
@@ -76,6 +77,12 @@ async function whoIs(env, token) {
   return { uid: v.uid, anon: !!v.anon, name: rows[0] ? rows[0].username : null };
 }
 
+// Is this player banned, or silenced after reports? (online/supabase-update-9.sql) Cached for a minute.
+async function playerStatus(env, uid) {
+  try { const base = String(env.SUPABASE_URL || '').trim().replace(/\/(rest|auth)\/v1.*$/, '').replace(/\/+$/, '');
+    const r = await fetch(base + '/rest/v1/rpc/player_status', { method: 'POST', headers: { apikey: env.SUPABASE_KEY, 'content-type': 'application/json' }, body: JSON.stringify({ p_uid: uid }) });
+    if (!r.ok) return null; const j = await r.json(); const o = typeof j === 'string' ? JSON.parse(j) : j; return { banned: !!(o && o.banned), sil: o && o.silenced ? Date.parse(o.silenced) || 0 : 0 }; } catch (e) { return null; } }
+
 export default {
   async fetch(req, env) {
     // Accept the Project URL even if it was copied with /rest/v1 or a trailing slash on the end.
@@ -83,6 +90,7 @@ export default {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-allow-headers': '*' } });
     if (url.pathname === '/' || url.pathname === '/health') return json({ ok: true, game: 'India Bay', regions: REGIONS });
+    if (url.pathname === '/stats') { try { const res = await env.REGION.get(env.REGION.idFromName('west')).fetch('https://region/stats'); return json(await res.json()); } catch (e) { return json({ error: 'no stats' }, 500); } }
     if (url.pathname === '/status') {
       const out = {};
       for (const r of REGIONS) {
@@ -102,6 +110,7 @@ export default {
       if (who.bad) return refuse('auth', 'Sign-in not accepted: ' + who.bad + '. Sign out and play as guest again.');
       if (who.dbErr) return refuse('db', 'Server could not read usernames (' + who.dbErr + '). Check SUPABASE_KEY in wrangler.toml.');
       if (!who.name) return refuse('name', 'Pick a username first.');
+      const ps = await playerStatus(env, who.uid); if (ps && ps.banned) return refuse('banned', 'This account is banned from India Bay.');
       const h = new Headers(req.headers); h.set('x-uid', who.uid); h.set('x-name', who.name); h.set('x-anon', who.anon ? '1' : '0');
       return env.REGION.get(env.REGION.idFromName(region)).fetch(new Request('https://region/ws', { headers: h }));
     }
@@ -128,9 +137,15 @@ export class Region extends DurableObject {
     for (const ws of ctx.getWebSockets()) { const a = ws.deserializeAttachment(); if (a) this.players.set(ws, a); }
   }
 
+  // message counts per kind, per India day (Admin → Dashboards → Usage): every message is a Cloudflare request
+  count(kind, out) { const d = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10); if (!this.st || this.st.day !== d) { if (this.st) this.ctx.storage.put('st:' + this.st.day, this.st).catch(() => {}); this.st = { day: d, in: {}, out: {}, peak: 0 }; }
+    const o = out ? this.st.out : this.st.in; o[kind] = (o[kind] || 0) + (out || 1); if (this.players.size > this.st.peak) this.st.peak = this.players.size;
+    if (Date.now() - (this.stAt || 0) > 300_000) { this.stAt = Date.now(); this.ctx.storage.put('st:' + d, this.st).catch(() => {}); } }
+  async silenced(p) { const now = Date.now(); if (!p.stAt || now - p.stAt > 60_000) { p.stAt = now; const ps = await playerStatus(this.env, p.uid); if (ps) { p.sil = ps.sil; if (ps.banned) p.banned = true; } } return (p.sil && p.sil > now) ? p.sil : 0; }
   async fetch(req) {
     const url = new URL(req.url);
     if (url.pathname === '/status') return json({ online: this.players.size });
+    if (url.pathname === '/stats') { const days = []; for (let i = 0; i < 14; i++) { const d = new Date(Date.now() + 5.5 * 3600e3 - i * 86400e3).toISOString().slice(0, 10); const v = this.st && this.st.day === d ? this.st : await this.ctx.storage.get('st:' + d); if (v) days.push(v); } return json({ online: this.players.size, days }); }
     const uid = req.headers.get('x-uid'), name = req.headers.get('x-name');
     if (!uid || !name) return new Response('Bad request', { status: 400 });
     // One connection per account: an older tab or device is told and closed.
@@ -175,10 +190,13 @@ export class Region extends DurableObject {
   async webSocketMessage(ws, raw) {
     let p = this.players.get(ws);
     if (!p) { p = ws.deserializeAttachment(); if (!p) { try { ws.close(4003, 'Unknown'); } catch (e) {} return; } this.players.set(ws, p); }
-    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') || raw.startsWith('{"t":"call"') ? VOICE_MAX + 300 : raw.startsWith('{"t":"tr"') ? 4000 : 600)) return;
+    if (typeof raw !== 'string' || raw.length > (raw.startsWith('{"t":"vc"') || raw.startsWith('{"t":"call"') ? VOICE_MAX + 300 : raw.startsWith('{"t":"tr"') || raw.startsWith('{"t":"vs"') ? 4000 : raw.startsWith('{"t":"gc"') ? 13000 : 600)) return;
     let d; try { d = JSON.parse(raw); } catch (e) { return; }
     const now = Date.now();
-    p.seen = now;
+    p.seen = now; this.count(String(d.t || '?').slice(0, 6));
+    if (p.banned) { this.drop(ws, 4004, 'This account is banned from India Bay'); return; }
+    // silenced after reports from other players: no chat, voice or calls until then
+    if (['chat', 'vc', 'vs', 'gc'].includes(d.t) || (d.t === 'call' && ['ring', 'accept', 'sdp', 'ice', 'vc', 'text'].includes(d.k))) { const until = await this.silenced(p); if (until) return this.send(ws, JSON.stringify({ t: 'silenced', until })); }
     if (d.t === 'p') {
       p.x = num(d.x, -1e5, 1e5); p.z = num(d.z, -1e5, 1e5); p.y = num(d.y, -50, 500); p.h = num(d.h, -100, 100); p.s = num(d.s, -100, 100);
       p.m = d.m === 'd' ? 'd' : d.m === 'i' ? 'i' : d.m === 'r' ? 'r' : 'f';
@@ -229,6 +247,34 @@ export class Region extends DurableObject {
       const out = JSON.stringify({ t: 'vc', id: p.id, n: p.name, a: d.a, ms, mime });
       const VR = d.r === 'close' ? CHAT_CLOSE : CHAT_NEAR;
       for (const [w, q] of this.players) if (w === ws || (q.ready && near(p, q, VR))) this.send(w, out);
+    } else if (d.t === 'vs') {
+      // Live voice (Beta v1.01.21): hold to talk sends 0.2 s pieces (8 kHz phone-line sound); players nearby hear them as they come.
+      if (p.anon) return this.send(ws, JSON.stringify({ t: 'vcguest' }));
+      if (!(await this.voiceOn())) return this.send(ws, JSON.stringify({ t: 'vcoff' }));
+      const k = d.k === 's' ? 's' : d.k === 'e' ? 'e' : 'd';
+      if (k === 's') { if (now - (p.vsEnd || 0) < 600) return this.send(ws, JSON.stringify({ t: 'slow' })); p.vsT0 = now; p.vsN = 0; }
+      if (!p.vsT0 || now - p.vsT0 > 25000) { if (k !== 'e') return; }
+      if (k !== 'e') { if (typeof d.a !== 'string' || d.a.length > 3000 || !/^[A-Za-z0-9+/=]*$/.test(d.a)) return; if (++p.vsN > 140) return; } else { p.vsEnd = now; p.vsT0 = 0; }
+      const out = JSON.stringify({ t: 'vs', id: p.id, n: p.name, k, s: num(d.s, 0, 1e6) | 0, a: k === 'e' ? '' : d.a });
+      const VR = d.r === 'close' ? CHAT_CLOSE : CHAT_NEAR; let sent = 0;
+      for (const [w, q] of this.players) if (w !== ws && q.ready && near(p, q, VR)) { this.send(w, out); sent++; } if (sent) this.count('vs>', sent);
+    } else if (d.t === 'gc') {
+      // Group calls (Beta v1.01.21): set-up messages between the people in a BayGram group, one person at a time (peer to peer audio).
+      if (p.anon) return this.send(ws, JSON.stringify({ t: 'call', k: 'noguest' }));
+      const K = new Set(['ring', 'join', 'leave', 'sdp', 'ice', 'end', 'busy']); if (!K.has(d.k) || typeof d.to !== 'string' || !/^[A-Za-z0-9_.]{1,15}$/.test(d.to)) return;
+      if (['ring', 'join', 'sdp', 'ice'].includes(d.k)) { const f = await this.flags(); if (!f.calls) return this.send(ws, JSON.stringify({ t: 'call', k: 'off', msg: f.note })); }
+      if (d.k === 'ring' && now - (p.gringAt || 0) < 400) return; if (d.k === 'ring') p.gringAt = now;
+      let target = null; for (const [w, q] of this.players) if (q.ready && q.name.toLowerCase() === d.to.toLowerCase()) { target = w; break; }
+      if (!target) { if (d.k === 'ring') this.send(ws, JSON.stringify({ t: 'gc', k: 'offline', n: d.to, g: num(d.g, 0, 1e12) })); return; }
+      const out = { t: 'gc', k: d.k, n: p.name, g: num(d.g, 0, 1e12), gn: typeof d.gn === 'string' ? clean(d.gn).slice(0, 40) : '' };
+      if ((d.k === 'sdp' || d.k === 'ice') && typeof d.s === 'string' && d.s.length <= 12000) out.s = d.s;
+      this.send(target, JSON.stringify(out));
+    } else if (d.t === 'ev') {
+      // Events on stages (Beta v1.01.21): reactions to the people on stage, and news for players nearby (a new event, someone let on stage, a tip).
+      const e = num(d.e, 0, 1e12) | 0; if (now - (p.evAt || 0) < 250) return; p.evAt = now;
+      if (d.k === 'react') { const r = REACT.has(d.r) ? d.r : ''; if (!r) return; const out = JSON.stringify({ t: 'ev', k: 'react', e, r, id: p.id, n: p.name }); for (const [w, q] of this.players) if (q.ready && near(p, q, 300)) this.send(w, out); }
+      else if (d.k === 'news') { const out = JSON.stringify({ t: 'ev', k: 'news', e, id: p.id, n: p.name }); for (const [w, q] of this.players) if (w !== ws && q.ready && near(p, q, NEAR * 2)) this.send(w, out); }
+      else if ((d.k === 'ok' || d.k === 'tip' || d.k === 'ask') && typeof d.to === 'string') { const out = JSON.stringify({ t: 'ev', k: d.k, e, n: p.name, amt: num(d.amt, 0, 1e6) | 0 }); for (const [w, q] of this.players) if (q.ready && q.name.toLowerCase() === d.to.toLowerCase()) { this.send(w, out); break; } }
     } else if (d.t === 'call') {
       // Phone calls and text pings between players by username, anywhere on the map (Beta v1.01.03).
       // Only Google accounts (not guests) can call; the person called sees who it is and can decline or block.

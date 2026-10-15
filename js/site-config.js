@@ -3,5 +3,5 @@ window.SITE = {
   name: 'India Bay',
   domain: 'indiabaygame.com',
   supportEmail: 'support@indiabaygame.com',   // shown on the privacy policy, start screen and Contact support
-  policyUpdated: '12 October 2026'
+  policyUpdated: '15 October 2026'
 };

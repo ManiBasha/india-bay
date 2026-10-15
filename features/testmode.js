@@ -26,7 +26,7 @@ window.BBFeatures.push(function (bb) {
       `<h3 class="sub">Time of day</h3><div class="chips">${[0, 6, 9, 12, 15, 17, 19.5, 21].map(h => `<button class="chip" data-h="${h}">${h === 19.5 ? '7:30 pm' : h === 0 ? '12 am' : h < 12 ? h + ' am' : h === 12 ? '12 pm' : (h - 12) + ' pm'}</button>`).join('')}</div>
       <div class="chips">${[1, 5, 10].map(v => `<button class="chip${+bb.CFG.timeSpeed === v ? ' on' : ''}" data-sp="${v}">Time ×${v}</button>`).join('')}</div>
       <h3 class="sub">Weather</h3><div class="chips">${['auto', 'clear', 'cloudy', 'rain', 'monsoon', 'fog'].map(w => `<button class="chip${bb.CFG.weather === w ? ' on' : ''}" data-w="${w}">${w}</button>`).join('')}</div>
-      <h3 class="sub">You</h3>` + bb.rowHtml('money', 'Add ₹10 lakh', `Cash ${bb.inr(bb.P.cash)}`, 'Add') + bb.rowHtml('fill', 'Full health, food, sleep and toilet', '', 'Fill') +
+      <h3 class="sub">You</h3>` + bb.rowHtml('money', 'Add ₹10 lakh', `Cash ${bb.inr(bb.P.cash)}`, 'Add') + bb.rowHtml('fill', 'Full health, food and sleep', '', 'Fill') +
       bb.rowHtml('god', 'No damage', bb.god ? 'On · crashes, falls and fights do not hurt' : 'Off', bb.god ? 'Turn off' : 'Turn on', 'ghost') + bb.rowHtml('cops', 'Police', bb.CFG.police === 'off' ? 'Off' : 'On', bb.CFG.police === 'off' ? 'Turn on' : 'Turn off', 'ghost') +
       bb.rowHtml('chal', 'Traffic challans', bb.CFG.challansOn ? 'On' : 'Off', bb.CFG.challansOn ? 'Turn off' : 'Turn on', 'ghost') +
       `<h3 class="sub">Festival today (this device only)</h3><div class="chips"><button class="chip" data-f="none">None</button>${FEST.map(f => `<button class="chip" data-f="${f}">${f}</button>`).join('')}</div>

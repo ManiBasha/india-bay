@@ -64,7 +64,7 @@ window.BBFeatures.push(function (bb) {
         add(g, new T.BoxGeometry(21, 2.2, 1.4), '#c9a46a', 0, 8, D2 / 2 - 1); label(g, zoo.name.toUpperCase(), zoo.full + '\nOpen zoo · no cages', 12, 0, 6.2, D2 / 2 - 1.8, Math.PI, '#2f5d2a');
         // habitats
         for (const h of HAB) buildHab(g, h);
-        // canteen, toilets, the safari station and benches
+        // canteen, the safari station and benches
         add(g, new T.BoxGeometry(10, 3.2, 6), '#e9d8b4', -26, 1.6, 58); add(g, new T.ConeGeometry(7, 2.4, 4), '#a8402a', -26, 4.4, 58).rotation.y = Math.PI / 4; label(g, 'ZOO CANTEEN', 'Vada pav · ice cream · chai', 5, -26, 3.2, 61.2, 0, '#c0392b');
         add(g, new T.BoxGeometry(6, 2.8, 4), '#d6e4ea', 26, 1.4, 60); label(g, 'TOILETS', '', 3, 26, 3.2, 62.2, 0, '#2f7fc1');
         add(g, new T.BoxGeometry(12, .4, 6), '#bdb6a8', 30, .2, 46); add(g, new T.BoxGeometry(12, .2, 6), '#2f7d3a', 30, 3.4, 46); for (const s of [-1, 1]) add(g, new T.CylinderGeometry(.15, .15, 3.2, 6), '#555', 30 + s * 5.5, 1.8, 46 - 2.6); label(g, 'SAFARI', 'Battery-car safari through\nthe open habitats', 5, 30, 3.0, 49.2, 0, '#e67e22');
@@ -75,7 +75,7 @@ window.BBFeatures.push(function (bb) {
         // visitors
         for (let i = 0; i < 14; i++) { const p = bb.buildPerson(mat(['#d9483b', '#2f7fc1', '#e8a628', '#3aa66b', '#9b4fb5', '#ff6fa8', '#f4f1ea'][i % 7])); g.add(p); let x, z, k = 0; do { x = MR(-80, 80); z = MR(-60, 60); k++; } while (k < 30 && blk.some(b => x > b[0] - 1 && x < b[2] + 1 && z > b[1] - 1 && z < b[3] + 1)); live.push({ g: p, kind: 'person', area: { x: 0, z: 10, rx: 88, rz: 66 }, x, z, h: MR(0, 6.28), sp: 0, t: 0, person: true }); }
         Z = { zoo, g };
-        return [{ k: 'safari', name: `Battery-car safari · ${bb.inr(price('safari'))}`, x: 30, z: 51 }, { k: 'canteen', name: 'Zoo canteen · snacks', x: -26, z: 63 }, { k: 'toilet', name: 'Toilets', x: 26, z: 64 },
+        return [{ k: 'safari', name: `Battery-car safari · ${bb.inr(price('safari'))}`, x: 30, z: 51 }, { k: 'canteen', name: 'Zoo canteen · snacks', x: -26, z: 63 },
           ...HAB.map(h => ({ k: 'info:' + h.id, name: `${h.name} · read the board`, x: h.x + (h.x > 0 ? -1 : 1) * Math.min(h.rx, 18) * .3, z: h.z + h.rz + 4.5 }))]; },
       onAction: k => { if (k === 'safari') return safari(); if (k === 'canteen') return bb.foodSheet({ name: 'Zoo canteen', extra: zoo.st, type: 'food' }); if (k === 'toilet') { bb.P.bladder = 100; bb.setDirty(); return bb.toast('🚻 Much better', '#5fb4ff'); }
         if (k.startsWith('info:')) { const h = HAB.find(q => q.id === k.slice(5)); bb.toast(`${h.name} · ${h.sub.replace('\n', ' · ')}`, '#3ddc97'); bb.emit('zoo', { kind: 'info', id: h.id }); } },

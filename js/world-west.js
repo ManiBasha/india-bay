@@ -197,9 +197,10 @@ window.WORLD = {
 
   // Each zone gets these services, placed on block edges.
   serviceSets: {
-    big: ['bank', 'bank', 'food', 'food', 'food', 'toilet', 'toilet', 'pump', 'cng', 'hospital', 'police', 'rto', 'jobs', 'cars', 'bikes', 'clothes', 'furniture', 'mobile', 'guns', 'realty', 'mechanic', 'station', 'bus', 'lodge'],
-    mid: ['bank', 'food', 'food', 'toilet', 'pump', 'hospital', 'police', 'mechanic', 'station', 'bus', 'lodge', 'clothes', 'mobile', 'bikes', 'jobs'],
-    small: ['bank', 'food', 'toilet', 'pump', 'bus', 'lodge']
+    // Beta v1.01.21: food, a fuel pump and a lodge are placed first, so every city and town has them (no public toilets any more)
+    big: ['food', 'pump', 'lodge', 'bank', 'bank', 'food', 'food', 'cng', 'hospital', 'police', 'rto', 'jobs', 'cars', 'bikes', 'clothes', 'furniture', 'mobile', 'guns', 'realty', 'mechanic', 'station', 'bus', 'lodge'],
+    mid: ['food', 'pump', 'lodge', 'bank', 'food', 'hospital', 'police', 'mechanic', 'station', 'bus', 'clothes', 'mobile', 'bikes', 'jobs'],
+    small: ['food', 'pump', 'lodge', 'bank', 'bus', 'hospital']
   },
 
   homes: [

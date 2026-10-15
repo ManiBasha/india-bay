@@ -16,7 +16,7 @@
   // the news ticker: the admin's announcement, festivals and events from #ann, what's new and tips
   function news() { const el = $('#tick'); if (!el) return; const ann = $('#ann'); const items = [];
     if (ann && ann.innerHTML.trim()) ann.innerHTML.split(/<br\s*\/?>/i).forEach(l => { const t = l.replace(/<[^>]+>/g, '').trim(); if (t) items.push('🎉 ' + t); });
-    items.push('🚕 New: BayTaxi in your phone', '🚌 New: KSRTC, MSRTC and other state buses · sit inside and look out of the window', '🦸 New: six India Bay heroes · listen to BayRadio for sightings', '🏖 New: beach parties every night', '🎲 New: mini games with cash prizes · play people near you');
+    items.push('🎤 New: host events on a stage · BayEvents in your phone', '👥 New: BayGram groups with group chat and group calls', '🎙 New: live voice chat · hold to talk and players near you hear you', '🎟 New: Bay Transport · book buses, trains, metro and flights in the phone', '🐪 New: camel, horse and elephant rides', '📍 New: share your location with friends', '🎵 New: background music · 🔊 to choose your sounds');
     for (let i = 0; i < 4; i++) items.push('💡 ' + TIPS[(Math.floor(Date.now() / 86400000) + i * 3) % TIPS.length]);
     const html = items.map(t => `<span>${t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])}</span>`).join('');
     if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html + html; el.style.animationDuration = Math.max(30, items.length * 7) + 's'; } }

@@ -23,6 +23,8 @@ for(const [id,zd] of zoneData){const z=zd.z;let foodN=0;
       if(s.type==='bus'){box(sz*.7,.4,4,cx,3.2,cz,M.roofTin);for(const k of [-1,1])box(.3,3,.3,cx+k*sz*.3,1.8,cz,M.pole);box(sz*.6,.6,1,cx,.6,cz,M.wood);}}
     makePoi({type:s.type,name,x,z:zz,rot,extra,drive:s.type==='pump'||s.type==='cng'||s.type==='mechanic'});}}
 for(const p of lmPois)makePoi(p);
+{const NEED=[['food','food'],['pump','pump'],['lodge','lodge']];for(const z of W.zones){for(const [t] of NEED){if(pois.some(p=>p.type===t&&p.zone===z))continue;const cx=z.x0+z.nx*40+(t==='pump'?24:t==='lodge'?-24:0),cz=z.z0+z.nz*40+12;const r=nearestRoadPoint(cx,cz,300);if(!r)continue;const nx=r.e.dz,nz=-r.e.dx,o=r.e.w/2+3.5;const x=r.x+nx*o,zz=r.z+nz*o;
+  makePoi({zone:z,type:t,name:t==='food'?(FOODNAME[z.food]||FOODNAME.MH)[0]:t==='pump'?PNAME.pump:(z.st==='RJ'?z.name+' dharamshala':z.name+' lodge'),x,z:zz,rot:Math.atan2(-nx,-nz),extra:t==='food'?z.food:undefined,drive:t==='pump'});}}}
 for(const h of W.homes){const zd=zoneData.get(h.zone);const b=zd.blocks.find(b=>b.land&&b.hasBld&&!b.used&&!pois.some(p=>Math.hypot(p.x-b.x,p.z-b.z)<20))||zd.blocks.find(b=>b.land&&b.hasBld);if(!b)continue;b.used=true;
   const [x,zz,rot]=edgePos(b.x,b.z,'s',-8);makePoi({type:'home',name:h.name,x,z:zz,rot,extra:h.id});}
 flushStatic();
@@ -102,12 +104,15 @@ function freeBoard(g){scene.remove(g);g.traverse(o=>{if(o.isMesh&&o.material.map
 const boardOf=new Map();
 function refreshBillboards(){for(const g of boardOf.values())freeBoard(g);boardOf.clear();adShown.clear();houseCount.clear();if(SLOTS)for(const s of SLOTS)s.ad=null;}
 // Hide a board while the camera is right next to it, so its posts and frame never fill the screen.
-function fadeBoards(){const c=camera.position;for(const g of boardOf.values()){const dx=g.position.x-c.x,dz=g.position.z-c.z;g.visible=dx*dx+dz*dz>20*20;}}
-function updBillboards(px,pz){if(!SLOTS)buildSlots();SLOTS.forEach((s,i)=>{const d=Math.hypot(s.x-px,s.z-pz),has=boardOf.has(s.id);if(d<700&&!has)boardOf.set(s.id,buildBoard(s,i));else if(d>950&&has){freeBoard(boardOf.get(s.id));boardOf.delete(s.id);}});}
+// Beta v1.01.21: a board counts as seen when you pass within 90 m of it facing it (once every 10 minutes): Admin → Dashboards → Ads
+const adSeen=new Map();
+function fadeBoards(){const c=camera.position;const now=performance.now();const fx=Math.sin(player.mode==='drive'&&player.veh?player.veh.h:player.h),fz=Math.cos(player.mode==='drive'&&player.veh?player.veh.h:player.h);for(const [id,g] of boardOf){const dx=g.position.x-c.x,dz=g.position.z-c.z;const d2=dx*dx+dz*dz;g.visible=d2>20*20;
+  if(started&&d2<90*90&&dx*fx+dz*fz>0&&g.userData.adRef&&now-(adSeen.get(id)||-1e9)>600000){adSeen.set(id,now);emit('adView',g.userData.adRef);}}}
+function updBillboards(px,pz){if(!SLOTS)buildSlots();SLOTS.forEach((s,i)=>{const d=Math.hypot(s.x-px,s.z-pz),has=boardOf.has(s.id);if(d<700&&!has){const g=buildBoard(s,i);g.userData.adRef=s.ad||null;boardOf.set(s.id,g);}else if(d>950&&has){freeBoard(boardOf.get(s.id));boardOf.delete(s.id);}});}
 const adRay=new THREE.Raycaster();
 function pickBillboard(cx,cy){if(!billboardMeshes.length)return false;const r=renderer.domElement.getBoundingClientRect();adRay.setFromCamera({x:(cx-r.left)/r.width*2-1,y:-((cy-r.top)/r.height)*2+1},camera);adRay.far=220;
   const hit=adRay.intersectObjects(billboardMeshes,false)[0];if(!hit)return false;adSheet(hit.object.userData.ad,hit.object.userData.slot);return true;}
-function adSheet(ad,slot){const pp=ppos();const d=ad.target?Math.hypot(ad.target.x-pp.x,ad.target.z-pp.z):0;const dist=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
+function adSheet(ad,slot){emit('adClick',ad);const pp=ppos();const d=ad.target?Math.hypot(ad.target.x-pp.x,ad.target.z-pp.z):0;const dist=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
   P.extra.adClicks=P.extra.adClicks||{};if(ad.collab){const k=ad.advertiser;P.extra.adClicks[k]=(P.extra.adClicks[k]||0)+1;}
   openSheet(ad.collab?esc(ad.advertiser):'India Bay',ad.collab?esc(ad.cat||'')||'India Bay':esc(ad.cat||'India Bay'),`<div class="adprev" style="background:${esc(ad.bg)};color:${esc(ad.fg)};border-color:${esc(ad.fg)}"><b>${esc(ad.title)}</b>${ad.line2?`<span>${esc(ad.line2)}</span>`:''}</div>
     ${ad.desc?`<p class="note" style="color:var(--ink);font-size:14.5px">${esc(ad.desc)}</p>`:''}${ad.target?`<p class="note">${esc(ad.target.name)} · ${dist} away</p>`:''}
@@ -179,7 +184,7 @@ function liveryTex(L){const k=L.body+L.band+L.text;if(LIVTEX.has(k))return LIVTE
   for(let i=0;i<9;i++){x.fillStyle='#1d2a34';x.fillRect(14+i*55,16,46,56);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(16+i*55,18,18,52);}if(L.text){x.fillStyle=L.textC||L.body;x.font='bold 17px sans-serif';x.textAlign='center';x.fillText(L.text,256,98);}},false);LIVTEX.set(k,t);return t;}
 const busSide=canvasTex(512,128,x=>{x.fillStyle='#b8202a';x.fillRect(0,0,512,128);x.fillStyle='#f3efe6';x.fillRect(0,92,512,14);for(let i=0;i<9;i++){x.fillStyle='#1d2a34';x.fillRect(14+i*55,14,46,58);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(16+i*55,16,18,54);}},false);
 const truckBox=canvasTex(256,128,x=>{const c=mpick(['#2f6fb5','#e0a21b','#2d8a4e','#b5432f']);x.fillStyle=c;x.fillRect(0,0,256,128);x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=3;for(let i=12;i<256;i+=22){x.beginPath();x.moveTo(i,0);x.lineTo(i,128);x.stroke();}x.fillStyle='#ffe066';x.font='800 22px "Baloo 2", sans-serif';x.fillText('BHARAT TRANSPORT',22,70);},false);
-function buildVeh(type,colorMat){const g=new THREE.Group();let w;g.userData={};
+function buildVeh(type,colorMat){if(SPEC[type]&&SPEC[type].build){const g0=SPEC[type].build(colorMat);g0.userData.wheels=g0.userData.wheels||[];return g0;}const g=new THREE.Group();let w;g.userData={};
   if(type==='cycle'){const f=colorMat||mpick([VM.red,VM.blue,VM.black,VM.green]);part(G.box,f,.05,.05,1.05,0,.72,0,g);part(G.box,f,.05,.62,.05,0,.6,-.18,g);part(G.box,f,.05,.6,.05,0,.65,.44,g);part(G.box,VM.black,.56,.04,.04,0,1.05,.5,g);part(G.box,VM.seat,.16,.06,.26,0,.98,-.2,g);
     w=wheels2(g,[[0,.34,.6],[0,.34,-.6]],WG.cycle);}
   else if(type==='rickshaw'){part(G.box,VM.black,.07,.07,1.4,0,.8,.7,g);part(G.box,VM.seat,.2,.06,.3,0,1.02,.85,g);part(G.box,paint(mpick(['#2d5fb8','#1f8a4c','#6d1a2a'])),1.3,.5,.8,0,.85,-.55,g);part(G.box,VM.seat,1.2,.15,.6,0,1.15,-.55,g);

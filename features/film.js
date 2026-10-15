@@ -40,7 +40,7 @@ window.BBFeatures.push(function (bb) {
     let mr; try { mr = new MediaRecorder(comp.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 12e6 } : {}); } catch (e) { return bb.toast('Recording failed to start', '#ff9f1c'); }
     const chunks = []; mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     mr.onstop = () => { const type = (mr.mimeType || mime || 'video/webm').split(';')[0]; const blob = new Blob(chunks, { type }); const name = `india-bay-film-${st.fmt === '16:9' ? 'wide' : 'reel'}-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.${type.includes('mp4') ? 'mp4' : 'webm'}`;
-      if (bb.BAYGRAM && bb.BAYGRAM.keep) bb.BAYGRAM.keep('video', blob, type.includes('mp4') ? 'mp4' : 'webm'); save(name, blob); };
+      save(name, blob); };
     rec = { mr, t0: Date.now(), iv: setInterval(() => { if (bar && !bar.hidden) ui(); }, 1000) }; mr.start(1000); ui(); bb.toast('Recording · press R to stop', '#ff5d73'); }
   let dl = null; (async () => { try { if (window.claude && claude.use) dl = await claude.use('downloads'); } catch (e) { dl = null; } })();
   async function save(name, blob) { if (dl) { try { await dl.save({ filename: name, data: blob }); bb.toast('Video saved', '#3ddc97'); } catch (e) { bb.toast(e && e.code === 'declined' ? 'Not saved' : 'Saving is not available here', '#ff9f1c'); } return; }
@@ -50,6 +50,6 @@ window.BBFeatures.push(function (bb) {
     if (e.code === 'F9') { e.preventDefault(); return st.on ? stop() : start(); }
     if (!st.on) return; if (e.code === 'KeyH' && bar) bar.hidden = !bar.hidden; if (e.code === 'KeyR') rec ? stopRec() : startRec(); if (e.code === 'Escape') stop();
     const n = { Digit1: 'tour', Digit2: 'orbit', Digit3: 'drone', Digit4: 'fly', Digit5: 'street' }[e.code]; if (n) { st.mode = n; st.t = 0; st.fix = null; ui(); } });
-  bb.addApp({ id: 'film', label: 'Film mode', icon: '🎬', group: 'settings', show: allowed, fn: () => { if (!allowed()) return bb.toast('Film mode is switched off right now', '#ff9f1c'); bb.closeSheet(); setTimeout(start, 120); } });
+  bb.addApp({ id: 'film', label: 'Film mode', icon: '🎬', show: allowed, fn: () => { if (!allowed()) return bb.toast('Film mode is switched off right now', '#ff9f1c'); bb.closeSheet(); setTimeout(start, 120); } });
   bb.FILM = { start, stop, get on() { return st.on; }, allowed };
 });

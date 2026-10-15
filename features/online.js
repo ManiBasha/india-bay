@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.20';
+window.__ibOnlineV = '1.01.21';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -17,6 +17,8 @@ window.BBFeatures.push(function (bb) {
   let cityN = null; let lastErr = '', lastErrAt = 0; const noteErr = m => { lastErr = String(m || ''); lastErrAt = Date.now(); };
   let authRetry = false, ws = null, myId = null, online = 0, status = 'off', kicked = false, idleOff = false, retry = 0, lastInput = Date.now(), lastSent = null;
   const remotes = new Map();
+  const U = bb.USAGE = bb.USAGE || { n: {}, add(k, v) { this.n[k] = (this.n[k] || 0) + (v == null ? 1 : v); } };
+  let banned = false, silencedUntil = 0, seenBefore = null;
   // players you muted (Beta v1.01.15: own key; 'ib.muted' is the sound on/off switch, which broke online when it held true/false)
   const muted = new Set((() => { try { let L = JSON.parse(localStorage.getItem('ib.mutedPlayers') || 'null'); if (!Array.isArray(L)) { const old = JSON.parse(localStorage.getItem('ib.muted') || 'null'); L = Array.isArray(old) ? old : []; if (Array.isArray(old)) localStorage.setItem('ib.muted', 'false'); }
     return L.filter(x => typeof x === 'string'); } catch (e) { return []; } })());
@@ -64,9 +66,12 @@ window.BBFeatures.push(function (bb) {
   async function loadConfig() { try { const { data } = await sb.from('game_config').select('data').eq('id', 1).maybeSingle(); if (data && data.data) bb.cloudConfig(data.data); } catch (e) {} }
   async function afterSignIn() {
     const uid = session.user.id;
-    const pr = await sb.from('profiles').select('username,is_guest').eq('id', uid).maybeSingle();
+    // Beta v1.01.21: a banned email cannot play online
+    try { const b = await sb.rpc('am_i_banned'); if (!b.error && b.data === true) { banned = true; bannedSheet(); throw new Error('This account is banned'); } } catch (e) { if (banned) throw e; }
+    let pr = await sb.from('profiles').select('username,is_guest,last_seen').eq('id', uid).maybeSingle();
+    if (pr.error && /last_seen/.test(pr.error.message || '')) pr = await sb.from('profiles').select('username,is_guest').eq('id', uid).maybeSingle();
     if (pr.error) throw pr.error;
-    profile = pr.data || null;
+    profile = pr.data || null; if (profile && profile.last_seen) seenBefore = new Date(profile.last_seen).getTime(); touch();
     const ad = await sb.from('admins').select('user_id').eq('user_id', uid).maybeSingle();
     isAdmin = !!(ad.data);
     let known = false; try { const ts = await sb.rpc('is_tester'); if (!ts.error) { known = true; isTester = isAdmin || ts.data === true; } else isTester = isAdmin; } catch (e) { isTester = isAdmin; }
@@ -96,6 +101,16 @@ window.BBFeatures.push(function (bb) {
       return true;
     } catch (e) { console.warn('Online unavailable', e); window.__ibOnlineStage = 'failed: ' + (e && e.message || e); noteErr('Could not start online: ' + (e && e.message || e)); status = 'error'; renderIntro(); return false; }
   })();
+
+  // banned (Admin → Players → Ban): the account cannot play online; offline play still works
+  function bannedSheet() { offline = true; bb.openSheet('⛔ Account banned', 'This account cannot play online', '<p class="note">The India Bay admin has banned this account. You can still play offline on this device. If you think this is a mistake, write to support@indiabaygame.com.</p><div class="btnrow"><button class="go" data-id="off">Play offline</button><button class="buy ghost" data-id="out">Sign out</button></div>',
+      s => s.onclick = async e => { const id = e.target.dataset.id; if (id === 'off') { bb.closeSheet(); if (next) next(); } if (id === 'out') { try { await sb.auth.signOut(); } catch (er) {} location.reload(); } }); }
+  // last time you played (unused accounts are removed: guests after 14 days, Google after 60), and whether you are silenced
+  async function touch() { if (!sb || !session) return; try { const r = await sb.rpc('touch_seen'); if (r.error) return; const o = typeof r.data === 'string' ? JSON.parse(r.data) : r.data; if (o) { if (o.banned && !banned) { banned = true; disconnect(true); bannedSheet(); } silencedUntil = o.silenced ? Date.parse(o.silenced) || 0 : 0; } } catch (e) {} }
+  setInterval(() => { if (session && passed) touch(); }, 5 * 60 * 1000);
+  bb.onStart(() => setTimeout(() => { if (!session || !seenBefore) return; const days = (Date.now() - seenBefore) / 864e5; const lim = isAnon() ? 14 : 60;
+    if (days > lim * .6) bb.toast(`Welcome back! ${isAnon() ? 'Guest accounts' : 'Accounts'} are kept while you play at least once every ${lim} days`, '#ffc93c'); }, 5000));
+  const silenceNote = until => `🔇 Chat, voice and calls are off for you until ${new Date(until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}, after reports from several players`;
 
   /* ---------- Sign in with Google on the start screen (Beta v1.01.05) ----------
      Shown when you are not on a Google account yet: no account, or a guest account in this browser.
@@ -133,6 +148,7 @@ window.BBFeatures.push(function (bb) {
     if (offline) return next();
     if (!session) return signInSheet();
     if (isAnon() && !guestOk) return guestSheet();
+    if (banned) return bannedSheet();
     if (!profile || !priv) return nameSheet();
     if (await syncSave()) return;
     offline = false; next();
@@ -140,7 +156,7 @@ window.BBFeatures.push(function (bb) {
 
   function signInSheet() {
     bb.openSheet(startTitle(), 'How do you want to play?', `<div class="stack">${passed ? '' : '<button class="buy ghost" data-id="offline">1 · Continue offline</button>'}<button class="go gbtn" data-id="google"><b>G</b> ${passed ? '' : '2 · '}Continue with Google</button><button class="go alt" data-id="guest">${passed ? '' : '3 · '}Continue as guest</button></div>
-      ${NOTE}<p class="note">A guest player lives in this browser only (you can link Google later from 👤 Profile). Offline play has no other players.</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
+      ${NOTE}<p class="note">A guest player lives in this browser only (you can link Google later from 👤 Profile). Offline play has no other players. Accounts nobody plays are removed: guests after 14 days, Google accounts after 60 days.</p><p class="note">By continuing you agree to our <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</p><p class="note" id="si_msg" aria-live="polite"></p>`, s => {
       s.onclick = async e => {
         const b = e.target.closest('[data-id]'); const id = b && b.dataset.id; if (!id) return; const msg = s.querySelector('#si_msg');
         const bad = t => { msg.textContent = t; msg.className = 'note bad'; };
@@ -232,7 +248,7 @@ window.BBFeatures.push(function (bb) {
     kicked = false; idleOff = false; status = 'connecting'; renderChip();
     try { ws = new WebSocket(wsUrl()); } catch (e) { ws = null; return later(); }
     const me = ws;
-    me.onmessage = ev => { if (ws !== me) return; let d; try { d = JSON.parse(ev.data); } catch (e) { return; } handle(d); };
+    me.onmessage = ev => { if (ws !== me) return; U.add('ws_in'); let d; try { d = JSON.parse(ev.data); } catch (e) { return; } handle(d); };
     me.onerror = () => noteErr('Could not reach the game server');
     me.onclose = ev => { if (ws === me && ev && ev.reason) noteErr('Server closed the connection: ' + ev.reason); if (ws !== me) return; ws = null; myId = null; clearRemotes(); status = kicked ? 'off' : 'retry'; renderChip(); if (!kicked) later(); };
   }
@@ -253,7 +269,12 @@ window.BBFeatures.push(function (bb) {
     else if (d.t === 'v') onV(d);
     else if (d.t === 'call') bb.emit('call', d);
     else if (d.t === 'vc' || d.t === 'vcoff') bb.emit('voice', Object.assign({ self: d.id === myId }, d));
+    else if (d.t === 'vs') { U.add('voice_in'); bb.emit('voicestream', d); }
+    else if (d.t === 'gc') bb.emit('gc', d);
+    else if (d.t === 'ev') bb.emit('ev', d);
+    else if (d.t === 'silenced') { silencedUntil = d.until || silencedUntil; if (Date.now() - (handle._sil || 0) > 8000) { handle._sil = Date.now(); bb.toast(silenceNote(silencedUntil), '#ff8b8b'); } bb.emit('silenced', silencedUntil); }
     else if (d.t === 'kick') { noteErr(d.msg); if (/somewhere else/i.test(d.msg)) d.msg = 'This account is playing in another window or device, so this one went offline. Each player needs their own account (another Google account, or a guest)'; kicked = true; if (/idle/i.test(d.msg)) idleOff = true; bb.toast(d.msg + (idleOff ? ' · press any key to rejoin' : ''), '#ffc93c'); }
+    else if (d.t === 'err' && d.code === 'banned') { banned = true; kicked = true; bannedSheet(); }
     else if (d.t === 'err') {
       if (d.code === 'auth' && !authRetry) { authRetry = true; try { const r = await sb.auth.refreshSession(); if (r.data && r.data.session) { session = r.data.session; return; } } catch (e) {} kicked = true; bb.toast(d.msg, '#ff8b8b'); }
       else { noteErr(d.msg); kicked = true; bb.toast(d.msg, '#ff8b8b'); }
@@ -332,7 +353,7 @@ window.BBFeatures.push(function (bb) {
       if (now - r.seen > 9000) { drop(r.id); renderChip(); continue; }
       r.x += (r.tx - r.x) * k; r.z += (r.tz - r.z) * k; r.y += (r.ty - r.y) * k;
       let dh = r.th - r.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); r.h += dh * k;
-      r.g.position.set(r.x, r.y, r.z); if (r.body) r.body.rotation.y = r.h; r.g.visible = !hide && r.kind !== 'i'; if (r.park) r.park.visible = !hide;
+      r.g.position.set(r.x, r.y + (r.kind[0] === 'f' ? .3 : 0), r.z); if (r.body) r.body.rotation.y = r.h; r.g.visible = !hide && r.kind !== 'i'; if (r.park) r.park.visible = !hide;
       if (r.kind[0] === 'f' && r.body && r.body.userData.legs) { const mv = Math.hypot(r.tx - r.x, r.tz - r.z) > .05 || Math.abs(r.s) > .3; r.walk += Math.min(dt, .2) * (mv ? 9 : 0); const a = mv ? Math.sin(r.walk) * .6 : 0; const U = r.body.userData; U.legs[0].rotation.x = a; U.legs[1].rotation.x = -a; U.arms[0].rotation.x = -a; U.arms[1].rotation.x = a; }
       if (r.bub && now > r.bubT) { freeSprite(r.bub); r.bub = null; }
     }
@@ -426,9 +447,9 @@ window.BBFeatures.push(function (bb) {
     if (self) { freeSprite(selfBub); selfBub = tag(short, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 7000; }
     else { const r = remotes.get(d.id); if (r) { freeSprite(r.bub); r.bub = tag(short, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 7000; } }
   }
-  function openBar() { if (bb.CFG.chatOn === false) return bb.toast('💬 ' + bb.esc(bb.CFG.chatNote || 'Chat is paused by the admin right now'), '#ffc93c'); if (status !== 'on') { if (lastErr || !session) return onlineSheet(); offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
+  function openBar() { if (silencedUntil > Date.now()) return bb.toast(silenceNote(silencedUntil), '#ff8b8b'); if (bb.CFG.chatOn === false) return bb.toast('💬 ' + bb.esc(bb.CFG.chatNote || 'Chat is paused by the admin right now'), '#ffc93c'); if (status !== 'on') { if (lastErr || !session) return onlineSheet(); offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
   function closeBar() { bar.hidden = true; inp.blur(); }
-  bar.onsubmit = e => { e.preventDefault(); const t = inp.value.trim(); if (t && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'chat', text: t.slice(0, 120), r: chatR })); closeBar(); };
+  bar.onsubmit = e => { e.preventDefault(); const t = inp.value.trim(); if (t && ws && ws.readyState === 1) { ws.send(JSON.stringify({ t: 'chat', text: t.slice(0, 120), r: chatR })); U.add('chat'); U.add('ws_out'); } closeBar(); };
   bar.querySelector('[data-x]').onclick = closeBar;
   inp.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeBar(); } });
   chip.onclick = openBar;
@@ -491,11 +512,13 @@ window.BBFeatures.push(function (bb) {
         if (rep) return reportSheet(rep);
       });
   }
-  function reportSheet(name) {
-    bb.openSheet('Report ' + name, 'The admin reviews every report', `<form class="form" id="rp" novalidate><label>What happened?<select id="rp_r"><option>Rude or abusive chat</option><option>Bad username</option><option>Cheating</option><option>Spamming</option><option>Other</option></select></label><label>Details (optional)<textarea id="rp_t" maxlength="200"></textarea></label><div class="btnrow"><button class="go" type="submit">Send report</button></div><p class="note" id="rp_m"></p></form>`, s => {
+  const RKIND = [['chat', 'Nearby chat'], ['text', 'Text messages'], ['voice', 'Voice chat'], ['call', 'Phone call'], ['group', 'Group chat or call'], ['event', 'At an event'], ['post', 'BayGram post or comment'], ['name', 'Bad username'], ['cheat', 'Cheating'], ['other', 'Something else']];
+  function reportSheet(name, kind, extra) {
+    bb.openSheet('Report ' + name, 'The admin reviews every report · when several players report someone, their chat, voice and calls stop for a while', `<form class="form" id="rp" novalidate><label>Where?<select id="rp_k">${RKIND.map(([k, l]) => `<option value="${k}"${k === (kind || 'chat') ? ' selected' : ''}>${l}</option>`).join('')}</select></label><label>What happened?<select id="rp_r"><option>Rude or abusive</option><option>Bullying or threats</option><option>Spamming</option><option>Sexual or unsafe talk</option><option>Cheating</option><option>Other</option></select></label><label>Details (optional)<textarea id="rp_t" maxlength="200"></textarea></label><div class="btnrow"><button class="go" type="submit">Send report</button></div><p class="note" id="rp_m"></p></form>`, s => {
       s.querySelector('#rp').onsubmit = async e => {
-        e.preventDefault(); const reason = (s.querySelector('#rp_r').value + ' · ' + s.querySelector('#rp_t').value).slice(0, 300);
-        const { error } = await sb.from('reports').insert({ target_name: name, reporter_name: profile ? profile.username : null, reason, last_chat: lastChat[name] || null });
+        e.preventDefault(); const k = s.querySelector('#rp_k').value; const reason = (s.querySelector('#rp_r').value + ' · ' + s.querySelector('#rp_t').value).slice(0, 300);
+        let { error } = await sb.from('reports').insert({ target_name: name, reporter_name: profile ? profile.username : null, reason, last_chat: extra || lastChat[name] || null, kind: k });
+        if (error && /kind/.test(error.message || '')) ({ error } = await sb.from('reports').insert({ target_name: name, reporter_name: profile ? profile.username : null, reason: `[${k}] ` + reason, last_chat: extra || lastChat[name] || null }));
         if (error) { const m = s.querySelector('#rp_m'); m.textContent = niceErr(error); m.className = 'note bad'; return; }
         muted.add(name.toLowerCase()); try { localStorage.setItem('ib.mutedPlayers', JSON.stringify([...muted])); } catch (er) {}
         bb.closeSheet(); bb.toast(`Report sent · ${name} is muted for you`, '#3ddc97');
@@ -516,7 +539,8 @@ window.BBFeatures.push(function (bb) {
     if (isTester || bb.testMode) top.unshift(bb.testMode ? { id: 'p_mode', label: '🧪 Play mode: TEST PLAY', sub: 'Separate test save · everything unlocked · Phone → Test tools', btn: 'Back to real play', cls: '' } : { id: 'p_mode', label: '🧪 Play mode: real play', sub: 'Testers can switch to a separate test save with everything unlocked', btn: 'Switch to test play', cls: 'ghost' });
     const end = [{ id: 'p_out', label: '🚪 Log out', sub: isAnon() ? 'A guest account cannot be recovered after logging out' : 'Sign in again any time with Google', btn: 'Log out', cls: 'danger' },
       { id: 'p_del', label: '🗑 Delete account', sub: 'Removes your player, name, date of birth and cloud save for good', btn: 'Delete', cls: 'danger' }];
-    return { sub: isAnon() ? 'Guest account' : 'Google · ' + (session.user.email || ''), top, end, handle: async (id, e) => {
+    top.push({ id: 'p_keep', label: '🗓 Keep your account', sub: isAnon() ? 'Guest accounts not played for 14 days are removed. Sign in with Google to keep it longer' : 'Accounts not played for 60 days are removed, with their cloud save and BayGram photos', btn: 'OK', cls: 'ghost' });
+    return { sub: isAnon() ? 'Guest account' : 'Google · ' + (session.user.email || ''), top, end, handle: async (id, e) => { if (id === 'p_keep') return;
       if (id === 'p_admin') return window.open('admin/', '_blank', 'noopener');
       if (id === 'p_google') { bb.closeSheet(); return googleIn(); }
       if (id === 'p_mode') return bb.setTestMode(!bb.testMode);
@@ -532,8 +556,8 @@ window.BBFeatures.push(function (bb) {
   function bubble(id, text) { if (id === myId) { freeSprite(selfBub); selfBub = tag(text, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 5000; return; }
     const r = remotes.get(id); if (r) { freeSprite(r.bub); r.bub = tag(text, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 5000; } }
   bb.on('zone', () => renderChip());
-  bb.ONLINE = { get chatR() { return chatR; }, get client() { return sb; }, get uid() { return session && session.user ? session.user.id : null; }, get username() { return profile ? profile.username : ""; }, signOut, get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
-    send(o) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); return true; } return false; }, isMuted: n => muted.has(String(n).toLowerCase()), openChat: () => openBar(),
+  bb.ONLINE = { report: reportSheet, get chatR() { return chatR; }, get client() { return sb; }, get uid() { return session && session.user ? session.user.id : null; }, get username() { return profile ? profile.username : ""; }, signOut, get status() { return status; }, get remotes() { return remotes; }, get profile() { return profile; }, get myId() { return myId; }, connect, disconnect, bubble,
+    send(o) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); U.add('ws_out'); return true; } return false; }, get silencedUntil() { return silencedUntil > Date.now() ? silencedUntil : 0; }, silenceNote, get banned() { return banned; }, isMuted: n => muted.has(String(n).toLowerCase()), openChat: () => openBar(),
     rpc: (n, a) => (sb ? sb.rpc(n, a) : Promise.resolve({ error: { message: 'offline' } })), get signedIn() { return !!(session && profile); }, get isTester() { return isTester; }, get isAdmin() { return isAdmin; }, get guest() { return !!(session && isAnon()); } };
 
   // Bot people and bot traffic make room for real players: the more players online near you, the fewer bots.

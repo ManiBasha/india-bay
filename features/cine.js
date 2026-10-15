@@ -48,7 +48,7 @@ window.BBFeatures.push(function (bb) {
       if (k.startsWith('b:')) { const b = (o.buttons || []).find(q => q.id === k.slice(2)); if (b) b.fn(c); } };
     if (o.onStart) o.onStart(el, cur);
     bb.photo = dt => tick(dt); bb.avatar.visible = !!o.showAvatar; }
-  function tick(dt) { if (!cur) return; const o = cur.o; cur.t = (Date.now() - cur.t0) / 1000; const f = o.dur ? Math.min(1, cur.t / o.dur) : 0; const st = cur;
+  function tick(dt) { if (!cur) return; const o = cur.o; cur.t = (Date.now() - cur.t0) / 1000; const st = cur; const f = o.progress ? Math.min(1, o.progress(st)) : o.dur ? Math.min(1, cur.t / o.dur) : 0;
     const c = o.cam(f, dt, st, keys); if (!c) return;
     const p = new T.Vector3(c.x, c.y, c.z), l = new T.Vector3(c.lx, c.ly, c.lz); if (cur.snap || c.snap) { cur.cp.copy(p); cur.cl.copy(l); cur.snap = false; }
     cur.cp.lerp(p, c.hard ? 1 : 1 - Math.exp(-dt * 8)); cur.cl.lerp(l, 1 - Math.exp(-dt * (c.lookK || 2.5))); bb.camera.position.copy(cur.cp); bb.camera.lookAt(cur.cl);
@@ -71,12 +71,37 @@ window.BBFeatures.push(function (bb) {
 
   /* A ride along a path on the ground or in the air.
      r = { kind, pts:[[x,z]...], y: number | f(frac along the whole path), speed, dur, side: lateral offset, lookDown } */
-  function ride(r, o) { const P = poly(r.pts.length > 2 ? evenPts(r.pts) : r.pts); const sc = scenes(P.len, r.speed || 20, r.dur); let lastSeg = 0;
+  // Beta v1.01.21: buses and taxis drive in the left lane (India drives on the left), stop at red lights and
+  // slow down behind vehicles ahead, like the rest of the traffic. The ride ends when the bus reaches the stop.
+  function laned(pts) { const out = []; for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; const fx = (b[0] - a[0]) / l, fz = (b[1] - a[1]) / l;
+      const e = bb.roadAt(pts[i][0], pts[i][1], 2); const ln = e ? (e.fly ? 0 : e.lane) : 0; out.push([pts[i][0] + fz * ln, pts[i][1] - fx * ln]); }
+    return out.map((_, i) => smooth(out, i, 2)); }
+  function ride(r, o) { const ground = (r.kind === 'bus3d' || r.kind === 'taxi') && r.road !== false; const P = poly(r.pts.length > 2 ? (ground ? laned(evenPts(r.pts)) : evenPts(r.pts)) : r.pts); const sc = scenes(P.len, r.speed || 20, r.dur); let lastSeg = 0;
+    if (ground) return groundRide(r, o, P); 
     const yAt = typeof r.y === 'function' ? r.y : () => r.y || 3;
     return Object.assign({ dur: r.dur, kind: r.kind, cam: (f, dt, st) => { const q = sc(f); const a = P.at(q.s), b = P.at(q.s + 30); const h = Math.atan2(b.x - a.x, b.z - a.z) || a.h; const fr = q.s / P.len; const y = yAt(fr, q.s, P.len);
         if (q.seg !== lastSeg) { lastSeg = q.seg; st.snap = true; if (o.onScene) o.onScene(q.seg); }
         const rx = -Math.cos(h), rz = Math.sin(h), fx = Math.sin(h), fz = Math.cos(h); const side = r.side || 0; const x = a.x + rx * side, z = a.z + rz * side;
         const look = st.look === 'side' ? { lx: x + rx * 80 + fx * 30, ly: y * (r.lookDown != null ? r.lookDown : .5), lz: z + rz * 80 + fz * 30 } : { lx: x + fx * 80, ly: y * .75, lz: z + fz * 80 };
         return Object.assign({ x, y, z, fade: q.fade }, look); } }, o); }
+  // a ground ride with its own speed: u = metres driven through the shown parts of the trip
+  function groundRide(r, o, P) { const top = r.speed || 12, show = top * (r.dur || 60); const one = P.len <= show * 1.2; const sl = one ? P.len : show / 3; const starts = one ? [0] : [0, P.len / 2 - sl / 2, P.len - sl]; const total = sl * starts.length;
+    let u = Math.min(total * .98, total * ((o.elapsed || 0) / Math.max(1, r.dur || 60))), v = 0, lastSeg = -1, stuck = 0;
+    const at = uu => { const k = Math.min(starts.length - 1, Math.floor(uu / sl)); const loc = uu - k * sl; return { s: starts[k] + loc, k, fade: !one && ((k > 0 && loc < 8) || (k < starts.length - 1 && loc > sl - 8)) ? 1 - Math.min(loc, sl - loc) / 8 : 0 }; };
+    function target(s, h) { let t = top, why = ''; const sig = bb.sigJunction, ss = bb.sigState;
+      // turns ahead: slow down for corners
+      const a0 = P.at(s), a1 = P.at(s + 14), a2 = P.at(s + 28); const h1 = Math.atan2(a1.x - a0.x, a1.z - a0.z), h2 = Math.atan2(a2.x - a1.x, a2.z - a1.z); let dh = Math.abs(Math.atan2(Math.sin(h2 - h1), Math.cos(h2 - h1))); if (dh > .35) { t = Math.min(t, Math.max(4, top * (1 - dh * .8))); why = 'turn'; }
+      // red lights at city junctions
+      if (sig && ss) for (let d = 6; d <= 40; d += 3) { const q = P.at(s + d); const J = sig(q.x, q.z); if (!J || Math.abs(q.x - J.x) > 6 || Math.abs(q.z - J.z) > 6) continue; const axis = Math.abs(Math.sin(q.h)) > Math.abs(Math.cos(q.h)) ? 'ew' : 'ns'; if (ss(J.x, J.z, axis) !== 'g') { t = Math.min(t, Math.max(0, (d - 11) * .7)); why = 'signal'; } break; }
+      // vehicles ahead in the lane
+      const fx = Math.sin(h), fz = Math.cos(h); for (const w of bb.vehicles) { if (w.state === 'player') continue; const dx = w.pos.x - a0.x, dz = w.pos.z - a0.z; if (Math.abs(dx) > 40 || Math.abs(dz) > 40) continue; const along = dx * fx + dz * fz, lat = Math.abs(-dx * fz + dz * fx); if (along > 2 && along < 22 && lat < 2.4) { t = Math.min(t, Math.max(0, (along - 8) * .5, (w.v || 0) * .9)); why = 'vehicle'; } }
+      return t; }
+    o.progress = () => u / total;
+    return Object.assign({ dur: r.dur, kind: r.kind, cam: (f, dt, st) => { const q = at(u); const a = P.at(q.s), b = P.at(q.s + 30); const h = Math.atan2(b.x - a.x, b.z - a.z) || a.h;
+        let t = target(q.s, h); if (t < .5 && v < .5) { stuck += dt; if (stuck > 9) t = 3; } else stuck = 0; v += Math.max(-9 * dt, Math.min(3 * dt, t - v)); u = Math.min(total, u + v * dt);
+        if (q.k !== lastSeg) { if (lastSeg >= 0) st.snap = true; lastSeg = q.k; if (o.onScene && q.k > 0) o.onScene(q.k); }
+        const y = typeof r.y === 'function' ? r.y(q.s / P.len, q.s, P.len) : r.y || 3; const rx = -Math.cos(h), rz = Math.sin(h), fx = Math.sin(h), fz = Math.cos(h); const side = r.side || 0; const x = a.x + rx * side, z = a.z + rz * side;
+        const look = st.look === 'side' ? { lx: x + rx * 80 + fx * 30, ly: y * (r.lookDown != null ? r.lookDown : .5), lz: z + rz * 80 + fz * 30 } : { lx: x + fx * 80, ly: y * .75, lz: z + fz * 80 };
+        return Object.assign({ x, y, z, fade: q.fade, speed: v }, look); } }, o); }
   bb.CINE = { play, stop, finish, cancel, ride, poly, setSub, setTop, get on() { return !!cur; }, get state() { return cur; } };
 });

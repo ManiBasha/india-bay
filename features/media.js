@@ -1,4 +1,5 @@
-// Photo mode, photos and 30 or 60 second gameplay clips to share on Instagram, YouTube or WhatsApp.
+// Camera (photo mode): photos for your BayGram gallery. Beta v1.01.21: the camera takes photos only; videos are
+// recorded in 🎬 Film mode (Phone → Film mode), which saves them to your device.
 window.BBFeatures.push(function (bb) {
   let dl = null; (async () => { try { if (window.claude && claude.use) dl = await claude.use('downloads'); } catch (e) { dl = null; } })();
   async function saveFile(name, blob) { if (dl) { try { await dl.save({ filename: name, data: blob }); bb.toast('Saved · share it on Instagram, YouTube or WhatsApp', '#3ddc97'); bb.emit('media', name); } catch (e) { if (e && e.code === 'declined') bb.toast('Not saved', '#d6c8e4'); else bb.toast('Saving is not available here', '#ff9f1c'); } return; }
@@ -10,10 +11,10 @@ window.BBFeatures.push(function (bb) {
   /* photo mode with a free orbit camera */
   let bar = null, orbit = { a: 0, e: .35, d: 9 }, drag = null;
   function enter() { if (bb.photo) return exit(); if (bb.uiLock()) return; if (bb.inside) { bb.toast('Photo mode works outside', '#d6c8e4'); return; } document.body.classList.add('photo'); const p = bb.ppos(); orbit.a = (bb.player.veh ? bb.player.veh.h : bb.player.h) + Math.PI; orbit.e = .35; orbit.d = bb.player.veh ? 10 : 6;
-    bar = document.createElement('div'); bar.id = 'photoBar'; bar.innerHTML = '<button class="go" data-p="snap">Take photo</button><button class="buy ghost" data-p="r15">Record 15 s</button><button class="buy ghost" data-p="r30">Record 30 s</button><button class="buy ghost" data-p="r60">Record 60 s</button><button class="buy ghost" data-p="exit">Exit</button>'; document.body.appendChild(bar);
-    bar.onclick = e => { const k = e.target.dataset.p; if (k === 'snap') snapReq = true; if (k === 'r15') record(15); if (k === 'r30') record(30); if (k === 'r60') record(60); if (k === 'exit') exit(); };
+    bar = document.createElement('div'); bar.id = 'photoBar'; bar.innerHTML = '<button class="go" data-p="snap">📸 Take photo</button>' + (bb.FILM && bb.FILM.allowed && bb.FILM.allowed() ? '<button class="buy ghost" data-p="film">🎬 Record video in Film mode</button>' : '') + '<button class="buy ghost" data-p="exit">Exit</button>'; document.body.appendChild(bar);
+    bar.onclick = e => { const k = e.target.dataset.p; if (k === 'snap') { snapReq = true; bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); } if (k === 'film') { exit(); setTimeout(() => bb.FILM.start(), 80); } if (k === 'exit') exit(); };
     bb.photo = dt => { const p = bb.ppos(); const k = 1.6 * dt; if (keys.left) orbit.a += k; if (keys.right) orbit.a -= k; if (keys.up) orbit.e = Math.min(1.35, orbit.e + k * .6); if (keys.down) orbit.e = Math.max(.05, orbit.e - k * .6);
-      bb.camera.position.set(p.x + Math.sin(orbit.a) * Math.cos(orbit.e) * orbit.d, 1.2 + Math.sin(orbit.e) * orbit.d, p.z + Math.cos(orbit.a) * Math.cos(orbit.e) * orbit.d); bb.camera.lookAt(p.x, 1.4, p.z); }; bb.toast('Photo mode · drag or use arrows to orbit, scroll to zoom', '#ffc93c'); }
+      bb.camera.position.set(p.x + Math.sin(orbit.a) * Math.cos(orbit.e) * orbit.d, 1.2 + Math.sin(orbit.e) * orbit.d, p.z + Math.cos(orbit.a) * Math.cos(orbit.e) * orbit.d); bb.camera.lookAt(p.x, 1.4, p.z); }; bb.toast('📷 Camera · drag or use arrows to move around, scroll to zoom · videos are made in Film mode', '#ffc93c'); }
   function exit() { document.body.classList.remove('photo'); if (bar) bar.remove(); bar = null; bb.photo = null; }
   const keys = {}; addEventListener('keydown', e => { if (!bb.photo) return; const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down' }[e.code]; if (m) keys[m] = true; if (e.code === 'Escape') exit(); });
   addEventListener('keyup', e => { const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down' }[e.code]; if (m) keys[m] = false; });
