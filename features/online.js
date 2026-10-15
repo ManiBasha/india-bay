@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.19';
+window.__ibOnlineV = '1.01.20';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -268,7 +268,7 @@ window.BBFeatures.push(function (bb) {
   bb.onStart(() => { if (session && profile && !offline) connect(); renderChip(); });
 
   /* ---------- other players ---------- */
-  function tag(text, chatty) {
+  function tag0(text, chatty) {
     const c = document.createElement('canvas'), x = c.getContext('2d'); const fs = chatty ? 30 : 28; x.font = `700 ${fs}px "Baloo 2", sans-serif`;
     const w = Math.min(640, Math.ceil(x.measureText(text).width) + 30), h = fs + 22; c.width = w; c.height = h + (chatty ? 12 : 0);
     x.font = `700 ${fs}px "Baloo 2", sans-serif`; x.fillStyle = chatty ? 'rgba(255,255,255,.96)' : 'rgba(20,16,40,.78)';
@@ -277,6 +277,8 @@ window.BBFeatures.push(function (bb) {
     x.fillStyle = chatty ? '#1a1430' : '#ffffff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, w / 2, h / 2 + 1);
     const t = new THREE.CanvasTexture(c); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
     const sc = chatty ? .8 : .55; sp.scale.set(sc * c.width / c.height, sc, 1); sp.renderOrder = 999; return sp;
+  }
+  function tag(text, chatty) { const sp = tag0(text, chatty); setTimeout(() => bb.sizeLabel && bb.sizeLabel(sp, chatty ? 10 : 12), 0); return sp;
   }
   function freeSprite(sp) { if (!sp) return; sp.parent && sp.parent.remove(sp); sp.material.map.dispose(); sp.material.dispose(); }
   const TALL = { bus: 4.4, truck: 4.2 };
