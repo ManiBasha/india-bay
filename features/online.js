@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.18';
+window.__ibOnlineV = '1.01.19';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -509,7 +509,7 @@ window.BBFeatures.push(function (bb) {
   bb.addProfileRows(() => {
     if (!session || !profile) return { sub: offline ? 'Playing offline on this device' : 'Not signed in', top: [{ id: 'p_in', label: '🌐 Sign in to play online', sub: 'See other players and keep your progress in the cloud', btn: 'Sign in', cls: '' }], end: [],
       handle: id => { if (id === 'p_in') { offline = false; next = passed ? () => { bb.closeSheet(); connect(); } : () => { bb.closeSheet(); renderIntro(); bb.setAvatar(); }; flow(); } } };
-    const top = isAdmin ? [{ id: 'p_admin', label: '🔑 Admin panel', sub: 'Game settings, billboards, reports and support', btn: 'Open', cls: '' }] : [];
+    const top = isAdmin ? [{ id: 'p_admin', label: '🔑 Admin panel', sub: 'Game settings, reports and support', btn: 'Open', cls: '' }] : [];
     if (isAnon()) top.unshift({ id: 'p_google', label: '🔗 Sign in with Google', sub: 'Keep this player on every device, post on BayGram, call and text friends', btn: 'Link Google', cls: '' });
     if (isTester || bb.testMode) top.unshift(bb.testMode ? { id: 'p_mode', label: '🧪 Play mode: TEST PLAY', sub: 'Separate test save · everything unlocked · Phone → Test tools', btn: 'Back to real play', cls: '' } : { id: 'p_mode', label: '🧪 Play mode: real play', sub: 'Testers can switch to a separate test save with everything unlocked', btn: 'Switch to test play', cls: 'ghost' });
     const end = [{ id: 'p_out', label: '🚪 Log out', sub: isAnon() ? 'A guest account cannot be recovered after logging out' : 'Sign in again any time with Google', btn: 'Log out', cls: 'danger' },
