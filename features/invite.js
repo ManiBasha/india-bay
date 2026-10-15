@@ -6,7 +6,7 @@ window.BBFeatures.push(function (bb) {
   const KEY = 'ib.ref', DONE = 'ib.refDone';
   const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
   // 1. Remember the invite code from the link, then tidy the address bar
-  try { const u = new URL(location.href); const r = u.searchParams.get('ref'); if (r && /^[A-Za-z0-9]{1,10}$/.test(r) && !ls.get(DONE)) ls.set(KEY, r); if (r) { u.searchParams.delete('ref'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } } catch (e) {}
+  try { const u = new URL(location.href); const r = u.searchParams.get('ref'); if (r && /^[A-Za-z0-9_.]{1,15}$/.test(r) && !ls.get(DONE)) ls.set(KEY, r); if (r) { u.searchParams.delete('ref'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } } catch (e) {}
   const bonus = () => Math.round(bb.cost('refer.bonus', bb.CFG.referBonus || 10000)), welcome = () => Math.round(bb.cost('refer.welcome', 2000));
   const O = () => bb.ONLINE;
   // 2. A new player who came from a link: link them to the inviter once, give the welcome gift

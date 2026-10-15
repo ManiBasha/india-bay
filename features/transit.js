@@ -17,6 +17,7 @@ window.BBFeatures.push(function (bb) {
     kochi: { name: 'KSRTC', full: 'KSRTC city · Kochi', body: '#1f6fb5', band: '#f4f1ea', seat: '#2b3a5a', note: 'Blue KSRTC city circulars' }, jaipur: { name: 'JCTSL', full: 'JCTSL Jaipur', body: '#ff8f1f', band: '#fff4e2', seat: '#5a3b2b', note: 'Orange Jaipur city buses' } };
   const zoneOf = at => at && at.zone ? at.zone : at ? bb.zoneAt(at.x, at.z, 250) : null;
   const opFor = (at, city) => { const z = zoneOf(at); if (city && z && CITY[z.id]) return CITY[z.id]; return (z && OPS[z.st]) || OPS.MH; };
+  const liveryAt = (x, z) => { const zz = bb.zoneAt(x, z, 0); const o = zz && CITY[zz.id] ? CITY[zz.id] : opFor({ x, z }); return { body: o.body, band: o.band, text: o.name, dd: !!o.dd }; };
   bb.livery = (x, z) => { const zz = bb.zoneAt(x, z, 0); const o = zz && CITY[zz.id] ? CITY[zz.id] : opFor({ x, z }); return { body: o.body, band: o.band, text: o.name, dd: !!o.dd }; };
   const label = (mode, at) => { const z = zoneOf(at);
     if (mode === 'bus') return opFor(at).full + ' · Express'; if (mode === 'busac') return opFor(at).name + ' · AC sleeper';
@@ -125,5 +126,5 @@ window.BBFeatures.push(function (bb) {
         plan = { mode: o.mode, dest: o.dest, final: { x, z, name }, stop: o.stop.name }; bb.TRAVEL.go(o.stop.x, o.stop.z, o.stop.name, true); bb.toast(`${o.icon} Go to ${esc(o.stop.name)}, then take the ${esc(o.name.toLowerCase())}`, '#5fb4ff'); });
     return true; }
   bb.on('travel', e => { if (!plan || !e) return; const f = plan.final; plan = null; if (!f) return; if (Math.hypot(f.x - e.x, f.z - e.z) < 120) return; setTimeout(() => { bb.TRAVEL.go(f.x, f.z, f.name, true); bb.toast(`Last part · follow the blue line to ${esc(f.name)}`, '#5fb4ff'); }, 1500); });
-  bb.TRANSIT = { label, modeNote, destsFor, wrap, choose, taxiApp, get plan() { return plan; }, OPS, CITY };
+  bb.TRANSIT = { liveryAt, label, modeNote, destsFor, wrap, choose, taxiApp, get plan() { return plan; }, OPS, CITY };
 });

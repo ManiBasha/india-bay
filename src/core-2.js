@@ -218,9 +218,11 @@ function bakeVeh(g){const keep=new Set(g.userData.wheels||[]);if(g.userData.ligh
   for(const {mat,geos} of by.values()){const m=new THREE.Mesh(merge(geos),mat);m.castShadow=true;g.add(m);}}
 const vehicles=[];
 const headL=new THREE.SpotLight(0xfff1c8,0,70,.55,.6,1),headT=new THREE.Object3D();headL.target=headT;scene.add(headL);scene.add(headT);
-function makeVeh(type,x,z,h,state='parked',opts={}){const m=buildVeh(type,opts.colorMat);m.position.set(x,0,z);m.rotation.y=h;scene.add(m);
-  const v={m,type,spec:SPEC[type],v:0,h,steer:0,pos:m.position,state,owned:false,hp:opts.hp!=null?opts.hp:100,fuel:opts.fuel!=null?opts.fuel:MR(35,95),stopT:0,blockT:0,lane:null,ai:null,dead:false,fallen:false,lean:0,smokeT:0,company:!!opts.company};
-  if(m.userData.driver)m.userData.driver.visible=state==='traffic';vehicles.push(v);return v;}
+// the same seed builds the same-looking vehicle on every device (shared traffic, Beta v1.01.16)
+function withSeed(seed,f){const R=Math.random;let a=seed>>>0;Math.random=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};try{return f();}finally{Math.random=R;}}
+function makeVeh(type,x,z,h,state='parked',opts={}){const seed=opts.seed!=null?opts.seed:(Math.random()*4294967295)>>>0;const m=withSeed(seed,()=>{const o=vehLivery;if(opts.livery)vehLivery=opts.livery;try{return buildVeh(type,opts.colorMat);}finally{vehLivery=o;}});m.position.set(x,0,z);m.rotation.y=h;scene.add(m);
+  const v={m,seed,type,spec:SPEC[type],v:0,h,steer:0,pos:m.position,state,owned:false,hp:opts.hp!=null?opts.hp:100,fuel:opts.fuel!=null?opts.fuel:MR(35,95),stopT:0,blockT:0,lane:null,ai:null,dead:false,fallen:false,lean:0,smokeT:0,company:!!opts.company};
+  if(m.userData.driver)m.userData.driver.visible=state==='traffic'||state==='net';vehicles.push(v);return v;}
 function removeVeh(v){scene.remove(v.m);const i=vehicles.indexOf(v);if(i>=0)vehicles.splice(i,1);}
 function segDist(px,pz,v){const fx=Math.sin(v.h),fz=Math.cos(v.h),half=Math.max(0,v.spec.len/2-v.spec.wid/2);let t=(px-v.pos.x)*fx+(pz-v.pos.z)*fz;t=clamp(t,-half,half);const qx=v.pos.x+fx*t,qz=v.pos.z+fz*t,dx=px-qx,dz=pz-qz;return{d:Math.hypot(dx,dz),dx,dz};}
 
@@ -326,7 +328,7 @@ function randomLook(female){const old=Math.random()<.15,r=Math.random();return{f
 function buildPerson(shirt,opts={}){const g=new THREE.Group();const shirtC=typeof shirt==='string'?shirt:'#'+shirt.color.getHexString();
   const female=opts.female!=null?opts.female:!opts.mats&&Math.random()<.4;const L=opts.look||randomLook(female);L.female=female;
   const skin=opts.skin||L.skin||mpick(SKIN),hair=L.hairC||mpick(HAIRC.slice(0,5)),shoe=female?mpick(['#5a3b22','#c9a46a','#8a2a2a']):mpick(SHOES);
-  const c=opts.mats?{dress:'shirt',shirt:shirtC,pants:'#2d3142'}:pickClothes(female,shirtC);if(!opts.mats&&Math.random()<.18)c.bag=mpick(['#3a2a1c','#1f3a5f','#8a2a2a','#2d3142']);const legC=c.dress==='saree'||c.dress==='mundu'?c.pants:c.pants;
+  const c=opts.clothes?Object.assign({},opts.clothes):opts.mats?{dress:'shirt',shirt:shirtC,pants:'#2d3142'}:pickClothes(female,shirtC);if(!opts.mats&&Math.random()<.18)c.bag=mpick(['#3a2a1c','#1f3a5f','#8a2a2a','#2d3142']);const legC=c.dress==='saree'||c.dress==='mundu'?c.pants:c.pants;
   const k=BUILDK(L.build);const sleeveC=c.shirt,armSkin=c.dress==='kurta'||c.dress==='salwar'?c.shirt:skin;
   const parts=bodyParts(L,c).concat(headParts(L,skin,hair,female));const legs=[],arms=[];let body=null,hairM=null,headG=null;
   const watch=!opts.mats&&Math.random()<.3;const armParts=sx=>[['shirt',PG.sleeve,sleeveC,1,1,1,0,-.15,0],['skin',PG.fore,armSkin,1,1,1,0,-.45,0],...(watch&&sx<0?[['watch',PG.cyl,'#2a2522',.05,.025,.05,0,-.57,0]]:[]),['skin',PG.hand,skin,.048,.062,.034,0,-.645,.004],['skin',PG.hand,skin,.017,.03,.017,-sx*.032,-.62,.025]];

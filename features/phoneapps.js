@@ -8,6 +8,7 @@ window.BBFeatures.push(function (bb) {
   bb.NEWS = { push(n) { extraNews.unshift(Object.assign({ at: Date.now() }, n)); if (extraNews.length > 30) extraNews.pop(); }, get list() { return extraNews; } };
   function radioApp(tab) { tab = tab || 'news'; const C = bb.CFG; const items = [];
     if (C.announce) items.push({ icon: '📣', title: 'From India Bay', text: C.announce });
+    if (C.chatOn === false || C.callsOn === false) items.push({ icon: '💬', title: [C.chatOn === false ? 'Chat' : '', C.callsOn === false ? 'Calls' : ''].filter(Boolean).join(' and ') + ' paused', text: C.chatNote || 'The admin has paused this for now.' });
     for (const n of bb.activeNews()) items.push({ icon: '📰', title: n.title || 'News', text: n.text || '', when: n.end ? 'Until ' + n.end : '' });
     for (const n of extraNews) items.push(n);
     const cl = bb.clList()[0]; if (cl) items.push({ icon: '✨', title: `Update ${cl.v}${cl.title ? ' · ' + cl.title : ''}`, text: bb.clLines(cl.notes).slice(0, 2).join(' '), btn: 'whatsnew' });

@@ -586,3 +586,32 @@ body.tmr #topc{top:calc(env(safe-area-inset-top,0px) + 40px)}
 .qz{text-align:center}.qz small{color:var(--muted)}.qz>b{display:block;font:800 18px var(--f-display);margin:8px 0 12px}.qo{display:grid;gap:8px}
 .qo button{border:0;border-radius:14px;padding:12px;font:700 14px var(--f-display);background:rgba(255,255,255,.09);color:#fff;cursor:pointer}.qo button.pick{outline:2px solid var(--acc)}.qo button.ok{background:#1f8a4c}.qo button.no{background:#b4233c}
 .mgconf{position:absolute;inset:0;pointer-events:none;overflow:hidden}.mgconf i{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;animation:mgfall 2.2s ease-in forwards}@keyframes mgfall{to{top:100%;opacity:.4}}
+#vcPlay{pointer-events:auto;cursor:pointer;font:700 13px var(--f-display);color:#fff;background:#1f8a4c!important;border-color:#3ddc97!important;animation:spflash 1.4s ease 3}#vcPlay small{opacity:.8;margin-left:4px}
+/* BayGram social (Beta v1.01.17) */
+.app.svg span{background:none!important;padding:0;overflow:hidden}.app.svg span svg{width:100%;height:100%;display:block}
+.apps .app.svg span{display:grid;place-items:center}.app.svg span svg{border-radius:inherit}
+.bglogo{display:inline-block;width:26px;height:26px;vertical-align:-5px;margin-right:4px}.bglogo svg{width:100%;height:100%;display:block}
+.bgtabs{margin-bottom:8px}
+.bgwho{display:flex;align-items:center;gap:8px;background:none;border:0;color:inherit;padding:0;cursor:pointer;text-align:left;font:inherit;flex:1;min-width:0}
+.bgcm{position:relative}.bgcm small{font-size:11px;font-weight:800;margin-left:2px}
+.bgmore{display:block;color:var(--muted);font-size:13px;margin:2px 0;text-decoration:none}
+.bgfrbar{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--panel-edge);background:rgba(255,255,255,.06);color:inherit;border-radius:14px;padding:10px 12px;margin:4px 0 10px;cursor:pointer;font:600 14px var(--f-display);text-align:left}
+.bgfrbar i{font-style:normal;color:#ff6a8a;font-weight:800}.bgfrbar em{margin-left:auto;font-style:normal;color:var(--acc)}
+.bgfr{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}.bgfr .btnrow{gap:6px;flex-wrap:nowrap;margin:0}.bgfr .btnrow button{padding:6px 10px;min-height:34px}
+.bgprof{display:flex;align-items:center;gap:18px;margin:4px 0 10px}.bgprof .bgav{width:72px;height:72px;font-size:30px}
+.bgstat{display:flex;gap:18px}.bgstat span{display:flex;flex-direction:column;align-items:center;font-size:12px;color:var(--muted)}.bgstat b{font:800 20px var(--f-display);color:#fff}
+.bgpbtns{gap:6px}.bgpbtns button{flex:1 1 30%}
+.bgthumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:10px}.bgthumbs button{position:relative;aspect-ratio:1;border:0;padding:0;overflow:hidden;background:#111;cursor:pointer}
+.bgthumbs img,.bgthumbs video{width:100%;height:100%;object-fit:cover;display:block}.bgthumbs i{position:absolute;right:5px;top:3px;font-style:normal;color:#fff;text-shadow:0 1px 2px #000}
+.bgc{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)}.bgc p{flex:1;margin:0;font-size:14px;line-height:1.4}.bgc p b{cursor:pointer;margin-right:4px}.bgc p small{display:block;color:var(--muted);font-size:11.5px}.bgc.cap{border-bottom:1px solid rgba(255,255,255,.15)}
+.bgthr{display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(255,255,255,.06)}.bgthr>button:first-child{display:flex;align-items:center;gap:10px;flex:1;background:none;border:0;color:inherit;padding:9px 0;text-align:left;cursor:pointer;min-width:0}
+.bgthr span{display:flex;flex-direction:column;min-width:0}.bgthr small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bgthr i{margin-left:auto;font-style:normal;background:#e3256b;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px}
+.bgcall{border:0;background:rgba(255,255,255,.08);color:inherit;border-radius:12px;width:42px;height:38px;cursor:pointer;font-size:17px}
+/* Beta v1.01.18: Male / Female picker on the sign-up form */
+.sexpick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 2px}
+.sexpick .lbl{flex-basis:100%;font-weight:700;font-size:13px}
+.sexpick .lbl small{font-weight:400;opacity:.7}
+.sexpick .sx{flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;padding:11px 10px;border-radius:12px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);cursor:pointer;font-weight:700;margin:0}
+.sexpick .sx input{position:absolute;opacity:0;pointer-events:none}
+.sexpick .sx.on{border-color:var(--acc,#ffc93c);background:color-mix(in srgb,var(--acc,#ffc93c) 18%,transparent)}
+.sexpick .sx:focus-within{outline:2px solid var(--acc,#ffc93c);outline-offset:2px}

@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.15';
+window.__ibOnlineV = '1.01.18';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -163,27 +163,34 @@ window.BBFeatures.push(function (bb) {
   // Create (or finish) the player: username for everyone to see, name and date of birth kept private.
   function nameSheet(editing) {
     const has = !!profile, P = bb.P;
-    const sug = has ? profile.username : (P.name && !bb.nameOk(P.name) ? P.name : '');
-    const pre = priv ? { fullName: priv.full_name, dob: priv.dob } : { fullName: P.fullName, dob: P.dob };
-    bb.openSheet(editing ? 'Edit profile' : has ? 'Finish your profile' : 'Create your player', editing ? 'Username, name and date of birth' : 'Takes a few seconds', `<form class="form" id="un" novalidate><label>Username<input type="text" id="un_n" maxlength="10" autocomplete="off" value="${bb.esc(sug)}" placeholder="Raju2026"></label><div class="note" id="un_m">Letters and numbers, up to 10. Nobody else can have the same name.</div>
-      ${bb.personFields(pre)}<label class="ck" id="un_pw" hidden><input type="checkbox" id="un_par"${priv && priv.parent_ok ? ' checked' : ''}> My parent or guardian agrees to me playing online</label>
+    const low = v => String(v || '').toLowerCase();
+    const sug = has ? low(profile.username) : (P.name && !bb.nameOk(low(P.name)) ? low(P.name) : '');
+    // Beta v1.01.18 order: 1 Name · 2 Username · 3 Date of birth · 4 Male / Female (for the look)
+    const known = has || (P.extra && P.extra.sexSet);
+    const pre = Object.assign(priv ? { fullName: priv.full_name, dob: priv.dob } : { fullName: P.fullName, dob: P.dob }, { sexAsk: true, female: known ? !!(P.look && P.look.female) : null });
+    bb.openSheet(editing ? 'Edit profile' : has ? 'Finish your profile' : 'Create your player', editing ? 'Name, username, date of birth and look' : 'Takes a few seconds', `<form class="form" id="un" novalidate>
+      ${bb.personFields(pre, bb.unameField(sug))}<label class="ck" id="un_pw" hidden><input type="checkbox" id="un_par"${priv && priv.parent_ok ? ' checked' : ''}> My parent or guardian agrees to me playing online</label>
       <p class="note bad" id="un_err" aria-live="polite"></p><div class="btnrow"><button class="go" type="submit">${editing ? 'Save' : 'Continue'}</button></div></form>`, s => {
-      const f = s.querySelector('#un'), n = s.querySelector('#un_n'), m = s.querySelector('#un_m'), er = s.querySelector('#un_err'), dobI = s.querySelector('#pf_dob'), pw = s.querySelector('#un_pw');
+      const f = s.querySelector('#un'), n = s.querySelector('#pf_name'), m = s.querySelector('#pf_msg'), er = s.querySelector('#un_err'), dobI = s.querySelector('#pf_dob'), pw = s.querySelector('#un_pw');
       const minor = () => { const a = bb.ageFromDob(dobI.value); return a != null && a < 18; };
-      const showPw = () => { pw.hidden = !minor(); }; dobI.oninput = showPw; showPw();
-      n.oninput = () => { const e2 = bb.nameOk(n.value); m.textContent = e2 || 'Looks good.'; m.className = 'note ' + (e2 ? 'bad' : 'ok'); };
+      const showPw = () => { pw.hidden = !minor(); }; dobI.oninput = showPw; showPw(); bb.sexWire(s);
+      const same = () => has && n.value === low(profile.username);
+      n.oninput = () => { bb.unameIn(n); const e2 = same() ? '' : bb.nameOk(n.value); m.textContent = e2 || 'Looks good.'; m.className = 'note ' + (e2 ? 'bad' : 'ok'); };
       f.onsubmit = async e => {
         e.preventDefault(); er.textContent = '';
-        const name = n.value.trim(), e1 = bb.nameOk(name); if (e1) { m.textContent = e1; m.className = 'note bad'; return; }
-        const full = s.querySelector('#pf_full').value.trim(), dob = (priv && priv.dob) || dobI.value, pe = bb.personErr(full, dob); if (pe) { er.textContent = pe; return; }
+        const full = s.querySelector('#pf_full').value.trim(); if (full.length < 2) { er.textContent = 'Please type your name.'; return; }
+        bb.unameIn(n); const name = n.value, e1 = same() ? '' : bb.nameOk(name); if (e1) { m.textContent = e1; m.className = 'note bad'; return; }
+        const dob = (priv && priv.dob) || dobI.value, pe = bb.personErr(full, dob); if (pe) { er.textContent = pe; return; }
+        const sx = bb.sexGet(s); if (sx == null) { er.textContent = 'Pick Male or Female for your look.'; return; }
         const parentOk = s.querySelector('#un_par').checked; if (minor() && !parentOk) { er.textContent = 'Players under 18 need a parent or guardian to agree before playing online.'; return; }
         m.textContent = 'Saving…'; m.className = 'note';
-        if (!has) { const { error } = await sb.from('profiles').insert({ id: session.user.id, username: name, is_guest: isAnon() }); if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; } profile = { username: name, is_guest: isAnon() }; }
-        else if (name !== profile.username) { const { error } = await sb.from('profiles').update({ username: name }).eq('id', session.user.id); if (error) { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; return; } profile.username = name; if (ws) { disconnect(true); setTimeout(connect, 300); } }
+        const bad = error => { m.textContent = error.code === '23505' ? `${name} is taken. Try another.` : error.code === '23514' ? 'That name is not allowed. Try another.' : niceErr(error); m.className = 'note bad'; };
+        if (!has) { const { error } = await sb.from('profiles').insert({ id: session.user.id, username: name, is_guest: isAnon() }); if (error) return bad(error); profile = { username: name, is_guest: isAnon() }; }
+        else if (name !== profile.username) { const { error } = await sb.from('profiles').update({ username: name }).eq('id', session.user.id); if (error) return bad(error); profile.username = name; if (ws) { disconnect(true); setTimeout(connect, 300); } }
         const { error: pe2 } = await sb.from('profile_private').upsert({ user_id: session.user.id, full_name: full, dob, parent_ok: minor() ? parentOk : null, updated_at: new Date().toISOString() });
         if (pe2) { er.textContent = niceErr(pe2); return; }
         priv = { full_name: full, dob, parent_ok: minor() ? parentOk : null };
-        P.name = name; P.fullName = full; P.dob = dob; P.age18 = !minor(); bb.setDirty(); bb.refreshBillboards(); bb.setAvatar(); renderIntro(); bb.closeSheet();
+        P.name = name; P.fullName = full; P.dob = dob; P.age18 = !minor(); bb.setSex(sx); bb.setDirty(); bb.refreshBillboards(); bb.setAvatar(); renderIntro(); bb.closeSheet();
         if (editing) { bb.save(); bb.toast('Profile saved', '#3ddc97'); } else flow();
       };
     });
@@ -238,8 +245,10 @@ window.BBFeatures.push(function (bb) {
     else if (d.t === 'leave') { drop(d.id); renderChip(); }
     else if (d.t === 'pong') { online = d.online; if (d.city != null) cityN = d.city; if (d.ts) { const off = d.ts - Date.now(); window.__ibClockOff = window.__ibClockOff == null ? off : window.__ibClockOff * .7 + off * .3; } renderChip(); }
     else if (d.t === 'mg') bb.emit('mg', d);
+    else if (d.t === 'tr') bb.emit('tr', d);
     else if (d.t === 'vcguest') bb.toast('🎙 Hold to talk is for Google accounts · sign in with Google in ⚙ Settings → Online status', '#ffc93c');
     else if (d.t === 'slow') bb.toast('Wait a moment before sending again', '#ffc93c');
+    else if (d.t === 'chatoff') bb.toast('💬 ' + bb.esc(d.msg || 'Chat is paused by the admin right now'), '#ffc93c');
     else if (d.t === 'chat') chat(d);
     else if (d.t === 'v') onV(d);
     else if (d.t === 'call') bb.emit('call', d);
@@ -272,7 +281,10 @@ window.BBFeatures.push(function (bb) {
   function freeSprite(sp) { if (!sp) return; sp.parent && sp.parent.remove(sp); sp.material.map.dispose(); sp.material.dispose(); }
   const TALL = { bus: 4.4, truck: 4.2 };
   // other players look the way they set themselves up in Settings → My look
-  const lookOpts = d => { const L = d.l && bb.decodeLook ? bb.decodeLook(d.l) : null; return L ? { look: L, female: L.female, skin: L.skin } : { female: false }; };
+  // what you wear goes with your look (Beta v1.01.16): top (shirt, kurta or saree), trouser colour, glasses and cap
+  const wear = () => { const o = bb.P.outfit || {}; const top = ['shirt', 'kurta', 'saree'].includes(o.top) ? o.top : 'shirt'; const b = /^#[0-9a-fA-F]{6}$/.test(o.botCol || '') ? o.botCol.slice(1).toLowerCase() : '2d3142'; return top + b + (o.glasses ? 'g' : '') + (o.cap ? 'c' : ''); };
+  const clothesOf = d => { const m = /^(shirt|kurta|saree)([0-9a-f]{6})([gc]{0,2})$/.exec(d.w || ''); const top = d.c || '#e8573e'; if (!m) return { dress: 'shirt', shirt: top, pants: '#2d3142' }; return m[1] === 'saree' ? { dress: 'saree', shirt: top, pants: top } : { dress: m[1], shirt: top, pants: '#' + m[2] }; };
+  const lookOpts = d => { const L = d.l && bb.decodeLook ? bb.decodeLook(d.l) : null; const c = clothesOf(d); return L ? { look: L, female: L.female, skin: L.skin, clothes: c } : { female: false, clothes: c }; };
   function rebuild(r, d, kind) {
     if (r.body) r.g.remove(r.body);
     r.kind = kind;
@@ -287,7 +299,7 @@ window.BBFeatures.push(function (bb) {
   function upsert(d) {
     if (d.id === myId) return;
     let r = remotes.get(d.id);
-    const kind = (d.m === 'd' ? 'd:' + d.v : d.m === 'i' ? 'i' : d.m === 'r' ? 'r:' + (d.c || '') : 'f:' + (d.c || '')) + (d.l || '');
+    const kind = (d.m === 'd' ? 'd:' + d.v : d.m === 'i' ? 'i' : d.m === 'r' ? 'r:' + (d.c || '') : 'f:' + (d.c || '')) + (d.l || '') + (d.w || '');
     if (!r) { r = { id: d.id, n: d.n, g: new THREE.Group(), body: null, kind: '', x: d.x, z: d.z, y: d.y || 0, h: d.h, walk: 0, tagY: 2.4 }; r.tag = tag(d.n, false); r.g.add(r.tag); bb.scene.add(r.g); remotes.set(d.id, r); renderChip(); }
     if (r.kind !== kind && kind !== 'i') rebuild(r, d, kind); else if (kind === 'i') r.kind = 'i';
     r.tx = d.x; r.tz = d.z; r.ty = d.y || 0; r.th = d.h; r.s = d.s || 0; r.seen = performance.now(); r.n = d.n; r.m = d.m; r.v = d.v || ''; r.rid = d.r || ''; r.rs = d.rs || 0; r.o = d.o || 0;
@@ -308,9 +320,9 @@ window.BBFeatures.push(function (bb) {
     if (drive) lastVeh = pl.veh;
     const lv = !drive && lastVeh && !lastVeh.dead && bb.vehicles.includes(lastVeh) && Math.hypot(lastVeh.pos.x - p.x, lastVeh.pos.z - p.z) < 600 ? lastVeh : null;
     const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
-    if (ride) return { zn: (bb.zoneAt(p.x, p.z, 40) || {}).id || '', t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', r: ride.id, rs: ride.s };
+    if (ride) return { zn: (bb.zoneAt(p.x, p.z, 40) || {}).id || '', t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear(), r: ride.id, rs: ride.s };
     const zq = bb.zoneAt(p.x, p.z, 40); const zn = zq ? zq.id : '';
-    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), zn, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '' };
+    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), zn, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear() };
   }
   bb.onUpdate(dt => {
     const now = performance.now(), k = 1 - Math.exp(-8 * Math.min(dt, .2)), hide = bb.inside;
@@ -412,7 +424,7 @@ window.BBFeatures.push(function (bb) {
     if (self) { freeSprite(selfBub); selfBub = tag(short, true); selfBub.position.y = (bb.player.mode === 'drive' ? 3.4 : 2.9); selfG.add(selfBub); selfBubT = performance.now() + 7000; }
     else { const r = remotes.get(d.id); if (r) { freeSprite(r.bub); r.bub = tag(short, true); r.bub.position.y = r.tagY + 1.1; r.g.add(r.bub); r.bubT = performance.now() + 7000; } }
   }
-  function openBar() { if (status !== 'on') { if (lastErr || !session) return onlineSheet(); offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
+  function openBar() { if (bb.CFG.chatOn === false) return bb.toast('💬 ' + bb.esc(bb.CFG.chatNote || 'Chat is paused by the admin right now'), '#ffc93c'); if (status !== 'on') { if (lastErr || !session) return onlineSheet(); offline = false; if (!session || !profile) { next = connect; return flow(); } return connect(); } bar.hidden = false; inp.value = ''; inp.focus(); }
   function closeBar() { bar.hidden = true; inp.blur(); }
   bar.onsubmit = e => { e.preventDefault(); const t = inp.value.trim(); if (t && ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'chat', text: t.slice(0, 120), r: chatR })); closeBar(); };
   bar.querySelector('[data-x]').onclick = closeBar;

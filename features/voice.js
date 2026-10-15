@@ -30,8 +30,11 @@ window.BBFeatures.push(function (bb) {
   addEventListener('keyup', e => { if (e.code === 'KeyV' && held) up(); });
   /* receiving */
   const log = () => document.querySelector('#chatlog');
-  function play(d) { if (bb.muted) return; try { const bin = atob(d.a); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); const url = URL.createObjectURL(new Blob([u8], { type: d.mime.split(';')[0] }));
-      const au = new Audio(url); au.volume = 1; au.play().catch(() => bb.toast(`🎙 ${d.n} sent a voice message · tap it in the chat to play`, '#ffc93c')); au.onended = () => setTimeout(() => URL.revokeObjectURL(url), 30000); } catch (e) {} }
+  // a button to hear it when the browser blocks sound that starts by itself (Beta v1.01.16)
+  function tapToHear(d, url) { const lc = document.querySelector('#top .lcol'); if (!lc) return; let b = document.querySelector('#vcPlay'); if (!b) { b = document.createElement('button'); b.id = 'vcPlay'; b.type = 'button'; b.className = 'pill'; lc.appendChild(b); }
+    b.innerHTML = `🔊 <b>Hear ${bb.esc(d.n)}</b> <small>${Math.max(1, Math.round(d.ms / 1000))} s</small>`; b.hidden = false; b.onclick = () => { const au = new Audio(url); au.play().catch(() => bb.toast('Turn up your volume and tap again', '#d6c8e4')); b.hidden = true; }; clearTimeout(b._t); b._t = setTimeout(() => { b.hidden = true; }, 30000); }
+  function play(d) { try { const bin = atob(d.a); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); const url = URL.createObjectURL(new Blob([u8], { type: d.mime.split(';')[0] }));
+      const au = new Audio(url); au.volume = 1; au.play().catch(() => { tapToHear(d, url); bb.toast(`🎙 ${bb.esc(d.n)} sent a voice message · tap 🔊 Hear to listen`, '#ffc93c'); }); au.onended = () => setTimeout(() => URL.revokeObjectURL(url), 60000); } catch (e) {} }
   bb.on('voice', d => { if (d.t === 'vcoff') return bb.toast('Voice messages are switched off by the admin', '#d6c8e4'); if (!allowed()) return;
     if (!d.self && bb.ONLINE.isMuted(d.n)) return; const secs = Math.max(1, Math.round(d.ms / 1000));
     const L = log(); if (L) { const line = document.createElement('div'); line.className = 'cl vc'; line.innerHTML = `<b>${bb.esc(d.n)}</b> 🎙 ${secs} s ${d.self ? '· sent' : '▶'}`; if (!d.self) line.onclick = () => play(d); L.appendChild(line); while (L.children.length > 4) L.firstChild.remove();

@@ -234,7 +234,7 @@ export class Region extends DurableObject {
       // Only Google accounts (not guests) can call; the person called sees who it is and can decline or block.
       // During a call, push-to-talk clips go only to the other person. Nothing is recorded or stored.
       if (p.anon) return this.send(ws, JSON.stringify({ t: 'call', k: 'noguest' }));
-      const K = new Set(['ring', 'accept', 'decline', 'busy', 'end', 'vc', 'text', 'sdp', 'ice']); if (!K.has(d.k) || typeof d.to !== 'string' || !/^[A-Za-z0-9]{1,10}$/.test(d.to)) return;
+      const K = new Set(['ring', 'accept', 'decline', 'busy', 'end', 'vc', 'text', 'sdp', 'ice']); if (!K.has(d.k) || typeof d.to !== 'string' || !/^[A-Za-z0-9_.]{1,15}$/.test(d.to)) return;
       if (['ring', 'accept', 'sdp', 'ice', 'vc'].includes(d.k)) { const f = await this.flags(); if (!f.calls) return this.send(ws, JSON.stringify({ t: 'call', k: 'off', msg: f.note })); }
       if (d.k === 'ring' && now - (p.ringAt || 0) < 8000) return this.send(ws, JSON.stringify({ t: 'slow' }));
       if (d.k === 'vc') { if (!(await this.voiceOn())) return this.send(ws, JSON.stringify({ t: 'vcoff' })); if (now - (p.cvAt || 0) < 1500) return this.send(ws, JSON.stringify({ t: 'slow' })); if (typeof d.a !== 'string' || d.a.length < 200 || d.a.length > VOICE_MAX || !/^[A-Za-z0-9+/=]+$/.test(d.a)) return; p.cvAt = now; }
