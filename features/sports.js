@@ -140,6 +140,29 @@ window.BBFeatures.push(function (bb) {
   function adTex(lines, col, col2) { return canvasTex(1024, 64, (x, w, h) => { x.fillStyle = col; x.fillRect(0, 0, w, h); x.font = '800 38px "Baloo 2", sans-serif'; x.textBaseline = 'middle'; x.fillStyle = col2; let px = 20; let i = 0; while (px < w) { const t = lines[i++ % lines.length]; x.fillText(t, px, h / 2 + 2); px += x.measureText(t).width + 60; } }); }
   function personMesh(col) { const p = bb.buildPerson(col, { female: false }); p.userData.base = col; return p; }
 
+  /* Beta v1.01.26: real people in the stands (not boxes): seated fans with heads, hair, shirts in the team colours, trousers and
+     arms, drawn as instanced meshes so thousands cost little; about one in five holds up a card with the team's name. */
+  const FAN = (() => { const parts = (list) => { const gs = list.map(([geo, x, y, z, sx, sy, sz]) => { const q = geo.clone(); q.scale(sx || 1, sy || 1, sz || 1); q.translate(x, y, z); return q; }); return bb.mergeGeos ? bb.mergeGeos(gs) : merge(gs); };
+    const cyl = new T.CylinderGeometry(.16, .2, .5, 8), sph = new T.SphereGeometry(1, 9, 7), box = new T.BoxGeometry(1, 1, 1);
+    return { top: parts([[cyl, 0, .33, 0], [sph, -.19, .52, 0, .085, .085, .085], [sph, .19, .52, 0, .085, .085, .085], [box, -.22, .33, .03, .09, .38, .1], [box, .22, .33, .03, .09, .38, .1]]),
+      legs: parts([[box, -.09, .05, .2, .14, .14, .44], [box, .09, .05, .2, .14, .14, .44], [box, -.09, -.17, .42, .12, .42, .13], [box, .09, -.17, .42, .12, .42, .13]]),
+      head: parts([[sph, 0, .74, .01, .115, .135, .12], [box, 0, .62, 0, .08, .08, .08]]), hair: parts([[new T.SphereGeometry(1, 9, 5, 0, Math.PI * 2, 0, Math.PI * .5), 0, .76, -.005, .125, .12, .13]]),
+      card: new T.PlaneGeometry(.95, .42) }; })();
+  function merge(gs0) { const gs = gs0.map(g2 => g2.index ? g2.toNonIndexed() : g2); let n = 0; for (const g2 of gs) n += g2.attributes.position.count; const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3); let o = 0;
+    for (const q of gs) { pos.set(q.attributes.position.array, o * 3); nor.set(q.attributes.normal.array, o * 3); o += q.attributes.position.count; } const out = new T.BufferGeometry(); out.setAttribute('position', new T.BufferAttribute(pos, 3)); out.setAttribute('normal', new T.BufferAttribute(nor, 3)); return out; }
+  const SKINS = ['#5c3a24', '#7b4a2e', '#8d5524', '#a0673f', '#b97a4f', '#c68642', '#d19a6a'].map(c => new T.Color(c)), HAIRS = ['#141010', '#1e1612', '#2b1d14', '#3a2a20', '#6b6b6b'].map(c => new T.Color(c)), PANTS = ['#2d3142', '#1f3a5f', '#3b3024', '#4a4e57', '#e9e4d6'].map(c => new T.Color(c));
+  const cardMats = {}; function cardMat(team, v) { const k = (team ? team.id : 'x') + v; if (cardMats[k]) return cardMats[k]; const c = document.createElement('canvas'); c.width = 256; c.height = 112; const x = c.getContext('2d');
+    const bg = team ? team.col : '#1d3f9a', fg = team && team.col2 && team.col2 !== bg ? team.col2 : '#ffffff'; x.fillStyle = v === 1 ? '#ffffff' : bg; x.fillRect(0, 0, 256, 112); x.fillStyle = v === 1 ? bg : fg; x.textAlign = 'center'; x.textBaseline = 'middle';
+    const txt = !team ? 'INDIA BAY' : v === 0 ? team.short : v === 1 ? 'COME ON ' + team.short : (team.name || team.short).toUpperCase(); let f = 70; x.font = `900 ${f}px "Baloo 2", sans-serif`; while (x.measureText(txt).width > 236 && f > 18) { f -= 3; x.font = `900 ${f}px "Baloo 2", sans-serif`; } x.fillText(txt, 128, 60);
+    const t = new T.CanvasTexture(c); return cardMats[k] = new T.MeshBasicMaterial({ map: t, side: T.DoubleSide }); }
+  function fans(g, seats, ry, team, teamCol, palette) { const n = seats.length; if (!n) return; const lm = () => new T.MeshLambertMaterial({ color: 0xffffff });
+    const top = new T.InstancedMesh(FAN.top, lm(), n), legs = new T.InstancedMesh(FAN.legs, lm(), n), head = new T.InstancedMesh(FAN.head, lm(), n), hair = new T.InstancedMesh(FAN.hair, lm(), n);
+    const M4 = new T.Matrix4(), Q = new T.Quaternion(), Sv = new T.Vector3(), Pv = new T.Vector3(), Yax = new T.Vector3(0, 1, 0); const cards = [[], [], []];
+    seats.forEach((p, i) => { const sc = .92 + Math.random() * .16; Q.setFromAxisAngle(Yax, ry + (Math.random() - .5) * .3); Sv.set(sc, sc, sc); Pv.set(p[0], p[1], p[2]); M4.compose(Pv, Q, Sv);
+      for (const m of [top, legs, head, hair]) m.setMatrixAt(i, M4); top.setColorAt(i, teamCol && Math.random() < .85 ? teamCol : palette[Math.floor(Math.random() * palette.length)]); legs.setColorAt(i, PANTS[i % PANTS.length]); head.setColorAt(i, SKINS[Math.floor(Math.random() * SKINS.length)]); hair.setColorAt(i, HAIRS[Math.floor(Math.random() * HAIRS.length)]);
+      if (Math.random() < .2) cards[Math.floor(Math.random() * 3)].push([p, ry, sc]); });
+    for (const m of [top, legs, head, hair]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; g.add(m); }
+    cards.forEach((L, v) => { if (!L.length) return; const cm = new T.InstancedMesh(FAN.card, cardMat(team, v), L.length); L.forEach(([p, r, sc], i) => { Q.setFromAxisAngle(Yax, r); Sv.set(sc, sc, sc); Pv.set(p[0] + Math.sin(r) * .28, p[1] + 1.12, p[2] + Math.cos(r) * .28); M4.compose(Pv, Q, Sv); cm.setMatrixAt(i, M4); }); cm.instanceMatrix.needsUpdate = true; g.add(cm); }); }
   // The stadium bowl: pitch or oval, ad boards, stepped stands with the crowd, floodlights and the big screen.
   function buildBowl(g, sp, home, away, crowd, vs) { const fb = sp === 'football'; const FW = fb ? 42 : 50, FD = fb ? 27 : 44; const W2 = FW + 20, D2 = FD + 26; const day = !fb && bb.clock < 18.3;
     g.add(new T.HemisphereLight(day ? 0xe6f2ff : 0xc8d4ff, 0x2b3a22, day ? .35 : .25)); const sun = new T.DirectionalLight(0xfff4e0, day ? .6 : .45); sun.position.set(30, 90, 50); g.add(sun);
@@ -149,7 +172,7 @@ window.BBFeatures.push(function (bb) {
       // goals with nets
       const white = mat('#ffffff'), net = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .28, side: T.DoubleSide });
       for (const s of [-1, 1]) { const gx = s * (FW - 1.2); for (const z of [-3.4, 3.4]) box(g, .18, 2.6, .18, gx, 1.3, z, white); box(g, .18, .18, 7, gx, 2.6, 0, white);
-        const back = new T.Mesh(new T.PlaneGeometry(7, 2.6), net); back.position.set(gx + s * 1.8, 1.3, 0); back.rotation.y = Math.PI / 2; g.add(back); const top = new T.Mesh(new T.PlaneGeometry(1.8, 7), net); top.rotation.x = -Math.PI / 2; top.position.set(gx + s * .9, 2.6, 0); g.add(top);
+        const back = new T.Mesh(new T.PlaneGeometry(7, 2.6, 8, 4), net); back.position.set(gx + s * 1.8, 1.3, 0); back.rotation.y = Math.PI / 2; g.add(back); (g.userData.nets = g.userData.nets || []).push({ m: back, x0: back.position.x, s, kick: 0 }); const top = new T.Mesh(new T.PlaneGeometry(1.8, 7), net); top.rotation.x = -Math.PI / 2; top.position.set(gx + s * .9, 2.6, 0); g.add(top);
         for (const z of [-3.4, 3.4]) { const sd = new T.Mesh(new T.PlaneGeometry(1.8, 2.6), net); sd.position.set(gx + s * .9, 1.3, z); g.add(sd); } }
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) { box(g, .06, 1.4, .06, sx * (FW - 1.2), .7, sz * (FD - 1.2), mat('#ffd23a')); } }
     else { const ov = new T.Mesh(new T.CircleGeometry(1, 72), new T.MeshLambertMaterial({ map: fieldTexCricket() })); ov.scale.set(FW, FD, 1); ov.rotation.x = -Math.PI / 2; ov.position.y = .02; g.add(ov);
@@ -168,10 +191,11 @@ window.BBFeatures.push(function (bb) {
         if (S.ax === 'z') box(g, S.len, h, 1.6, 0, h / 2, S.s * c, m); else box(g, 1.6, h, S.len, S.s * c, h / 2, 0, m); }
       // a roof over each stand
       const rd = S.to - S.from + 2, rc = (S.from + S.to) / 2 + 1; const ry = 2 + rows * 1.05 + 4.5; if (S.ax === 'z') box(g, S.len + 2, .5, rd, 0, ry, S.s * rc, mat('#d9d6d0')); else box(g, rd, .5, S.len + 2, S.s * rc, ry, 0, mat('#d9d6d0'));
-      if (!crowd) return; const nSec = 4; for (let q = 0; q < nSec; q++) { const seats = []; const L0 = -S.len / 2 + q * S.len / nSec, L1 = L0 + S.len / nSec;
-        for (let k = 0; k < rows; k++) for (let a = L0 + .6; a < L1 - .3; a += 1.05) { if (Math.random() < .12) continue; const c = S.from + (k + .5) * 1.6, y = 1 + k * 1.05 + .38; seats.push(S.ax === 'z' ? [a, y, S.s * c] : [S.s * c, y, a]); }
-        const im = new T.InstancedMesh(cg, cm, seats.length); const m4 = new T.Matrix4(); seats.forEach((p, i) => { m4.makeTranslation(p[0], p[1], p[2]); im.setMatrixAt(i, m4); const awayEnd = awayCol && si === 1 && q === 0; im.setColorAt(i, awayEnd && Math.random() < .8 ? awayCol : palette[Math.floor(Math.random() * palette.length)]); });
-        im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; g.add(im); const mid = (L0 + L1) / 2; const ang = Math.atan2(S.ax === 'z' ? S.s * (S.from + 6) : mid, S.ax === 'z' ? mid : S.s * (S.from + 6)); sections.push({ m: im, ph: ang }); } });
+      if (!crowd) return; const nSec = 4; const fry = S.ax === 'z' ? (S.s > 0 ? Math.PI : 0) : (S.s > 0 ? -Math.PI / 2 : Math.PI / 2);
+      for (let q = 0; q < nSec; q++) { const seats = []; const L0 = -S.len / 2 + q * S.len / nSec, L1 = L0 + S.len / nSec;
+        for (let k = 0; k < rows; k++) for (let a = L0 + .6; a < L1 - .3; a += 1.05) { if (Math.random() < .12) continue; const c = S.from + (k + .5) * 1.6, y = 1 + k * 1.05 + .02; seats.push(S.ax === 'z' ? [a, y, S.s * c] : [S.s * c, y, a]); }
+        const awayEnd = !!awayCol && si === 1 && q === 0; const sec = new T.Group(); g.add(sec); fans(sec, seats, fry, awayEnd ? away : home, awayEnd ? awayCol : null, palette);
+        const mid = (L0 + L1) / 2; const ang = Math.atan2(S.ax === 'z' ? S.s * (S.from + 6) : mid, S.ax === 'z' ? mid : S.s * (S.from + 6)); sections.push({ m: sec, ph: ang }); } });
     // floodlights at the corners
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const x = sx * (W2 - 3), z = sz * (D2 - 3); box(g, .8, 40, .8, x, 20, z, mat('#6b6f76')); const panel = box(g, 7, 4, .6, x, 41, z, new T.MeshBasicMaterial({ color: 0xfff6d8 })); panel.lookAt(0, 0, 0); }
     // the big screen above the north stand
@@ -183,7 +207,7 @@ window.BBFeatures.push(function (bb) {
     const stall = (x, name, col) => { box(g, 7, 3, 1.4, x, 1.5, z1 - .7, mat(col)); box(g, 7.4, .3, 2.2, x, 3.15, z1 - 1, mat('#f4f1ea')); label(6.5, 1.1, 512, 88, x, 3.95, z1 - 2.12, col, '#ffffff', name, 54); };
     stall(-16, 'SNACKS & CHAI', '#c0392b'); stall(16, home ? home.short + ' TEAM SHOP' : 'TEAM SHOP', home ? home.col : '#1d3f9a'); stall(-34, 'BETS · 18+', '#5b3fa0'); box(g, 9, 3.4, 1, 0, 1.7, z1 - .5, mat('#2b2b30'));
     label(8, 1.1, 512, 72, 0, 3.8, z1 - 1.02, '#2b2b30', '#ffc93c', vs || 'STANDS · TAKE YOUR SEAT', 46);
-    return { FW, FD, W2, D2, z0, z1, zc, sections, screen: { c: scr, t: st } }; }
+    return { FW, FD, W2, D2, z0, z1, zc, sections, nets: g.userData.nets || [], screen: { c: scr, t: st } }; }
 
   let V = null; // the stadium visit: { sp, f, res, bowl, players, ball, ... }
   function enter(poi, sp, f, vip) { const team = sp === 'cricket' ? CR.byId(poi.extra) : F.byId(poi.extra); const away = f ? f.away : null; const S = f ? SP[sp].status(f) : null;
@@ -219,7 +243,10 @@ window.BBFeatures.push(function (bb) {
   const FORM = [[-.93, 0], [-.62, -.6], [-.66, -.2], [-.66, .2], [-.62, .6], [-.22, -.62], [-.27, -.2], [-.27, .2], [-.22, .62], [.2, -.22], [.25, .22]];
   function setupFootball() { const { FW, FD } = V.bowl; V.players = []; for (let t = 0; t < 2; t++) for (let i = 0; i < 11; i++) { const team = t ? V.f.away : V.f.home; const col = i === 0 ? (t ? '#2f2f2f' : '#9be24a') : team.col; const p = personMesh(col); V.g.add(p);
       const q = { t, i, p, x: (t ? 1 : -1) * (6 + Math.random() * 20), z: (Math.random() - .5) * FD, h: 0, sp: 0 }; p.position.set(q.x, 0, q.z); V.players.push(q); }
-    const ball = new T.Mesh(new T.SphereGeometry(.28, 10, 8), mat('#ffffff')); V.g.add(ball); V.ball = { m: ball, x: 0, z: 0, y: .28, owner: -1, fl: null, passT: 1 };
+    // the referee and two assistant referees with flags (Beta v1.01.26)
+    V.refs = [['#111111', 'ref'], ['#ffd23a', 'ar1'], ['#ffd23a', 'ar2']].map(([c, k]) => { const p = personMesh(c); V.g.add(p); if (k !== 'ref') { const fl = new T.Mesh(new T.BoxGeometry(.3, .22, .02), mat('#ff4d2e')); fl.position.set(0, -.55, .12); (p.userData.fores ? p.userData.fores[1] : p.userData.arms[1]).add(fl); } return { p, k, x: 0, z: k === 'ar1' ? -(FD + .8) : k === 'ar2' ? FD + .8 : 6, h: 0 }; });
+    const ballTex = canvasTex(128, 64, (x, w, h) => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); x.fillStyle = '#1b1b1f'; for (let i = 0; i < 9; i++) { x.beginPath(); x.arc((i % 5) * 30 + (i > 4 ? 15 : 0), i > 4 ? 44 : 18, 7, 0, 6.3); x.fill(); } });
+    const ball = new T.Mesh(new T.SphereGeometry(.28, 14, 10), new T.MeshLambertMaterial({ map: ballTex })); V.g.add(ball); V.ball = { m: ball, x: 0, z: 0, y: .28, owner: -1, fl: null, passT: 1 };
     const c = F.clock(bb.clock); const min = c.state === 'pre' ? 0 : c.state === 'ft' ? 99 : c.min; V.goalsShown = V.res.goals.filter(g => g.m < min).length; V.seq = null; kickoff(0); V.state = c.state; }
   function kickoff(team) { const b = V.ball; b.x = 0; b.z = 0; b.y = .28; b.fl = null; b.owner = team * 11 + 9; b.passT = 1.5; }
   function fbDir() { const c = F.clock(bb.clock); return c.state === 'ft' || (c.state === 'live' && c.min > 45) ? -1 : 1; }
@@ -229,19 +256,19 @@ window.BBFeatures.push(function (bb) {
     if (!V.seq && V.goalsShown < V.res.goals.length && (live || c.state === 'ft') && V.res.goals[V.goalsShown].m <= (c.state === 'ft' ? 99 : c.min)) { const g = V.res.goals[V.goalsShown]; const tm = g.team === V.f.home.id ? 0 : 1; V.seq = { g, tm, ph: 'run', t: 0, sc: tm * 11 + 9 + Math.floor(Math.random() * 2) }; b.owner = V.seq.sc; b.fl = null; }
     const ad = tm => tm === 0 ? dir : -dir; // attack direction of a team
     if (V.seq) { const s = V.seq; s.t += dt; const att = ad(s.tm); const sc = PL[s.sc];
-      if (s.ph === 'run') { sc.tx = att * (FW - 13); sc.tz = (sc.z) * .6; if (Math.abs(sc.x - sc.tx) < 1.5 || s.t > 4) { s.ph = 'shot'; s.t = 0; b.owner = -1; b.fl = { fx: b.x, fz: b.z, tx: att * (FW - .4), tz: (Math.random() - .5) * 5, t: 0, dur: .6, arc: 1.2 }; } }
-      else if (s.ph === 'shot' && !b.fl) { s.ph = 'cele'; s.t = 0; const home = s.tm === 0; bb.big(home ? 'GOAL!' : 'Goal…', home ? V.f.home.col : '#d6c8e4'); roar(home ? .5 : .14, home ? 3.2 : 1.4); V.goalsShown++; V.bounce = home ? 6 : 1.5; drawScreen(); const tn = home ? V.f.home : V.f.away; if (bb.CINE && bb.CINE.on) bb.CINE.setSub(`${s.g.m}' · ${tn.name} score through ${s.g.by}`); if (home) burstAt(0, 30, -(V.bowl.D2 - 8)); }
-      else if (s.ph === 'cele') { for (const q of PL) if (q.t === s.tm && q.i) { q.tx = att * (FW - 3); q.tz = (FD - 3) * (q.i % 2 ? 1 : -1) * .9; } if (s.t > 5.5) { V.seq = null; kickoff(1 - s.tm); } } }
+      if (s.ph === 'run') { sc.tx = att * (FW - 13); sc.tz = (sc.z) * .6; if (Math.abs(sc.x - sc.tx) < 1.5 || s.t > 4) { s.ph = 'shot'; s.t = 0; b.owner = -1; sc.kickT = .35; const gz = (Math.random() < .5 ? -1 : 1) * (1.2 + Math.random() * 2); b.fl = { fx: b.x, fz: b.z, tx: att * (FW - 1.2 + 1.5), tz: gz, t: 0, dur: .6, arc: .9 }; const gk = PL.find(q => q.i === 0 && q.t !== s.tm); if (gk) gk.dive = { t: .9, tz: -gz * .6, dir: -Math.sign(gz) }; } }
+      else if (s.ph === 'shot' && !b.fl) { s.ph = 'cele'; s.t = 0; const nt = V.bowl.nets.find(n => n.s === att); if (nt) nt.kick = 1; b.inNet = { x: b.x, z: b.z, t: 0 }; s.corner = { x: att * (FW - 2), z: (Math.random() < .5 ? -1 : 1) * (FD - 2) }; const home = s.tm === 0; bb.big(home ? 'GOAL!' : 'Goal…', home ? V.f.home.col : '#d6c8e4'); roar(home ? .5 : .14, home ? 3.2 : 1.4); V.goalsShown++; V.bounce = home ? 6 : 1.5; drawScreen(); const tn = home ? V.f.home : V.f.away; if (bb.CINE && bb.CINE.on) bb.CINE.setSub(`${s.g.m}' · ${tn.name} score through ${s.g.by}`); if (home) burstAt(0, 30, -(V.bowl.D2 - 8)); }
+      else if (s.ph === 'cele') { const cn = s.corner || { x: att * (FW - 3), z: FD - 3 }; for (const q of PL) if (q.t === s.tm && q.i) { const k = PL.indexOf(q) === s.sc ? 0 : 1.5 + (q.i % 4); q.tx = cn.x - att * k * .8; q.tz = cn.z - Math.sign(cn.z) * k * .7 + (q.i % 2 ? .6 : -.6); } if (b.inNet) { b.inNet.t += dt; b.x = b.inNet.x; b.z = b.inNet.z; b.y = Math.max(.28, .9 - b.inNet.t * 2); } if (s.t > 6.5) { V.seq = null; b.inNet = null; kickoff(1 - s.tm); } } }
     else if (live) { // normal play: pass, dribble, tackle
       if (b.owner >= 0) { const o = PL[b.owner]; const att = ad(o.t); o.tx = o.x + att * 5; o.tz = o.z * .92; b.passT -= dt;
-        if (b.passT <= 0) { const deep = o.x * att > FW * .55; if (deep && Math.random() < .35) { b.owner = -1; b.fl = { fx: b.x, fz: b.z, tx: att * (FW + 2.5), tz: (Math.random() < .5 ? -1 : 1) * (4 + Math.random() * 6), t: 0, dur: .7, arc: 1.8, miss: true }; roar(.12, 1.2); if (bb.CINE && bb.CINE.on) bb.CINE.setSub(`${(o.t ? V.f.away : V.f.home).short} shoot · just wide!`); }
+        if (b.passT <= 0) { const deep = o.x * att > FW * .55; if (deep && Math.random() < .35) { b.owner = -1; o.kickT = .35; const onT = Math.random() < .45; const tz = onT ? (Math.random() - .5) * 5.6 : (Math.random() < .5 ? -1 : 1) * (4 + Math.random() * 6); b.fl = { fx: b.x, fz: b.z, tx: att * (FW + (onT ? -.9 : 2.5)), tz, t: 0, dur: .7, arc: onT ? .9 : 1.8, miss: !onT, save: onT }; const gk = PL.find(q => q.i === 0 && q.t !== o.t); if (onT && gk) gk.dive = { t: .9, tz, dir: Math.sign(tz - gk.z) || 1 }; roar(.12, 1.2); if (bb.CINE && bb.CINE.on) bb.CINE.setSub(onT ? `${(o.t ? V.f.away : V.f.home).short} shoot · great save by the keeper!` : `${(o.t ? V.f.away : V.f.home).short} shoot · just wide!`); }
           else { const mates = PL.filter(q => q.t === o.t && q !== o && q.i); const fw = mates.filter(q => (q.x - o.x) * att > -4); const to = (fw.length && Math.random() < .75 ? fw : mates)[Math.floor(Math.random() * (fw.length && Math.random() < .75 ? fw.length : mates.length))] || mates[0]; const d = Math.hypot(to.x - o.x, to.z - o.z);
-            b.owner = -1; b.fl = { fx: b.x, fz: b.z, tx: to.x + (to.tx - to.x) * .3, tz: to.z + (to.tz - to.z) * .3, t: 0, dur: Math.max(.35, d / 20), arc: d > 22 ? 2.5 : .2, to: PL.indexOf(to) }; }
+            b.owner = -1; o.kickT = .3; b.fl = { fx: b.x, fz: b.z, tx: to.x + (to.tx - to.x) * .3, tz: to.z + (to.tz - to.z) * .3, t: 0, dur: Math.max(.35, d / 20), arc: d > 22 ? 2.5 : .2, to: PL.indexOf(to) }; }
           b.passT = 1.1 + Math.random() * 2; } }
       else if (!b.fl) { let best = null, bd = 1e9; for (const q of PL) { const d = Math.hypot(q.x - b.x, q.z - b.z); if (d < bd) { bd = d; best = q; } } if (best) { best.tx = b.x; best.tz = b.z; if (bd < .9) { b.owner = PL.indexOf(best); b.passT = .6 + Math.random(); } } } }
     // ball flight
     if (b.fl) { const fl = b.fl; fl.t += dt; const u = Math.min(1, fl.t / fl.dur); b.x = fl.fx + (fl.tx - fl.fx) * u; b.z = fl.fz + (fl.tz - fl.fz) * u; b.y = .28 + Math.sin(u * Math.PI) * fl.arc;
-      if (u >= 1) { b.fl = null; if (fl.miss) { const gk = PL.find(q => q.i === 0 && (q.x > 0) === (b.x > 0)); b.owner = gk ? PL.indexOf(gk) : -1; b.passT = 1.5; }
+      if (u >= 1) { b.fl = null; if (fl.save) { const gk = PL.find(q => q.i === 0 && (q.x > 0) === (b.x > 0)); b.owner = gk ? PL.indexOf(gk) : -1; b.passT = 2; } else if (fl.miss) { const gk = PL.find(q => q.i === 0 && (q.x > 0) === (b.x > 0)); b.owner = gk ? PL.indexOf(gk) : -1; b.passT = 1.5; }
         else if (fl.to != null) { const opp = PL.filter(q => q.t !== PL[fl.to].t).sort((a, c2) => Math.hypot(a.x - b.x, a.z - b.z) - Math.hypot(c2.x - b.x, c2.z - b.z))[0]; b.owner = Math.random() < .22 && opp && Math.hypot(opp.x - b.x, opp.z - b.z) < 6 ? PL.indexOf(opp) : fl.to; b.passT = .8 + Math.random() * 1.5; } } }
     // everyone else holds the shape and shifts with the ball
     const poss = b.owner >= 0 ? PL[b.owner].t : -1;
@@ -254,8 +281,13 @@ window.BBFeatures.push(function (bb) {
     // move and animate
     for (const q of PL) { const dx = q.tx - q.x, dz = q.tz - q.z, d = Math.hypot(dx, dz); const vmax = (b.owner === PL.indexOf(q) ? 5.2 : V.seq && V.seq.ph === 'cele' ? 6.5 : c.state === 'live' ? 6 : 2.5); const v = d > .3 ? Math.min(vmax, d * 2.5) : 0;
       if (v > 0) { q.x += dx / d * v * dt; q.z += dz / d * v * dt; q.h = Math.atan2(dx, dz); } q.sp = v; q.p.position.set(q.x, 0, q.z); q.p.rotation.y = q.h; const U = q.p.userData; const ph = t * 10 + q.i;
-      if (U.legs) { const a = Math.sin(ph) * Math.min(.8, v / 6); U.legs[0].rotation.x = a; U.legs[1].rotation.x = -a; } if (U.arms) { const cele = (V.seq && V.seq.ph === 'cele' && q.t === V.seq.tm) || (c.state === 'ft' && ((V.res.hg > V.res.ag && q.t === 0) || (V.res.ag > V.res.hg && q.t === 1))); U.arms[0].rotation.x = cele ? -2.8 : -Math.sin(ph) * .5; U.arms[1].rotation.x = cele ? -2.8 : Math.sin(ph) * .5; } }
+      if (q.kickT > 0) q.kickT -= dt; if (q.dive) { q.dive.t -= dt; const k = Math.max(0, q.dive.t / .9); q.z += q.dive.dir * 4 * dt * (k > .4 ? 1 : 0); q.p.position.set(q.x, Math.sin((1 - k) * Math.PI) * .6, q.z); q.p.rotation.set(0, q.h, q.dive.dir * 1.3 * Math.min(1, (1 - k) * 3), 'YXZ'); if (q.dive.t <= 0) { q.dive = null; q.p.rotation.set(0, q.h, 0); } }
+      if (U.legs) { const a = Math.sin(ph) * Math.min(.8, v / 6); U.legs[0].rotation.x = q.kickT > 0 ? -1.4 * Math.sin((1 - q.kickT / .35) * Math.PI) : a; U.legs[1].rotation.x = -a; } if (U.arms) { const cele = (V.seq && V.seq.ph === 'cele' && q.t === V.seq.tm) || (c.state === 'ft' && ((V.res.hg > V.res.ag && q.t === 0) || (V.res.ag > V.res.hg && q.t === 1))); U.arms[0].rotation.x = cele ? -2.8 : -Math.sin(ph) * .5; U.arms[1].rotation.x = cele ? -2.8 : Math.sin(ph) * .5; } }
     if (b.owner >= 0) { const o = PL[b.owner]; b.x = o.x + Math.sin(o.h) * .6; b.z = o.z + Math.cos(o.h) * .6; b.y = .28; }
+    const bsp = Math.hypot(b.x - (b.px || b.x), b.z - (b.pz || b.z)) / Math.max(dt, 1e-3); b.px = b.x; b.pz = b.z; b.m.rotation.x += bsp * dt / .28; b.m.rotation.z += bsp * dt * .2;
+    for (const n of V.bowl.nets || []) { n.kick = Math.max(0, n.kick - dt * 1.2); n.m.position.x = n.x0 + n.s * Math.sin(n.kick * Math.PI) * .7; n.m.scale.y = 1 + n.kick * .05; }
+    for (const r of V.refs || []) { let tx, tz; if (r.k === 'ref') { tx = b.x - 8 * Math.sign(b.x || 1) * .3; tz = b.z + (b.z > 0 ? -9 : 9); } else { tx = Math.max(-FW + 2, Math.min(FW - 2, b.x * .9)); tz = r.k === 'ar1' ? -(FD + .8) : FD + .8; } if (c.state === 'ht' || c.state === 'pre') { tx = r.k === 'ref' ? 0 : r.k === 'ar1' ? -2 : 2; tz = c.state === 'pre' ? 0 : FD + 1; }
+      const dx = tx - r.x, dz = tz - r.z, d = Math.hypot(dx, dz); const v = d > .4 ? Math.min(5, d * 1.5) : 0; if (v) { r.x += dx / d * v * dt; r.z += dz / d * v * dt; r.h = Math.atan2(b.x - r.x, b.z - r.z); } r.p.position.set(r.x, 0, r.z); r.p.rotation.y = r.k === 'ref' ? r.h : (r.k === 'ar1' ? 0 : Math.PI); const U = r.p.userData; if (U.legs) { const a = Math.sin(t * 9 + (r.k === 'ref' ? 0 : 2)) * Math.min(.7, v / 6); U.legs[0].rotation.x = a; U.legs[1].rotation.x = -a; } if (U.arms && r.k !== 'ref') U.arms[1].rotation.x = V.seq && V.seq.ph === 'cele' ? -.2 : -.5; }
     b.m.position.set(b.x, b.y, b.z); b.m.visible = c.state !== 'pre' && c.state !== 'ht'; }
 
   /* cricket players */

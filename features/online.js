@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.25';
+window.__ibOnlineV = '1.01.26';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -332,7 +332,7 @@ window.BBFeatures.push(function (bb) {
     let pk = d.m !== 'd' && d.pv ? d.pv : '';
     if (r.parkTaken) { if (pk !== r.parkTaken) r.parkTaken = null; else pk = ''; }
     if (r.pkType !== pk) { if (r.park) { bb.scene.remove(r.park); r.park = null; } if (pk) { r.park = bb.buildVeh(pk); if (d.pl && bb.setPlate) bb.setPlate(r.park, d.pl); bb.scene.add(r.park); } r.pkType = pk; }
-    if (r.park) { r.park.position.set(d.px, d.py || 0, d.pz); r.park.rotation.y = d.ph; }
+    if (r.park) { r.park.position.set(d.px, d.py || 0, d.pz); r.park.rotation.y = d.ph; } r.pkLock = !!d.lk;
   }
   function drop(id) { const r = remotes.get(id); if (!r) return; bb.scene.remove(r.g); if (r.park) bb.scene.remove(r.park); freeSprite(r.tag); freeSprite(r.bub); remotes.delete(id); }
   function clearRemotes() { for (const id of [...remotes.keys()]) drop(id); }
@@ -343,7 +343,7 @@ window.BBFeatures.push(function (bb) {
     const pl = bb.player, drive = pl.mode === 'drive' && pl.veh, p = bb.ppos();
     if (drive) lastVeh = pl.veh;
     const lv = !drive && lastVeh && !lastVeh.dead && bb.vehicles.includes(lastVeh) && Math.hypot(lastVeh.pos.x - p.x, lastVeh.pos.z - p.z) < 600 ? lastVeh : null;
-    const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
+    const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2), lk: lv.locked ? 1 : 0 } : {};
     if (ride) return { zn: (bb.zoneAt(p.x, p.z, 40) || {}).id || '', t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear(), r: ride.id, rs: ride.s };
     const zq = bb.zoneAt(p.x, p.z, 40); const zn = zq ? zq.id : '';
     return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), zn, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear(), pl: (bb.P.extra && bb.P.extra.plate) || '' };
@@ -362,7 +362,7 @@ window.BBFeatures.push(function (bb) {
     if (selfBub && now > selfBubT) { freeSprite(selfBub); selfBub = null; }
     if (ws && ws.readyState === 1 && myId && bb.started) {
       const st = state(), t = Date.now(), L = lastSent;
-      const moved = ride ? (!L || L.m !== 'r' || L.r !== st.r) : !L || L.o !== st.o || Math.hypot(st.x - L.x, st.z - L.z) > .4 || Math.abs(st.h - L.h) > .05 || st.m !== L.m || st.v !== L.v || st.c !== L.c || st.pv !== L.pv || (st.pv && Math.hypot(st.px - L.px, st.pz - L.pz) > .5);
+      const moved = ride ? (!L || L.m !== 'r' || L.r !== st.r) : !L || L.o !== st.o || Math.hypot(st.x - L.x, st.z - L.z) > .4 || Math.abs(st.h - L.h) > .05 || st.m !== L.m || st.v !== L.v || st.c !== L.c || st.pv !== L.pv || st.lk !== L.lk || (st.pv && Math.hypot(st.px - L.px, st.pz - L.pz) > .5);
       const gap = L ? t - L.at : 1e9;
       if ((moved && gap > (riders.size ? 120 : 300)) || gap > (ride ? 2500 : 4000)) { ws.send(JSON.stringify(st)); st.at = t; lastSent = st; }
     }
@@ -370,9 +370,12 @@ window.BBFeatures.push(function (bb) {
 
 
   /* ---------- sharing vehicles: ride along with a driver, or take a parked vehicle ---------- */
-  const CAP = { cycle: 1, rickshaw: 3, bike: 2, sportsbike: 2, auto: 4, taxi: 5, car: 5, sedan: 5, suv: 7, sports: 2, police: 5, bus: 30, truck: 3 };
+  const CAP = { cycle: 1, rickshaw: 3, bike: 2, sportsbike: 2, auto: 4, taxi: 5, car: 5, sedan: 5, suv: 7, sports: 2, police: 5, bus: 30, truck: 3, mpv: 7, van: 8, coupe: 2, convertible: 4, limo: 6, ambulance: 3, camper: 4, pickup: 3, lorry: 3, tanker: 2, towtruck: 2, firetruck: 4, tractor: 1, scooter: 2, atv: 2, golfcart: 4, erickshaw: 4 };
   function seatOff(type, i) { const sp = bb.SPEC[type] || {};
     if (type === 'bike' || type === 'sportsbike') return [0, .95, -.62];
+    if (sp.two || sp.pedal) { const st = sp.seat || [0, .95, -.2]; return [0, st[1] + .05, st[2] - .45]; }
+    if (type === 'erickshaw' || type === 'golfcart') return [[-.35, .6, -.4], [.35, .6, -.4], [0, .6, -.4]][i % 3];
+    if (type === 'tractor') return [.35, 1.1, -.3];
     if (type === 'rickshaw') return [i ? .36 : -.36, 1, -.45];
     if (type === 'auto') return [(i - 1) * .45, .65, -.55];
     if (type === 'bus') { const row = Math.floor(i / 2); return [(i % 2 ? .7 : -.7) + (row > 13 ? 0 : 0), 1.35, 3.6 - row * .55]; }
@@ -387,7 +390,7 @@ window.BBFeatures.push(function (bb) {
   function startRide(r, s, n) { if (bb.player.mode !== 'foot' || bb.inside) return; ride = { id: r.id, s, n: n || r.n, type: r.v }; bb.avatar.visible = false; lastSent = null; bb.toast(`Riding with ${bb.esc(ride.n)} · press E to get off`, '#3ddc97'); }
   function endRide(msg, jumped) { if (!ride) return; const r = remotes.get(ride.id); const pl = bb.player;
     if (r) { const sp = bb.SPEC[r.v || ride.type] || { wid: 2 }; const sx = Math.cos(r.h), sz = -Math.sin(r.h); let px = r.x + sx * (sp.wid / 2 + 1), pz = r.z + sz * (sp.wid / 2 + 1); if (!bb.drivable(px, pz)) { px = r.x - sx * (sp.wid / 2 + 1); pz = r.z - sz * (sp.wid / 2 + 1); } pl.pos.set(px, 0, pz); }
-    const spd = Math.abs((r && r.s) || 0); ride = null; bb.avatar.visible = true; lastSent = null; const U = bb.avatar.userData; if (U.legs) U.legs.forEach(l => l.rotation.z = 0); if (bb.seatAvatar) bb.seatAvatar(false);
+    const spd = Math.abs((r && r.s) || 0); if (bb.avatar.userData) bb.avatar.userData.sitK = 0; ride = null; bb.avatar.visible = true; lastSent = null; const U = bb.avatar.userData; if (U.legs) U.legs.forEach(l => l.rotation.z = 0); if (bb.seatAvatar) bb.seatAvatar(false);
     if (jumped && spd > 2) { const kmh = Math.round(spd * 3.6); const hurt = Math.min(85, spd * 2.6) * (bb.P.helmet ? .5 : 1); bb.player.knock = 1.4 + Math.min(1.5, spd / 10); bb.damage(hurt, 'Jumped off a moving vehicle'); bb.toast(`🤕 You jumped off at ${kmh} km/h · -${Math.round(hurt)} health`, '#ff5d73'); if (bb.sfx) bb.sfx('hit'); return; }
     if (msg) bb.toast(msg, '#d6c8e4'); }
   function takeParked(r) { const pk = r.park; if (!pk) return; const type = r.pkType; const v = bb.makeVeh(type, pk.position.x, pk.position.z, pk.rotation.y, 'parked'); bb.scene.remove(pk); r.park = null; r.parkTaken = type;
@@ -423,6 +426,7 @@ window.BBFeatures.push(function (bb) {
       return { text: free ? `Ride with ${r.n} · ${free} seat${free > 1 ? 's' : ''} free` : `${r.n}'s ${lab} is full`, fn: () => {
         if (!free) return bb.toast('No free seats', '#ff9f1c'); if (Math.abs(r.s) > 3) return bb.toast(`Wait for ${bb.esc(r.n)} to stop`, '#ff9f1c');
         asked = { id: r.id }; vsend('ride', r.id); bb.toast(`Asking ${bb.esc(r.n)} for a ride…`, '#5fb4ff'); setTimeout(() => { if (asked && asked.id === r.id) { asked = null; bb.toast('No answer · try again', '#ff9f1c'); } }, 5000); } }; }
+    if (r.pkLock) return { text: `🔒 ${r.n}'s ${(bb.SPEC[r.pkType] || {}).label || 'vehicle'} is locked`, fn: () => bb.toast(`🔒 Locked · only ${bb.esc(r.n)} can open it`, '#ff9f1c') };
     return { text: `Take ${r.n}'s ${(bb.SPEC[r.pkType] || {}).label || 'vehicle'}`, fn: () => takeParked(r) };
   });
   bb.onUpdate(() => {
@@ -431,12 +435,12 @@ window.BBFeatures.push(function (bb) {
       if (!r || r.m !== 'd' || !ws) endRide('The driver got out · you are on foot');
       else { const [x, y, z] = seatWorld(r.x, r.z, r.h, r.v || ride.type, ride.s); pl.pos.set(x, 0, z); pl.h = r.h; pl.v = 0; ride.spd = r.s || 0;
         // you are seen sitting behind the driver (Beta v1.01.25), not hidden
-        const A = bb.avatar, U = A.userData; const two = (bb.SPEC[r.v || ride.type] || {}).two; A.visible = bb.camMode !== 2 || !two ? true : false; A.position.set(x, y - .6, z); A.rotation.set(0, r.h, 0); if (bb.seatAvatar) bb.seatAvatar(true);
+        const A = bb.avatar, U = A.userData; const two = (bb.SPEC[r.v || ride.type] || {}).two; A.visible = bb.camMode !== 2 || !two ? true : false; const low = !two && !['auto', 'rickshaw', 'erickshaw', 'golfcart', 'tractor', 'bus', 'truck'].includes(r.v || ride.type); U.sitK = low ? -.85 : 0; A.position.set(x, y - (low ? .92 : .6), z); A.rotation.set(0, r.h, 0); if (bb.seatAvatar) bb.seatAvatar(true);
         if (U.legs) U.legs.forEach((l, i) => { l.rotation.x = two ? -1.25 : -1.5; l.rotation.z = (i ? 1 : -1) * (two ? .12 : .05); }); if (U.arms) U.arms.forEach(a => a.rotation.x = two ? -.45 : -.4); } }
     for (const r of remotes.values()) { if (r.m !== 'r' || !r.body) continue; let vx, vz, vh, vt;
       if (r.rid === myId && pl.mode === 'drive' && pl.veh) { const v = pl.veh; vx = v.pos.x; vz = v.pos.z; vh = v.h; vt = v.type; }
       else { const d = remotes.get(r.rid); if (!d || d.m !== 'd') { r.g.visible = false; continue; } vx = d.x; vz = d.z; vh = d.h; vt = d.v; }
-      const [x, y, z] = seatWorld(vx, vz, vh, vt, r.rs); r.x = r.tx = x; r.z = r.tz = z; r.h = r.th = vh; r.g.position.set(x, y, z); r.body.rotation.y = vh; r.g.visible = !bb.inside; }
+      const [x, y, z] = seatWorld(vx, vz, vh, vt, r.rs); r.x = r.tx = x; r.z = r.tz = z; r.h = r.th = vh; r.g.position.set(x, y, z); r.body.rotation.y = vh; { const sp2 = bb.SPEC[vt] || {}; const low = !(sp2.two || sp2.pedal) && !['auto', 'rickshaw', 'erickshaw', 'golfcart', 'tractor', 'bus', 'truck'].includes(vt); const sit = r.body.children[0]; if (sit) { sit.position.y = low ? -.92 : -.6; const U = sit.userData; U.sitK = low ? -.85 : 0; if (U.legs) U.legs.forEach(l => l.rotation.x = low ? -1.5 : -1.3); } } r.g.visible = !bb.inside; }
     if (riders.size) { if (pl.mode !== 'drive') { for (const id of riders.keys()) vsend('drop', id); riders.clear(); }
       else for (const [id, q] of [...riders]) { const r = remotes.get(id); if ((!r || r.m !== 'r' || r.rid !== myId) && now - q.at > 6000) { riders.delete(id); lastSent = null; } } }
   });

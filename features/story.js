@@ -27,7 +27,7 @@ window.BBFeatures.push(function (bb) {
       S.ride('Ride the local', 'Take the Mumbai local from any station', 'local', ['mumbai'], 'local'),
       S.go('Postcard moment', 'Stand at the Gateway of India', 'Gateway of India', 400)] },
     { id: 'pune', zones: ['pune', 'lonavala'], title: 'Pune · City of the Peshwas', intro: 'Take the expressway over the ghats. Pune has history, misal and the best weather in Maharashtra.', steps: [
-      S.go('Peshwa pride', 'Find Shaniwar Wada', 'Shaniwar Wada', 500), S.inside('Bappa\'s blessing', 'Go inside Dagdusheth Temple', 'Dagdusheth Temple'),
+      S.go('Peshwa pride', 'Find Shaniwar Wada', 'Shaniwar Wada', 500), S.go('Sunset point', 'Visit Tiger Point', 'Tiger Point', 500),
       S.eat('Spicy start', 'Eat a misal pav', ['misal'], ['pune'], 250), S.ride('Pune Metro', 'Take the Pune Metro between two stations', 'metro', ['pune'], 'metro'),
       S.mall('Weekend at the mall', 'Visit Phoenix Marketcity', ['pune'])] },
     { id: 'ahmedabad', zones: ['ahmedabad'], title: 'Ahmedabad · Old city, new city', intro: 'Gujarat calling! Kem cho? From the Sabarmati to the pols, Amdavad is all heart.', steps: [
@@ -49,7 +49,7 @@ window.BBFeatures.push(function (bb) {
       S.inside('Golden fort', 'Go inside Jaisalmer Fort', 'Jaisalmer Fort', 600), S.ev('Ship of the desert', 'Ride a camel at Sam', 'camel', () => true, () => place('Sam Sand Dunes'), 500),
       S.adv('Over the dunes', 'Go dune bashing in a jeep', 'dunes', null, 700)] },
     { id: 'goa', zones: ['panaji', 'margao', 'calangute', 'oldgoa', 'mapusa', 'arambol', 'vasco', 'palolem', 'ponda'], title: 'Goa · Susegad', intro: 'Beaches, churches and fish curry rice. Slow down, you are in Goa.', steps: [
-      S.inside('Old Goa', 'Go inside the Basilica of Bom Jesus', 'Basilica of Bom Jesus', 600), S.eat('Goan staple', 'Eat fish curry rice', ['xitkodi', 'ravafish', 'xacuti'], ['panaji', 'margao', 'calangute'], 300),
+      S.go('Old Goa lanes', 'Walk through Fontainhas Latin Quarter', 'Fontainhas Latin Quarter', 600), S.eat('Goan staple', 'Eat fish curry rice', ['xitkodi', 'ravafish', 'xacuti'], ['panaji', 'margao', 'calangute'], 300),
       S.adv('High over the sea', 'Go parasailing at Calangute', 'parasail', 'Calangute Beach', 800), S.go('Sea of milk', 'Reach Dudhsagar Falls', 'Dudhsagar Falls', 800),
       S.watch('Forca Goa', 'Watch FC Goa at Fatorda Stadium', 'football', 'goa', ['margao'], 1000)] },
     { id: 'bengaluru', zones: ['bengaluru'], title: 'Bengaluru · Garden city', intro: 'Tech parks, filter coffee and traffic. Namma Bengaluru welcomes you, guru.', steps: [
@@ -58,11 +58,11 @@ window.BBFeatures.push(function (bb) {
       S.go('Green lungs', 'Visit the Lalbagh Glasshouse', 'Lalbagh Glasshouse'), S.mall('Mall day', 'Visit Orion Mall', ['bengaluru'])] },
     { id: 'mysuru', zones: ['mysuru', 'mandya'], title: 'Mysuru · City of palaces', intro: 'Silk, sandalwood and the most lit-up palace in India.', steps: [
       S.inside('The great palace', 'Go inside Mysore Palace', 'Mysore Palace', 700), S.eat('Melt in the mouth', 'Eat Mysore pak', ['mysorepak'], ['mysuru'], 250),
-      S.adv('1,000 steps', 'Trek up Chamundi Hill', 'trek', 'Chamundi Hill', 600), S.go('Dancing fountains', 'Visit Brindavan Gardens', 'Brindavan Gardens')] },
+      S.adv('Sunrise climb', 'Trek up Nandi Hills', 'trek', 'Nandi Hills', 600), S.go('Dancing fountains', 'Visit Brindavan Gardens', 'Brindavan Gardens')] },
     { id: 'hampi', zones: ['hosapete', 'ballari'], title: 'Hampi · Stone kingdom', intro: 'The ruins of Vijayanagara, among boulders that look placed by giants.', steps: [
       S.go('The stone chariot', 'See the Hampi Stone Chariot', 'Hampi Stone Chariot', 600), S.adv('Round boat', 'Take a coracle ride on the river', 'coracle', null, 500)] },
     { id: 'coast', zones: ['udupi', 'mangaluru', 'karwar', 'gokarna', 'murudeshwar'], title: 'Coastal Karnataka', intro: 'Temples, beaches and the spiciest ghee roast on the west coast.', steps: [
-      S.inside('Through the window', 'Go inside Udupi Sri Krishna Matha', 'Udupi Sri Krishna Matha', 500), S.eat('Mangalorean special', 'Eat chicken ghee roast', ['ghee', 'udupimeals'], ['mangaluru', 'udupi'], 300),
+      S.go('Island of basalt', "Visit St Mary's Island", "St Mary's Island", 500), S.eat('Mangalorean special', 'Eat chicken ghee roast', ['ghee', 'udupimeals'], ['mangaluru', 'udupi'], 300),
       S.adv('Wave rider', 'Ride a jet ski at Panambur Beach', 'jetski', 'Panambur Beach', 700), S.adv('Island reef', 'Go snorkelling at St Mary\'s Island', 'snorkel', 'St Mary\'s Island', 800)] },
     { id: 'kochi', zones: ['kochi'], title: 'Kochi · Queen of the Arabian Sea', intro: 'Chinese fishing nets, spice warehouses and the yellow wave of Manjappada.', steps: [
       S.go('Old nets', 'See the Chinese fishing nets', 'Chinese Fishing Nets'), S.eat('Kerala breakfast', 'Eat appam and stew', ['appam', 'puttu'], ['kochi'], 250),
@@ -70,7 +70,7 @@ window.BBFeatures.push(function (bb) {
       S.watch('Manjappada', 'Watch Kerala Blasters at home', 'football', 'ker', ['kochi'], 1000)] },
     { id: 'keralasouth', zones: ['alappuzha', 'kottayam', 'kollam', 'varkala', 'thiruvananthapuram'], title: 'The backwaters and the capital', intro: 'Drift through the backwaters, then on to Thiruvananthapuram.', steps: [
       S.adv('Slow boat', 'Take a houseboat cruise', 'houseboat', null, 1000), S.eat('Pearl spot', 'Eat karimeen pollichathu', ['karimeen', 'sadhya'], ['alappuzha', 'kottayam', 'kollam', 'thiruvananthapuram'], 300),
-      S.inside('The reclining lord', 'Go inside Padmanabhaswamy Temple', 'Padmanabhaswamy Temple', 600), S.go('Cliff top', 'Walk along Varkala Cliff', 'Varkala Cliff')] }
+      S.go('Sea breeze', 'Relax at Kovalam Beach', 'Kovalam Beach', 600), S.go('Cliff top', 'Walk along Varkala Cliff', 'Varkala Cliff')] }
   ];
   const CHAPTER_BONUS = 5000;
   // save data: { chapters: { id: { step, cnt, done } }, paused }. Old saves (one Mumbai chapter) are carried over.

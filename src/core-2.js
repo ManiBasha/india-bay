@@ -286,6 +286,9 @@ function busSideTex(LV,style,side,dd,open){const k=[style,LV&&LV.body,LV&&LV.ban
       x.fillStyle='#e8a628';x.fillRect(0,h*.535,w,h*.012);x.fillStyle='#4a4d52';x.fillRect(0,h*.84,w,h*.16);x.fillStyle='#c8202a';x.font='800 30px sans-serif';x.textAlign='center';x.fillText('GSRTC',fx(w*.72),h*.8);}
     else if(style==='volvo'){x.fillStyle='#f6f6f4';x.fillRect(0,0,w,h);x.fillStyle='#111316';x.fillRect(0,h*.06,w,h*.47);x.fillStyle='rgba(255,255,255,.08)';x.fillRect(0,h*.08,w,h*.1);for(let i=1;i<9;i++){x.fillStyle='#0b0c0e';x.fillRect(i*w/9-2,h*.06,4,h*.47);}
       x.strokeStyle='#d9a63a';x.lineWidth=5;x.beginPath();x.moveTo(0,h*.6);x.bezierCurveTo(w*.35,h*.58,w*.6,h*.7,w,h*.64);x.stroke();x.fillStyle='#c8202a';x.font='700 26px sans-serif';x.textAlign='center';x.fillText((txt||'STATE')+' · AC INTERCITY',fx(w*.6),h*.78);x.fillStyle='#5a5d62';x.fillRect(0,h*.88,w,h*.12);}
+    else if(style==='team'){x.fillStyle=body;x.fillRect(0,0,w,h);x.fillStyle='#0d1014';x.fillRect(0,h*.06,w,h*.45);for(let i=1;i<9;i++){x.fillStyle='#07080a';x.fillRect(i*w/9-2,h*.06,4,h*.45);}x.fillStyle='rgba(255,255,255,.07)';x.fillRect(0,h*.08,w,h*.09);
+      const g3=x.createLinearGradient(0,0,w,0);g3.addColorStop(0,band);g3.addColorStop(1,body);x.fillStyle=g3;x.beginPath();x.moveTo(0,h*.56);x.bezierCurveTo(w*.4,h*.52,w*.7,h*.66,w,h*.58);x.lineTo(w,h*.64);x.bezierCurveTo(w*.7,h*.72,w*.4,h*.6,0,h*.62);x.fill();
+      x.fillStyle=band;let f=58;x.font=`900 ${f}px sans-serif`;while(x.measureText(txt).width>w*.86&&f>20){f-=3;x.font=`900 ${f}px sans-serif`;}x.textAlign='center';x.fillText(txt,w*.5,h*.8);x.font='700 20px sans-serif';x.fillText('OFFICIAL TEAM BUS',w*.5,h*.92);}
     else{ // MH / GA / RJ / city and BEST
       x.fillStyle=style==='GA'?'#f4f1ea':body;x.fillRect(0,0,w,h);const bnd=style==='MH'?'#f2c230':band;
       if(dd){win(h*.06,h*.24,92,body);win(h*.52,h*.7,92,body);x.fillStyle=bnd;x.fillRect(0,h*.36,w,h*.05);x.fillRect(0,h*.82,w,h*.04);x.fillStyle=bnd;x.font='800 40px sans-serif';x.textAlign='center';x.fillText(txt,w*.5,h*.47);}
@@ -424,7 +427,15 @@ const headL=new THREE.SpotLight(0xfff1c8,0,70,.55,.6,1),headT=new THREE.Object3D
 function withSeed(seed,f){const R=Math.random;let a=seed>>>0;Math.random=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};try{return f();}finally{Math.random=R;}}
 function makeVeh(type,x,z,h,state='parked',opts={}){const seed=opts.seed!=null?opts.seed:(Math.random()*4294967295)>>>0;const m=withSeed(seed,()=>{const o=vehLivery;if(opts.livery)vehLivery=opts.livery;try{return buildVeh(type,opts.colorMat);}finally{vehLivery=o;}});m.position.set(x,0,z);m.rotation.y=h;scene.add(m);
   const v={m,seed,type,spec:SPEC[type],v:0,h,steer:0,pos:m.position,state,owned:false,hp:opts.hp!=null?opts.hp:100,fuel:opts.fuel!=null?opts.fuel:MR(35,95),stopT:0,blockT:0,lane:null,ai:null,dead:false,fallen:false,lean:0,smokeT:0,company:!!opts.company};
-  if(m.userData.driver)m.userData.driver.visible=state==='traffic'||state==='net';vehicles.push(v);return v;}
+  if(!m.userData.driver&&(state==='traffic'||state==='net'||state==='svc'))addDriver(v);
+  if(m.userData.driver)m.userData.driver.visible=state==='traffic'||state==='net'||state==='svc';vehicles.push(v);return v;}
+// Beta v1.01.26: every vehicle on the road has someone driving it — car and bus drivers sit behind the wheel (on the right,
+// Indian style), the cycle-rickshaw wallah pedals, the tractor driver sits up high.
+const DRV_SHIRTS=['#f4f1ea','#2f7fc1','#3aa66b','#e8a628','#8b5e3c','#5c6b8a','#d9483b','#9b4fb5'];
+function addDriver(v){const sp=v.spec;if(!sp||sp.two||sp.animal||sp.fly||sp.boat||sp.rail)return;let r;
+  if(sp.pedal&&sp.seat){r=buildPerson(mpick(DRV_SHIRTS),{seated:true,female:false});const st=sp.seat;r.position.set(0,st[1]-.62,st[2]);r.userData.legs.forEach(l=>l.rotation.x=-1.15);r.userData.arms.forEach(a=>a.rotation.x=-1);r.userData.pedal=true;}
+  else if(sp.fp){const fp=sp.fp;r=buildPerson(mpick(DRV_SHIRTS),{seated:true,female:Math.random()<.12});const head=fp[1]-.2;r.position.set(fp[0],head-1.73,fp[2]-.12);r.userData.legs.forEach(l=>l.rotation.x=-1.5);r.userData.sitK=-.85;r.userData.arms.forEach(a=>a.rotation.x=-.95);}
+  else return;v.m.add(r);v.m.userData.driver=r;}
 function removeVeh(v){scene.remove(v.m);const i=vehicles.indexOf(v);if(i>=0)vehicles.splice(i,1);}
 function segDist(px,pz,v){const fx=Math.sin(v.h),fz=Math.cos(v.h),half=Math.max(0,v.spec.len/2-v.spec.wid/2);let t=(px-v.pos.x)*fx+(pz-v.pos.z)*fz;t=clamp(t,-half,half);const qx=v.pos.x+fx*t,qz=v.pos.z+fz*t,dx=px-qx,dz=pz-qz;return{d:Math.hypot(dx,dz),dx,dz};}
 
@@ -604,7 +615,7 @@ function save(){if(!startedOnce){store.set(SAVEKEY,P);return;}if(player.mode==='
 
 /* owned vehicles */
 const ownedVeh=[];
-function spawnOwned(i,x,z,h){if(ownedVeh[i])removeVeh(ownedVeh[i]);const c=P.cars[i];c.garage=null;const v=makeVeh(c.type,x,z,h,'parked',{fuel:c.fuel,hp:c.hp,colorMat:c.color||undefined});v.owned=true;v.ownedIdx=i;ownedVeh[i]=v;if(P.extra&&P.extra.plate)setPlate(v,P.extra.plate);emit('ownedSpawn',v);
+function spawnOwned(i,x,z,h){if(ownedVeh[i])removeVeh(ownedVeh[i]);const c=P.cars[i];c.garage=null;const v=makeVeh(c.type,x,z,h,'parked',{fuel:c.fuel,hp:c.hp,colorMat:c.color||undefined});v.owned=true;v.ownedIdx=i;ownedVeh[i]=v;v.locked=!!c.locked;if(P.extra&&P.extra.plate)setPlate(v,P.extra.plate);emit('ownedSpawn',v);
   if(c.neon){const sp=SPEC[c.type];const g=new THREE.PlaneGeometry(sp.wid*1.15,sp.len*1.05);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c.neon,transparent:true,opacity:.55,depthWrite:false}));m.position.y=.06;v.m.add(m);}
   return v;}
 // Put an owned vehicle away in a home garage: it leaves the street and waits there.

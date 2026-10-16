@@ -6,13 +6,14 @@ window.BBFeatures.push(function (bb) {
   const pave = bb.LMat('#c9c1b0'), kerb = bb.LMat('#9a958a'); const V = new T.Vector3();
   const segs = [];   // { ax, az, bx, bz, len, dx, dz } footpath centre lines
   const inTown = (x, z) => !!bb.zoneAt(x, z, 0);
-  const ok = (x, z, e) => { if (bb.isWater(x, z) || (bb.wetNear && bb.wetNear(x, z, 3))) return false; const r = bb.roadAt(x, z, .2); if (r && r !== e) return false; V.set(x, 0, z); return !bb.collideTest(V); };
+  const onBlock = (x, z) => bb.blockAt ? !!bb.blockAt(x, z) : false;
+  const ok = (x, z, e) => { if (bb.isWater(x, z) || (bb.wetNear && bb.wetNear(x, z, 3))) return false; const r = bb.roadAt(x, z, 1.4); if (r && r !== e) return false; if (onBlock(x, z)) return false; V.set(x, 0, z); return !bb.collideTest(V); };
   for (const e of bb.EDGES) { if (e.fly || e.kind === 'city' || e.kind === 'service' || e.kind === 'bridge' || e.len < 20) continue; const off = e.w / 2 + 1.35;
     for (const side of [1, -1]) { const nx = e.dz * side, nz = -e.dx * side; let run = null;
       const flush = () => { if (run && run.t1 - run.t0 >= 8) { const ax = e.ax + e.dx * run.t0 + nx * off, az = e.az + e.dz * run.t0 + nz * off, L = run.t1 - run.t0; const cx = ax + e.dx * L / 2, cz = az + e.dz * L / 2, ry = Math.atan2(e.dx, e.dz);
           const g = new T.BoxGeometry(2.3, .16, L); g.rotateY(ry); g.translate(cx, .08, cz); bb.addStatic(g, pave, false, true); const k = new T.BoxGeometry(.18, .22, L); k.rotateY(ry); k.translate(cx - nx * 1.2, .11, cz - nz * 1.2); bb.addStatic(k, kerb, false, true);
           segs.push({ ax, az, bx: ax + e.dx * L, bz: az + e.dz * L, len: L, dx: e.dx, dz: e.dz }); } run = null; };
-      for (let t = 10; t <= e.len - 10; t += 4) { const x = e.ax + e.dx * t + nx * off, z = e.az + e.dz * t + nz * off; if (inTown(x, z) && ok(x, z, e)) { if (!run) run = { t0: t, t1: t }; else run.t1 = t; } else flush(); } flush(); } }
+      for (let t = 10; t <= e.len - 10; t += 2) { const x = e.ax + e.dx * t + nx * off, z = e.az + e.dz * t + nz * off; if (inTown(x, z) && ok(x, z, e)) { if (!run) run = { t0: t, t1: t }; else run.t1 = t; } else flush(); } flush(); } }
   if (bb.flushStatic) bb.flushStatic();
   /* ---------- people walking on the footpaths near you ---------- */
   const SH = ['#d9483b', '#e8a628', '#2f7fc1', '#9b4fb5', '#3aa66b', '#ff6fa8', '#f4f1ea', '#1f8a8a', '#c96a2a', '#5c6b8a'];

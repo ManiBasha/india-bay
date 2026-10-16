@@ -124,7 +124,7 @@ function clean(t) {
   for (const w of BAD) t = t.replace(new RegExp('\\b' + w + '\\b', 'gi'), m => m[0] + '*'.repeat(m.length - 1));
   return t;
 }
-const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.pl) o.pl = p.pl; if (p.l) o.l = p.l; if (p.w) o.w = p.w; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph });
+const pub = p => { const o = { id: p.id, n: p.name, x: p.x, z: p.z, y: p.y, h: p.h, m: p.m, v: p.v, c: p.c, s: p.s }; if (p.pl) o.pl = p.pl; if (p.l) o.l = p.l; if (p.w) o.w = p.w; if (p.pv) Object.assign(o, { pv: p.pv, px: p.px, pz: p.pz, py: p.py, ph: p.ph, lk: p.lk ? 1 : 0 });
   if (p.m === 'r' && p.r) Object.assign(o, { r: p.r, rs: p.rs }); if (p.m === 'd' && p.o) o.o = p.o; return o; };
 const VACT = new Set(['ride', 'seat', 'full', 'slow', 'no', 'leave', 'drop', 'take']);
 const near = (a, b, r) => Math.abs(a.x - b.x) < r && Math.abs(a.z - b.z) < r;
@@ -208,6 +208,7 @@ export class Region extends DurableObject {
       p.w = typeof d.w === 'string' && /^(shirt|kurta|saree)[0-9a-f]{6}[gc]{0,2}$/.test(d.w) ? d.w : '';   // clothes (Beta v1.01.16)   // the player's look (Beta v1.0.0): gender and 7 digits
       // The vehicle this player last got out of, so others see it parked where they left it.
       p.pv = p.m !== 'd' && VEH.has(d.pv) ? d.pv : '';
+      p.lk = d.lk ? 1 : 0;   // the parked vehicle is locked (Beta v1.01.26)
       p.pl = typeof d.pl === 'string' && /^[A-Z0-9][A-Z0-9 ]{1,9}$/.test(d.pl) ? d.pl : '';   // the player's number plate (Beta v1.01.24)
       p.zn = typeof d.zn === 'string' && /^[a-z0-9_]{1,24}$/.test(d.zn) ? d.zn : '';   // the town or city you are in (for "N in your city")
       p.px = num(d.px, -1e5, 1e5); p.pz = num(d.pz, -1e5, 1e5); p.py = num(d.py, -50, 500); p.ph = num(d.ph, -100, 100);
