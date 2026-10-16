@@ -249,7 +249,7 @@ nav.sub{margin-top:-4px}label.wide{grid-column:1/-1}.list .lrow label.wide texta
     $('#tw').innerHTML = data && data.length ? `<table><tr><th>Username</th><th>Account</th><th>Joined</th><th>Last played</th></tr>${data.map(p => `<tr><td>${esc(p.username)}</td><td><span class="pill">${p.is_guest ? 'Guest' : 'Google'}</span></td><td>${when(p.created_at)}</td><td>${p.last_seen ? when(p.last_seen) : '–'}</td></tr>`).join('')}</table>` : '<p class="note">No players yet.</p>';
   }
 
-  /* ---------- bans and silences (Beta v1.01.22) ---------- */
+  /* ---------- bans and silences (Beta v1.01.23) ---------- */
   async function safetyTab() {
     $('#pane').innerHTML = `<div class="card"><h2>Ban an email</h2><p class="note">A banned email cannot play online or make a new player (guests have no email: silence them instead). Offline play on their own device still works.</p><form id="bf" class="grid" novalidate><label>Email<input id="be" type="email" placeholder="someone@gmail.com"></label><label>Reason (only you see it)<input id="br" maxlength="200"></label><div class="bar" style="grid-column:1/-1"><button class="pri" type="submit">Ban</button><span class="note" id="bm" style="margin:0"></span></div></form><h3 style="margin-top:14px">Banned</h3><div class="tw" id="bl">Loading…</div></div>
       <div class="card"><h2>Silences</h2><p class="note">When 3 different players report someone within a day, the game turns off their chat, voice, texts, comments and calls: 5 hours the first time, 10 hours the next, then 15, 20 … (5 hours more each time). You can also silence or lift it yourself from Players.</p><div class="tw" id="sl">Loading…</div></div>`;

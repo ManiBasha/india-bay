@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.22';
+const VERSION='Beta v1.01.23';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -113,7 +113,10 @@ function onIsland(x,z){for(const is of W.islands)if(Math.hypot(x-is.x,z-is.z)<is
 function segD(px,pz,ax,az,bx,bz){const dx=bx-ax,dz=bz-az,l2=dx*dx+dz*dz;let t=l2?((px-ax)*dx+(pz-az)*dz)/l2:0;t=clamp(t,0,1);return Math.hypot(px-ax-dx*t,pz-az-dz*t);}
 function inLake(x,z){for(const l of W.lakes){const dx=(x-l.x)/l.rx,dz=(z-l.z)/l.rz;if(dx*dx+dz*dz<1&&!onIsland(x,z))return l;}return null;}
 function inRiver(x,z){for(const r of W.rivers){const p=r.pts;for(let k=0;k<p.length-1;k++)if(segD(x,z,p[k][0],p[k][1],p[k+1][0],p[k+1][1])<r.w/2)return r;}return null;}
-function isWater(x,z){return !isLand(x,z)||!!inLake(x,z)||!!inRiver(x,z);}
+// Beta v1.01.23: pools that landmarks draw (a plunge pool under falls, a palace tank) are real water: you swim in them and vehicles stop at the edge
+const POOLS=[];function addPool(x,z,rx,rz,rect){POOLS.push({x,z,rx,rz,rect:!!rect});}
+function inPool(x,z){for(const q of POOLS){const dx=(x-q.x)/q.rx,dz=(z-q.z)/q.rz;if(q.rect?Math.abs(dx)<1&&Math.abs(dz)<1:dx*dx+dz*dz<1)return q;}return null;}
+function isWater(x,z){return !isLand(x,z)||!!inLake(x,z)||!!inRiver(x,z)||(POOLS.length>0&&!!inPool(x,z));}
 const EDGES=[];const RH=50,rHash=new Map();const ROADS=[];
 function addRoad(pts,w,kind,name){const r={pts,w,kind,name,edges:[]};ROADS.push(r);for(let k=0;k<pts.length-1;k++){const [ax,az]=pts[k],[bx,bz]=pts[k+1];const len=Math.hypot(bx-ax,bz-az);if(len<1)continue;
     const e={id:EDGES.length,ax,az,bx,bz,len,dx:(bx-ax)/len,dz:(bz-az)/len,w,kind,road:r,k,lane:w>=16?4:w>=12?3.5:1.6};if(kind!=='city'&&kind!=='coast'&&kind!=='service'&&w>=12){e.multi=true;e.laneO=w*.355;e.laneI=w*.135;e.lane=e.laneO;}EDGES.push(e);/* v1.01.22: highways have 2 lanes each way (left slow, right fast) */r.edges.push(e);
@@ -121,12 +124,12 @@ function addRoad(pts,w,kind,name){const r={pts,w,kind,name,edges:[]};ROADS.push(
 function edgesNear(x,z){return rHash.get(Math.floor(x/RH)+','+Math.floor(z/RH))||[];}
 function roadAt(x,z,m=0){for(const id of edgesNear(x,z)){const e=EDGES[id];if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+m)return e;}return null;}
 function nearestRoadPoint(x,z,maxR=400){let best=null,bd=1e9;for(let r=RH;r<=maxR;r+=RH){for(let ox=-r;ox<=r;ox+=RH)for(let oz=-r;oz<=r;oz+=RH){for(const id of edgesNear(x+ox,z+oz)){const e=EDGES[id];const l2=e.len*e.len;let t=((x-e.ax)*(e.bx-e.ax)+(z-e.az)*(e.bz-e.az))/l2;t=clamp(t,0,1);const px=e.ax+(e.bx-e.ax)*t,pz=e.az+(e.bz-e.az)*t;const d=Math.hypot(px-x,pz-z);if(d<bd){bd=d;best={x:px,z:pz,e,t:t*e.len};}}}if(best)return best;}return best;}
-function drivable(x,z){return !!roadAt(x,z,.5)||(!isWater(x,z)&&x>2&&z>2&&x<W.W-2&&z<W.H-2);}
+function drivable(x,z){if(POOLS.length&&inPool(x,z))return false;return !!roadAt(x,z,.5)||(!isWater(x,z)&&x>2&&z>2&&x<W.W-2&&z<W.H-2);}
 
 /* colliders */
 const CHS=64,cHash=new Map();const colliders=[];
 function addCol(x,z,hw,hd,veh=true,foot=true){const c={x,z,hw,hd,veh,foot};colliders.push(c);for(let i=Math.floor((x-hw)/CHS);i<=Math.floor((x+hw)/CHS);i++)for(let j=Math.floor((z-hd)/CHS);j<=Math.floor((z+hd)/CHS);j++){const k=i+','+j;let a=cHash.get(k);if(!a)cHash.set(k,a=[]);a.push(c);}return c;}
-function collide(p,r,foot){let hit=false;const seen=new Set();for(let i=Math.floor((p.x-r)/CHS);i<=Math.floor((p.x+r)/CHS);i++)for(let j=Math.floor((p.z-r)/CHS);j<=Math.floor((p.z+r)/CHS);j++){const a=cHash.get(i+','+j);if(!a)continue;let onRd=null;for(const c of a){if(seen.has(c))continue;seen.add(c);if(foot?!c.foot:!c.veh)continue;if(c.hw>8&&c.hd>8){if(onRd===null)onRd=!!roadAt(p.x,p.z,-.6);if(onRd)continue;}/* v1.01.22: roads run through big fort and falls footprints */
+function collide(p,r,foot){let hit=false;const seen=new Set();for(let i=Math.floor((p.x-r)/CHS);i<=Math.floor((p.x+r)/CHS);i++)for(let j=Math.floor((p.z-r)/CHS);j<=Math.floor((p.z+r)/CHS);j++){const a=cHash.get(i+','+j);if(!a)continue;let onRd=null;for(const c of a){if(seen.has(c))continue;seen.add(c);if(foot?!c.foot:!c.veh)continue;if(c.hw>8&&c.hd>8){if(onRd===null){const re=roadAt(p.x,p.z,-.6);onRd=!!re;if(re&&(re.stopB!=null||re.stopA!=null)){const sx=(p.x-re.ax)*re.dx+(p.z-re.az)*re.dz;if((re.stopB!=null&&sx>re.stopB+2)||(re.stopA!=null&&sx<re.stopA-2))onRd=false;}}if(onRd)continue;}/* v1.01.22: roads run through big fort and falls footprints */
     const dx=p.x-c.x,dz=p.z-c.z,ex=c.hw+r,ez=c.hd+r;if(Math.abs(dx)<ex&&Math.abs(dz)<ez){const px=ex-Math.abs(dx),pz=ez-Math.abs(dz);if(px<pz)p.x+=Math.sign(dx||1)*px;else p.z+=Math.sign(dz||1)*pz;hit=true;}}}return hit;}
 
 /* ================= terrain ================= */
@@ -187,7 +190,7 @@ function building(x,z,w,d,h,mat,opts={}){const g=new THREE.BoxGeometry(w,h,d);co
   if(opts.dome&&rnd()<opts.dome){const dm=new THREE.SphereGeometry(Math.min(w,d)*.25,10,6,0,Math.PI*2,0,Math.PI/2);dm.translate(x,h+.9,z);addStatic(dm,M.white);}
   if(opts.awn&&h<70){const a=pick(M.awn);if(opts.awn[0])box(.9,.25,d*.8,x+opts.awn[0]*(w/2+.45),3.6,z,a);else box(w*.8,.25,.9,x,3.6,z+opts.awn[1]*(d/2+.45),a);}}
 function ctxBuilding(x,z,w,d,h,kind){const S=curStyle;if(kind==='glass')return building(x,z,w,d,h,glassMat,{});building(x,z,w,d,h,bmat(pick(S.cols),S.old),{old:S.old});}
-const LCTX={THREE,M,rnd,pick,add:(g,m,c,r)=>addStatic(g,m,c!==false,r!==false),box:(w,h,d,x,y,z,m,c,r)=>box(w,h,d,x,y,z,m,c,r),boxRot:(w,h,d,x,y,z,ry,m,c,r)=>boxRot(w,h,d,x,y,z,ry,m,c,r),
+const LCTX={THREE,M,rnd,pick,add:(g,m,c,r)=>addStatic(g,m,c!==false,r!==false),box:(w,h,d,x,y,z,m,c,r)=>{if(m===M.waterBox&&y-h/2<1&&w*d>40)addPool(x,z,w/2,d/2,true);return box(w,h,d,x,y,z,m,c,r);},pool:(x,z,rx,rz)=>addPool(x,z,rx,rz),boxRot:(w,h,d,x,y,z,ry,m,c,r)=>boxRot(w,h,d,x,y,z,ry,m,c,r),
   cyl:(rt,rb,h,x,y,z,m,seg=10)=>{const g=new THREE.CylinderGeometry(rt,rb,h,seg);g.translate(x,y,z);addStatic(g,m);},
   cone:(r,h,x,y,z,m,seg=8)=>{const g=new THREE.ConeGeometry(r,h,seg);if(seg===4)g.rotateY(Math.PI/4);g.translate(x,y,z);addStatic(g,m);},
   sph:(r,x,y,z,m)=>{const g=new THREE.SphereGeometry(r,12,8);g.translate(x,y,z);addStatic(g,m);},

@@ -11,14 +11,24 @@ window.BBFeatures.push(function (bb) {
   // a road that ends at a place (a fort, the Statue of Unity, a beach, a shop) is a destination, not a dead end: leave it open
   const LM = (bb.WORLD && bb.WORLD.landmarks) || [];
   const atPlace = (x, z) => (bb.pois || []).some(p => Math.abs(p.x - x) < 25 && Math.abs(p.z - z) < 25 && Math.hypot(p.x - x, p.z - z) < 25) || LM.some(l => Math.hypot(l.x - x, l.z - z) < 70);
+  /* Beta v1.01.23: where the last part of a road runs into water, a falls pool or a fort, traffic turns round before it.
+     blockedCut walks in from the end until the road (both lanes) is clear; stopAt tells the traffic where to turn. */
+  const bigCol = (x, z) => bb.colsAt && bb.colsAt(x, z, 0, true).some(c => c.hw > 8 && c.hd > 8);
+  const blocked = (x, z, r) => (bb.inPool && bb.inPool(x, z)) || (r.kind !== 'bridge' && bb.isWater && bb.isWater(x, z)) || bigCol(x, z);
+  function blockedCut(px, pz, ox, oz, e, r) { const off = e.multi ? e.laneO : e.lane; let k = 0;
+    for (; k <= 80; k += 2) { const x = px - ox * k, z = pz - oz * k; if (!blocked(x, z, r) && !blocked(x + oz * off, z - ox * off, r) && !blocked(x - oz * off, z + ox * off, r)) break; } return k > 80 ? 0 : k; }
+  let stops = 0;
+  function stopAt(e, atB, cut, r) { stops++; const keep = 4; if (atB) { if (e.len - cut - keep > 6) e.stopB = e.len - cut - keep; else { e.blocked = true; const nb = r.edges.find(q => q.k === e.k - 1); if (nb) nb.stopB = Math.max(4, nb.len - (cut + keep - e.len)); } }
+    else { if (cut + keep < e.len - 6) e.stopA = cut + keep; else { e.blocked = true; const nb = r.edges.find(q => q.k === e.k + 1); if (nb) nb.stopA = Math.min(nb.len - 4, cut + keep - e.len); } } }
   const ends = [];
   for (const r of bb.ROADS) { if (r.fly || !r.edges.length || r.kind === 'service') continue;
     const first = r.edges[0], last = r.edges[r.edges.length - 1];
     for (const [e, atB] of [[first, false], [last, true]]) { const px = atB ? e.bx : e.ax, pz = atB ? e.bz : e.az; if (joined(px, pz, e)) continue;
-      if (bb.isWater && bb.isWater(px, pz)) continue; if (atPlace(px, pz)) continue; e.deadEnd = true; const ox = atB ? e.dx : -e.dx, oz = atB ? e.dz : -e.dz;
+      const ox = atB ? e.dx : -e.dx, oz = atB ? e.dz : -e.dz; const cut = blockedCut(px, pz, ox, oz, e, r); if (cut > 0) stopAt(e, atB, cut, r);
+      if (bb.isWater && bb.isWater(px - ox * cut, pz - oz * cut)) continue; if (atPlace(px, pz)) continue; e.deadEnd = true; const ex = px - ox * cut, ez = pz - oz * cut;
       // also the edge before, when the last one is short
       if (e.len < 60) { const nb = r.edges.find(q => q.k === e.k + (atB ? -1 : 1)); if (nb) nb.deadEnd = true; }
-      ends.push({ x: px - ox * 3, z: pz - oz * 3, ox, oz, w: e.w, kind: r.kind }); } }
+      ends.push({ x: ex - ox * 3, z: ez - oz * 3, ox, oz, w: e.w, kind: r.kind }); } }
   /* ---------- the look: barrier boards on legs, a sign on a pole, a police cone or two ---------- */
   const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new T.CanvasTexture(c); t.anisotropy = 4; return t; };
   const stripe = tex(256, 32, (x, w, h) => { for (let i = -2; i < 12; i++) { x.fillStyle = i % 2 ? '#f4f1ea' : '#d7261e'; x.beginPath(); x.moveTo(i * 26, 0); x.lineTo(i * 26 + 26, 0); x.lineTo(i * 26 + 26 - 16, h); x.lineTo(i * 26 - 16, h); x.fill(); } });
@@ -39,5 +49,5 @@ window.BBFeatures.push(function (bb) {
     put(new T.PlaneGeometry(1.5, 1.12), mSign, px, 2.35, pz, ry + Math.PI); put(new T.PlaneGeometry(1.5, 1.12), mBack, px, 2.35, pz, ry);
     for (const s of [-.3, .3]) { const cx = d.x - d.ox * 2 + sx * s * span, cz = d.z - d.oz * 2 + sz * s * span; put(new T.ConeGeometry(.22, .7, 10), mCone, cx, .35, cz, 0); put(new T.CylinderGeometry(.12, .15, .1, 10), mBand, cx, .42, cz, 0); } }
   if (bb.flushStatic) bb.flushStatic();
-  bb.DEADENDS = ends;
+  bb.DEADENDS = ends; bb.ROADSTOPS = stops;
 });

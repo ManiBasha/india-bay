@@ -180,7 +180,7 @@ window.LANDMARKS = (function () {
       for (let k = 0; k <= N; k++) { const f = k / N, y = f * sh, lip = Math.pow(Math.max(0, f - .8) * 5, 2) * 3 + f * 1.2; pos.push(fx - .6 - lip, y, z0 - sw / 2, fx - .6 - lip, y, z0 + sw / 2); uv.push(0, f * 3, 1, f * 3); if (k) { const b = (k - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); } }
       const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); c.add(g, wm, false, false);
       const fg = new T.CircleGeometry(sw * .7, 14); fg.rotateX(-Math.PI / 2); fg.scale(1.3, 1, 1); fg.translate(fx - 3, .45, z0); c.add(fg, fm, false, false); }
-    const p = new T.CircleGeometry(1, 28); p.rotateX(-Math.PI / 2); p.scale(w * .35, 1, w * .62); p.translate(fx - w * .28, .3, zc); c.add(p, c.M.waterBox, false, true);
+    const p = new T.CircleGeometry(1, 28); p.rotateX(-Math.PI / 2); p.scale(w * .35, 1, w * .62); p.translate(fx - w * .28, .3, zc); c.add(p, c.M.waterBox, false, true); if (c.pool) c.pool(fx - w * .28, zc, w * .35, w * .62);
     const mist = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .2, depthWrite: false });
     for (let i = 0; i < 7; i++) { const sg = new T.SphereGeometry(w * (.08 + rnd() * .07), 8, 6); sg.scale(1, .6, 1.6); sg.translate(fx - 4 - rnd() * 6, 1 + rnd() * 3, zc + (rnd() - .5) * w * .9); c.add(sg, mist, false, false); }
     // the river running over the top of the cliff
