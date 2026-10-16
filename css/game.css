@@ -657,3 +657,17 @@ body.cine #rcol{display:flex!important;z-index:6}body.cine #rcol .btns,body.cine
 #breath{position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:14px;background:rgba(20,18,40,.72);color:#fff;font-weight:700}#breath[hidden]{display:none}#breath i{display:block;width:140px;height:8px;border-radius:5px;background:rgba(255,255,255,.18);overflow:hidden}#breath b{display:block;height:100%;width:100%;border-radius:5px;transition:width .2s}
 
 .spick .spgo{display:flex;align-items:center;justify-content:center;width:100%;margin-top:10px;padding:12px 16px;font-size:17px;border-radius:14px}
+
+/* Beta v1.01.27: the India Bay logo */
+.sr{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}
+#intro .logo .brand{display:block;width:clamp(130px,18vw,220px);height:auto;border-radius:22px;box-shadow:0 10px 40px rgba(0,0,0,.45);margin:34px 0 10px}
+@media (max-height:560px) and (max-width:979px){#intro .logo .brand{width:110px;border-radius:14px;margin-bottom:4px}}
+.blogo{display:inline-block;width:28px;height:28px;border-radius:7px;vertical-align:-8px;margin-right:8px}
+#hudLogo{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 4px);transform:translateX(-50%);width:34px;height:34px;border-radius:8px;opacity:.55;pointer-events:none;z-index:3}
+body.cine #hudLogo,body:not(.started) #hudLogo{display:none}
+
+/* Beta v1.01.27: garage cards · name on top, details, then the buttons across the bottom */
+.grow{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 12px;margin:8px 0}
+.grow .gtop{display:flex;align-items:center;gap:8px}.grow .gdot{width:12px;height:12px;border-radius:50%;flex:none}
+.grow .gname{flex:1;font-weight:800;font-size:16px;line-height:1.2}.grow .gren{flex:none;background:rgba(255,255,255,.1);border:0;color:inherit;border-radius:10px;padding:6px 10px;font:700 13px var(--f-ui,inherit);cursor:pointer}
+.grow .ginfo{display:block;opacity:.75;margin:4px 0 0 20px}.grow .gbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.grow .gbtns .buy{flex:1 1 auto;min-width:0;white-space:normal;line-height:1.15;padding-left:10px;padding-right:10px}

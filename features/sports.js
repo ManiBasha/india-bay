@@ -137,7 +137,7 @@ window.BBFeatures.push(function (bb) {
       x.beginPath(); x.arc(X(gx - s * 10.5), Z(0), 3, 0, 6.29); x.fillStyle = '#fff'; x.fill(); } x.beginPath(); x.arc(X(0), Z(0), 3, 0, 6.29); x.fill(); }); }
   function fieldTexCricket() { return canvasTex(1024, 1024, (x, w, h) => { for (let i = 0; i < 16; i++) { x.fillStyle = i % 2 ? '#3f9b3c' : '#4aac46'; x.fillRect(0, i * h / 16, w, h / 16 + 1); }
     x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 3; x.setLineDash([10, 10]); x.beginPath(); x.ellipse(w / 2, h / 2, w * .3, h * .3, 0, 0, 6.29); x.stroke(); }); }
-  function adTex(lines, col, col2) { return canvasTex(1024, 64, (x, w, h) => { x.fillStyle = col; x.fillRect(0, 0, w, h); x.font = '800 38px "Baloo 2", sans-serif'; x.textBaseline = 'middle'; x.fillStyle = col2; let px = 20; let i = 0; while (px < w) { const t = lines[i++ % lines.length]; x.fillText(t, px, h / 2 + 2); px += x.measureText(t).width + 60; } }); }
+  function adTex(lines, col, col2) { return canvasTex(1024, 64, (x, w, h) => { x.fillStyle = col; x.fillRect(0, 0, w, h); x.font = '800 38px "Baloo 2", sans-serif'; x.textBaseline = 'middle'; x.fillStyle = col2; let px = 20; let i = 0; while (px < w) { const t = lines[i++ % lines.length]; const L = bb.LOGO_IMG; if (t === 'INDIA BAY' && L && L.complete && L.naturalWidth) { x.drawImage(L, px, 3, h - 6, h - 6); px += h + 6; } x.fillText(t, px, h / 2 + 2); px += x.measureText(t).width + 60; } }); }
   function personMesh(col) { const p = bb.buildPerson(col, { female: false }); p.userData.base = col; return p; }
 
   /* Beta v1.01.26: real people in the stands (not boxes): seated fans with heads, hair, shirts in the team colours, trousers and

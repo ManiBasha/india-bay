@@ -77,7 +77,7 @@ function houseAd(slot,n){const R=slot.kind==='road'&&slot.road!=='city road'?400
   const opts=[];for(const f of EXTRA_ADS){try{const a=f(slot);if(a){opts.push(a);opts.push(a);}}catch(e){}}for(const [type,f,alt] of HOUSE){const list=near.filter(p=>p.type===type||(alt&&p.type===alt)).sort((a,b)=>Math.hypot(a.x-slot.x,a.z-slot.z)-Math.hypot(b.x-slot.x,b.z-slot.z));for(const p of list){const ad=f(p);if(ad){opts.push(Object.assign(ad,{target:{x:p.x,z:p.z,name:p.name}}));break;}}}
   // spread the variety: each board in an area takes the next kind of ad; every 5th is a road-safety or advertise-here board
   const key=slot.zone||'hw',c=houseCount.get(key)||0;houseCount.set(key,c+1);const off=Math.floor(hash(key.length*13.1+(slot.zone?slot.zone.charCodeAt(0):7))*97);
-  const pick=!opts.length||c%5===4?SAFETY[(c+off)%SAFETY.length]:opts[(c+off)%opts.length];return Object.assign({house:true},pick);}
+  if(c%7===3)return{house:true,logo:true,title:'India Bay',line2:'Reclaim your kingdom',text:'INDIA BAY|Reclaim your kingdom',fg:'#ffc93c',bg:'#123d4c'};const pick=!opts.length||c%5===4?SAFETY[(c+off)%SAFETY.length]:opts[(c+off)%opts.length];return Object.assign({house:true},pick);}
 function chooseAd(slot,n){const list=collabAds(slot.zone);for(let i=0;i<list.length;i++){const b=list[(i+n)%list.length];const key=b.advertiser+'|'+b.text;const c=adShown.get(key)||0;if(c<3){adShown.set(key,c+1);const L=String(b.text||'').split('|');return{collab:true,title:L[0]||b.advertiser,line2:L[1]||'',text:b.text,fg:b.fg||'#1d1433',bg:b.bg||'#ffffff',advertiser:b.advertiser,link:b.link||'',cat:IBCONF.adLabel(b.category)};}}
   return houseAd(slot,n);}
 // Green and blue are kept for road signs (welcome and direction boards), so ads never use them as a background.
@@ -86,8 +86,8 @@ function adBg(c){const col=new THREE.Color();try{col.set(c||'#ffffff');}catch(e)
 function adFg(bg,fg){const col=new THREE.Color(bg);const L=.2126*col.r+.7152*col.g+.0722*col.b;const f=new THREE.Color(fg||'#ffffff');const Lf=.2126*f.r+.7152*f.g+.0722*f.b;return Math.abs(L-Lf)<.35?(L>.5?'#1d1433':'#ffffff'):fg;}
 const postMat=LMat('#3b3a40'),frameMat=LMat('#202226');
 function buildBoard(slot,n){const ad=slot.ad||(slot.ad=chooseAd(slot,n));if(!ad.safe){ad.safe=1;const nb=adBg(ad.bg);if(nb!==ad.bg){ad.bg=nb;ad.fg=adFg(nb,ad.fg);}}const g=new THREE.Group();g.position.set(slot.x,slot.y,slot.z);g.rotation.y=slot.rot;
-  const small=slot.kind==='pillar'||slot.kind==='flex',tall=slot.kind==='pillar';const tex=signTex(ad.text||(ad.line2?ad.title+'|'+ad.line2:ad.title),ad.fg,ad.bg,tall?160:small?320:512,tall?256:small?144:256);const board=new THREE.Mesh(new THREE.PlaneGeometry(slot.bw,slot.bh),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
-  board.userData.ad=ad;board.userData.slot=slot;g.add(board);billboardMeshes.push(board);
+  const small=slot.kind==='pillar'||slot.kind==='flex',tall=slot.kind==='pillar';const tex=ad.logo?logoTex(tall?160:small?320:512,tall?256:small?144:256,'Reclaim your kingdom'):signTex(ad.text||(ad.line2?ad.title+'|'+ad.line2:ad.title),ad.fg,ad.bg,tall?160:small?320:512,tall?256:small?144:256);const board=new THREE.Mesh(new THREE.PlaneGeometry(slot.bw,slot.bh),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));
+  board.userData.ad=ad;board.userData.slot=slot;g.add(board);billboardMeshes.push(board);if(!['road','pillar','parapet','flex'].includes(slot.kind)){twoSided(board);billboardMeshes.push(board.children[0]);}
   // v1.0: the two legs stop at the bottom edge of the board and stand well behind both faces, so they never show over the ad
   if(slot.kind==='road'){const top=6+slot.bh/2;board.position.set(0,top,.3);board.material.side=THREE.FrontSide;board.material.polygonOffset=true;board.material.polygonOffsetFactor=-2;board.material.polygonOffsetUnits=-2;
     const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));back.position.set(0,top,-.3);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
@@ -96,7 +96,7 @@ function buildBoard(slot,n){const ad=slot.ad||(slot.ad=chooseAd(slot,n));if(!ad.
   if(slot.kind==='pillar'){board.position.set(0,slot.y0,slot.off);board.material.side=THREE.FrontSide;const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex}));back.position.set(0,slot.y0,-slot.off);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
     for(const s of [-1,1])part(G.box,frameMat,slot.bw+.1,.08,.06,0,slot.y0+s*slot.bh/2,slot.off,g);}
   if(slot.kind==='parapet'){board.position.set(0,slot.y0,0);board.material.side=THREE.FrontSide;board.material.polygonOffset=true;board.material.polygonOffsetFactor=-2;}
-  if(slot.kind==='flex'){board.position.set(0,slot.y0,.06);const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex}));back.position.set(0,slot.y0,-.06);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
+  if(slot.kind==='flex'){board.material.side=THREE.FrontSide;board.position.set(0,slot.y0,.06);const back=new THREE.Mesh(board.geometry,new THREE.MeshBasicMaterial({map:tex}));back.position.set(0,slot.y0,-.06);back.rotation.y=Math.PI;back.userData=board.userData;g.add(back);billboardMeshes.push(back);
     for(const sx of [-slot.bw/2-.06,slot.bw/2+.06])part(G.box,postMat,.07,slot.y0+slot.bh/2+.2,.07,sx,(slot.y0+slot.bh/2+.2)/2,0,g);for(const s of [-1,1])part(G.cyl,LMat('#d9d2c4'),.03,slot.bw+.1,.03,0,slot.y0+s*slot.bh/2,0,g).rotation.z=Math.PI/2;}
   scene.add(g);return g;}
 const EXTRA_SLOTS=[];function addAdSlot(s){EXTRA_SLOTS.push(s);if(SLOTS)SLOTS.push(s);}
@@ -776,13 +776,13 @@ function updAnimals(dt,now){const pp=ppos();
     a.g.position.set(a.x,0,a.z);a.g.rotation.y=a.h;animGait(a,now,spd);}
   const zz=zoneAt(pp.x,pp.z,200);const forest=!zz&&W.zones.some(q=>FOREST.includes(q.id)&&Math.hypot(q.x0+q.nx*40-pp.x,q.z0+q.nz*40-pp.z)<900);
   const list=zz?(zz.id==='mumbai'?STRAYS.mumbai:STRAYS[zz.st]||STRAYS.def):forest?[['elephant',30],['deer',40],['monkey',30]]:null;
-  strayT-=dt;if(list&&!inside&&strayT<=0&&cows.filter(c=>c.active).length<(zz?(zz.size==='big'?0:zz.size==='mid'?1:2):forest?5:2)){strayT=MR(1,3)*(zz?3:1);const r=randomLaneNear(pp.x,pp.z,60,200);if(r&&(zz?r.e.kind==='city':r.e.kind!=='city')){const kind=wpick(list);const c=getStray(kind);if(c){lanePos(r,_lp);c.x=_lp.x;c.z=_lp.z;c.h=_lp.h+MR(-.4,.4);c.active=true;c.g.visible=true;c.t=MR(30,80);c.hp=100;c.state='ok';c.g.rotation.set(0,c.h,0);c.g.position.y=0;}}}
+  strayT-=dt;if(list&&!inside&&strayT<=0&&cows.filter(c=>c.active).length<(zz?(zz.size==='big'?0:zz.size==='mid'?1:2):forest?5:2)){strayT=MR(1,3)*(zz?3:1);const r=randomLaneNear(pp.x,pp.z,60,200);if(r&&(zz?r.e.kind==='city':r.e.kind!=='city')){const kind=wpick(list);const c=getStray(kind);if(c){lanePos(r,_lp);if(isWater(_lp.x,_lp.z)||wetNear(_lp.x,_lp.z,3)){c.active=false;c.g.visible=false;}else{c.x=_lp.x;c.z=_lp.z;c.h=_lp.h+MR(-.4,.4);c.active=true;c.g.visible=true;c.t=MR(30,80);c.hp=100;c.state='ok';c.g.rotation.set(0,c.h,0);c.g.position.y=0;}}}}
   for(const c of cows){if(!c.active)continue;c.t-=dt;const d=Math.hypot(c.x-pp.x,c.z-pp.z);if(c.state!=='down'&&(c.t<=0&&d>120||d>320)||inside){c.active=false;c.g.visible=false;c.state='ok';c.g.rotation.z=0;continue;}
     if(!updAnimal(c,dt,now))continue;if(c.state==='down')continue;
     if(c.kind==='elephant'&&c.state==='angry'&&player.mode!=='foot'&&d<30){c.h=Math.atan2(pp.x-c.x,pp.z-c.z);}
     else if(Math.random()<.01)c.h+=MR(-.8,.8);
     const base={cow:.35,buffalo:.3,goat:.6,dog:.9,camel:.6,monkey:.8,peacock:.4,elephant:.5,deer:.8}[c.kind]||.4;const sp=c.state==='angry'?3:c.state==='limp'?base*.4:base;
-    const nx=c.x+Math.sin(c.h)*sp*dt,nz=c.z+Math.cos(c.h)*sp*dt;if(roadAt(nx,nz)){c.x=nx;c.z=nz;}else c.h+=Math.PI/2;c.g.position.set(c.x,0,c.z);c.g.rotation.y=c.h;animGait(c,now,sp);}}
+    const nx=c.x+Math.sin(c.h)*sp*dt,nz=c.z+Math.cos(c.h)*sp*dt;if(roadAt(nx,nz)&&!isWater(nx,nz)&&!wetNear(nx,nz,2)){c.x=nx;c.z=nz;}else c.h+=Math.PI/2;c.g.position.set(c.x,0,c.z);c.g.rotation.y=c.h;animGait(c,now,sp);}}
 
 /* ================= Mumbai local train and planes ================= */
 const localTrains=[];

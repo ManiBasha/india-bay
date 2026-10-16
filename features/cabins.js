@@ -12,8 +12,8 @@ window.BBFeatures.push(function (bb) {
     const cyl = (r, h, x, y, z, m, rx, rz) => { const o = new T.Mesh(new T.CylinderGeometry(r, r, h, 10), typeof m === 'string' ? M(m) : m); o.position.set(x, y, z); if (rx) o.rotation.x = rx; if (rz) o.rotation.z = rz; g.add(o); return o; };
     return { box, cyl }; }
   const PEOPLE = ['#d9483b', '#2f7fc1', '#f4f1ea', '#1f8a4c', '#ffc93c', '#7b2a5e', '#e58f2a', '#5c6b8a', '#ff6fa8'];
-  function sitter(g, x, y, z, ry, stand) { const p = bb.buildPerson(M(PEOPLE[Math.floor(Math.random() * PEOPLE.length)]), { female: Math.random() < .45 }); p.position.set(x, y - (stand ? 0 : .62), z); p.rotation.y = ry || 0; p.scale.setScalar(.96);
-    if (!stand && p.userData.legs) for (const l of p.userData.legs) l.rotation.x = -1.45; g.add(p); return p; }
+  function sitter(g, x, y, z, ry, stand) { const p = bb.buildPerson(M(PEOPLE[Math.floor(Math.random() * PEOPLE.length)]), { female: Math.random() < .45, seated: !stand }); p.position.set(x, y - (stand ? 0 : 1.4), z); p.rotation.y = ry || 0; p.scale.setScalar(.96);
+    if (!stand && p.userData.legs) for (const l of p.userData.legs) l.rotation.x = -1.5; if (!stand && p.userData.arms) for (const a of p.userData.arms) a.rotation.x = -.5; g.add(p); return p; }
   // a side wall with window openings: panels below and above the glass band, pillars between the windows
   function windowWall(K, x, len, floor, band0, band1, top, pitch, gap, col, frame) { K.box(.08, band0, len, x, floor + band0 / 2, 0, col); K.box(.08, top - band1, len, x, floor + band1 + (top - band1) / 2, 0, col);
     for (let z = -len / 2; z <= len / 2 + .01; z += pitch) K.box(.1, band1 - band0, pitch - gap, x, floor + (band0 + band1) / 2, z + (pitch - gap) / 2 - pitch / 2 + gap / 2 + 0, frame || col);
@@ -59,14 +59,16 @@ window.BBFeatures.push(function (bb) {
   function plane() { const g = new T.Group(), K = kit(g); const L = 26, R = 2.0; const F = 0;
     K.box(3.6, .06, L, 0, F, 0, '#5a6274'); for (let z = -L / 2 + .5; z < L / 2; z += 1) K.box(.5, .01, .8, 0, F + .04, z, '#3e4658');
     const cg = new T.CylinderGeometry(R, R, L, 18, 1, true, Math.PI * .68, Math.PI * .64); cg.rotateX(Math.PI / 2); const ceil = new T.Mesh(cg, new T.MeshLambertMaterial({ color: '#efece6', side: T.DoubleSide })); ceil.position.y = F + .55; ceil.rotation.z = 0; g.add(ceil);
-    for (const s of [-1, 1]) { K.box(.08, .78, L, s * 1.82, F + .39, 0, '#e6e2da'); // below the windows
-      for (let z = -L / 2; z < L / 2; z += .82) { K.box(.1, .5, .52, s * 1.84, F + 1.08, z + .26, '#e6e2da'); K.box(.02, .36, .3, s * 1.86, F + 1.08, z + .67, glass); }
-      K.box(.1, .5, L, s * 1.72, F + 1.6, 0, '#e6e2da'); K.box(.55, .4, L, s * 1.35, F + 1.95, 0, '#f4f2ee'); K.box(.02, .06, L, s * 1.08, F + 1.78, 0, glow('#e9f0ff')); }
+    for (const s of [-1, 1]) { K.box(.08, .82, L, s * 1.82, F + .41, 0, '#e6e2da'); // below the windows
+      // Beta v1.01.27: real cabin windows · narrow pillars and tall rounded-off openings, so you can see out
+      for (let z = -L / 2; z < L / 2; z += .82) { K.box(.1, .62, .3, s * 1.84, F + 1.13, z + .15, '#e6e2da'); K.box(.1, .07, .5, s * 1.84, F + .86, z + .55, '#d6d1c7'); K.box(.1, .07, .5, s * 1.84, F + 1.41, z + .55, '#d6d1c7'); }
+      K.box(.02, .62, L, s * 1.88, F + 1.13, 0, glass);
+      K.box(.1, .36, L, s * 1.72, F + 1.62, 0, '#e6e2da'); K.box(.55, .4, L, s * 1.35, F + 1.95, 0, '#f4f2ee'); K.box(.02, .06, L, s * 1.08, F + 1.78, 0, glow('#e9f0ff')); }
     const seats = [];
     for (let z = -L / 2 + 1.5, row = 1; z < L / 2 - 2; z += .82, row++) for (const s of [-1, 1]) for (const k of [0, 1, 2]) { const x = s * (.45 + k * .48); K.box(.44, .1, .44, x, F + .45, z, '#26406e'); K.box(.44, .72, .08, x, F + .85, z - .22, '#26406e'); K.box(.44, .14, .09, x, F + 1.27, z - .22, '#f2f2f2');
       if (Math.random() < .55 && !(s === 1 && k === 2 && Math.abs(z - 1) < .5)) sitter(g, x, F + 1.07, z + .02, 0); }
     K.box(3.6, 2.1, .1, 0, F + 1.05, L / 2 - .5, '#e6e2da'); K.box(.9, 1.9, .04, 0, F + .95, L / 2 - .56, '#cfc9be');
-    seats.push({ name: 'Window seat', eye: [1.4, F + 1.12, 1.0], look: Math.PI / 2 * .78, pitch: -.12 }, { name: 'Aisle seat', eye: [.45, F + 1.12, 1.0], yaw: 0 }, { name: 'Window seat over the wing', eye: [-1.4, F + 1.12, -2.3], look: -Math.PI / 2 * .78, pitch: -.12 });
+    seats.push({ name: 'Window seat', eye: [1.3, F + 1.18, 1.0], look: Math.PI / 2 * .86, pitch: -.18 }, { name: 'Aisle seat', eye: [.45, F + 1.2, 1.0], yaw: 0 }, { name: 'Window seat over the wing', eye: [-1.3, F + 1.18, -2.3], look: -Math.PI / 2 * .86, pitch: -.18 });
     return { g, seats, floor: 1.15, airY: true }; }
   function heli() { const g = new T.Group(), K = kit(g); const F = 0;
     K.box(2.2, .06, 3.4, 0, F, 0, '#2b2e33'); for (const s of [-1, 1]) for (const z of [.3, -1.1]) { K.box(.5, .12, .5, s * .5, F + .45, z, '#4a3b2b'); K.box(.5, .65, .1, s * .5, F + .8, z - .25, '#4a3b2b'); }

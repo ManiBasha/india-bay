@@ -25,7 +25,7 @@ window.BBFeatures.push(function (bb) {
     add(new T.BoxGeometry(SW, SH, SD), M('#3b2a4a'), 0, SH / 2, 0); add(new T.BoxGeometry(SW + .2, .08, SD + .2), M('#1a1430'), 0, SH, 0);
     for (let i = 0; i < 2; i++) add(new T.BoxGeometry(2.2, (i + 1) * SH / 3, .7), M('#5a4a6a'), 0, (i + 1) * SH / 6, SD / 2 + .35 + (1 - i) * .7);   // steps at the front
     for (const s of [-1, 1]) { add(new T.CylinderGeometry(.12, .12, 5.2, 8), M('#2b2b30'), s * (SW / 2 - .2), SH + 2.6, -SD / 2 + .2); add(new T.BoxGeometry(1, 1.6, .9), M('#1c1c22'), s * (SW / 2 + .8), .8, SD / 2 - .6); add(new T.BoxGeometry(.6, .6, .05), M('#3a3a44'), s * (SW / 2 + .8), 1.1, SD / 2 - .14); }
-    add(new T.BoxGeometry(SW, .3, .3), M('#2b2b30'), 0, SH + 5.2, -SD / 2 + .2); const b = add(new T.PlaneGeometry(SW - .6, 1.4), new T.MeshBasicMaterial({ map: banner(e.title), side: T.DoubleSide }), 0, SH + 4.3, -SD / 2 + .25);
+    add(new T.BoxGeometry(SW, .3, .3), M('#2b2b30'), 0, SH + 5.2, -SD / 2 + .2); const b = add(new T.PlaneGeometry(SW - .6, 1.4), new T.MeshBasicMaterial({ map: banner(e.title) }), 0, SH + 4.3, -SD / 2 + .25); if (bb.twoSided) bb.twoSided(b);
     const lights = []; for (let i = 0; i < 5; i++) { const l = add(new T.SphereGeometry(.18, 8, 6), glow(['#ffd04a', '#ff5fa2', '#5fb4ff', '#3ddc97', '#ff9933'][i]), -SW / 2 + 1.2 + i * (SW - 2.4) / 4, SH + 5, -SD / 2 + .45); lights.push(l); }
     add(new T.BoxGeometry(SW - .8, 3.6, .1), M('#24183a'), 0, SH + 1.8, -SD / 2 + .1);   // backdrop
     g.position.set(e.x, 0, e.z); g.rotation.y = e.rot || 0; bb.scene.add(g);

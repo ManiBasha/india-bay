@@ -35,8 +35,10 @@ window.BBFeatures.push(function (bb) {
   /* ---------- the rooms ---------- */
   const STAFF = { lodge: '#7a2f1d', hospital: '#f4f4f2', police: '#c9b27a', bank: '#2b3a5a', rto: '#e9e4d6', jobs: '#2f7fc1', realty: '#1c1c20', clothes: '#c2185b', mobile: '#3b2f8f', furniture: '#8d5a2b', guns: '#3d4a3a', cars: '#1c1c20', bikes: '#c8102e', mechanic: '#24467a' };
   const DESK = { lodge: 'Reception · book a room', hospital: 'Reception · see a doctor', police: 'Front desk', bank: 'Bank counter', rto: 'RTO counter · licences and papers', jobs: 'Job counter', realty: 'Sales desk · homes for sale', clothes: 'Shop counter', mobile: 'Shop counter', furniture: 'Showroom desk', guns: 'Shop counter', cars: 'Showroom desk · buy a vehicle', bikes: 'Showroom desk · buy a two-wheeler', mechanic: 'Workshop desk · repairs and mods', airport: 'Check-in counter · flights', station: 'Ticket counter · trains', bus: 'Ticket counter · buses', metro: 'Ticket counter · metro', bullet: 'Ticket counter · bullet train', local: 'Ticket window · local trains' };
-  const LOOK = { lodge: ['#c9a27a', '#efe2c6', '#6b2a2a'], hospital: ['#dfe7ea', '#f6f8f8', '#2f6f8a'], police: ['#b9b2a2', '#e8e2cf', '#3a4a6a'], bank: ['#cfc6b4', '#f1ece2', '#2b3a5a'], rto: ['#c9c2b2', '#ece6d6', '#5a5048'], jobs: ['#d6d2c8', '#f2efe8', '#2f7fc1'],
-    realty: ['#3b3b40', '#f1ece4', '#c9a227'], clothes: ['#e8e2d6', '#fbf4f6', '#c2185b'], mobile: ['#e6e6ec', '#f6f6fa', '#3b2f8f'], furniture: ['#b88a5a', '#f3ebe0', '#8d5a2b'], guns: ['#7a7468', '#d9d2c2', '#3d4a3a'], cars: ['#e9e9ec', '#f7f7f7', '#1c1c20'], bikes: ['#e9e9ec', '#f7f7f7', '#c8102e'], mechanic: ['#6b6b6b', '#c9c4ba', '#24467a'] };
+  // floor, wall, accent · Beta v1.01.27: warm, rich colours instead of plain white
+  const LOOK = { lodge: ['#9a6a44', '#e8b97a', '#7a1f2b'], hospital: ['#c9dde0', '#bfe3e0', '#1f7a8c'], police: ['#a69a82', '#c9b98c', '#2f3f66'], bank: ['#b49a72', '#d8c49a', '#1f3460'], rto: ['#a8a090', '#cfd8a8', '#5a4a3a'], jobs: ['#b8b2a6', '#a8d0e8', '#1f5fa8'],
+    realty: ['#3b3b40', '#e8d6b0', '#b8901a'], clothes: ['#d8c8b8', '#f2b8c8', '#b0124f'], mobile: ['#c8c8d6', '#b8b0f0', '#3b2f8f'], furniture: ['#a07448', '#e8c89a', '#7a4a22'], guns: ['#6b665c', '#a8a088', '#3d4a3a'], cars: ['#d0d0d6', '#dfe3ea', '#1c1c20'], bikes: ['#d0d0d6', '#f0c8c0', '#c8102e'], mechanic: ['#5a5a5a', '#b8b08a', '#24467a'],
+    flats: ['#b8a88a', '#e8d8a8', '#4a5a3a'], office: ['#9aa0a8', '#c8d8e8', '#2b3a5a'], shop: ['#a88a5a', '#f0c878', '#a0381a'] };
   function lobby(poi, kind) { const w = kind === 'cars' || kind === 'bikes' ? 22 : 16, d = kind === 'cars' || kind === 'bikes' ? 16 : 14, H = 4.2; const L = LOOK[kind] || LOOK.jobs;
     return room(poi, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, plant } = K;
       box(w, .02, d, 0, .01, 0, L[0]); K.walls(w, d, H, L[1], '#f6f3ee');
@@ -56,7 +58,7 @@ window.BBFeatures.push(function (bb) {
       else seats.push(...benchRow(K, w / 2 - 3, 2.6, Math.PI, 3, '#5a5d62')); }); }
   function hall(poi, kind) { const w = 34, d = 22, H = 8; const air = kind === 'airport', col = air ? '#2f6f8a' : kind === 'metro' ? '#7a3d9a' : kind === 'bullet' ? '#2a5aa8' : kind === 'bus' ? '#b8202a' : '#1f5f3a';
     return room(poi, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, cyl, tex } = K;
-      box(w, .02, d, 0, .01, 0, air ? '#d9d6cf' : '#bdb4a4'); K.walls(w, d, H, '#efe9df', '#f6f3ee'); box(6, 3.2, .05, 0, 1.6, d / 2 - .05, new T.MeshPhongMaterial({ color: 0x9fc6dd, transparent: true, opacity: .35, side: T.BackSide })); for (let x = -12; x <= 12; x += 6) { cyl(.35, .35, H, x, H / 2, -2, '#d9d4cc'); box(2, .04, .6, x, H - .05, 3, glow('#fffbe8')); }
+      box(w, .02, d, 0, .01, 0, air ? '#c8c2b8' : '#a89a86'); K.walls(w, d, H, air ? '#cfe0ea' : kind === 'metro' ? '#d8c8e8' : kind === 'bus' ? '#e8d0b8' : '#d8e0c0', '#f6f3ee'); box(6, 3.2, .05, 0, 1.6, d / 2 - .05, new T.MeshPhongMaterial({ color: 0x9fc6dd, transparent: true, opacity: .35, side: T.BackSide })); for (let x = -12; x <= 12; x += 6) { cyl(.35, .35, H, x, H / 2, -2, '#d9d4cc'); box(2, .04, .6, x, H - .05, 3, glow('#fffbe8')); }
       // the counters along the back wall, with staff
       for (let i = 0; i < 5; i++) { const x = -10 + i * 5; box(3.6, 1.1, .8, x, .55, -d / 2 + 2.2, col, true); box(3.8, .06, .95, x, 1.12, -d / 2 + 2.2, '#e9e4d6'); person(air ? '#2f6f8a' : '#e9e4d6', x, -d / 2 + 1.4, 0); sign(String(i + 1), .6, .5, x, 2.2, -d / 2 + .17, 0, col, '#fff'); }
       pts.push({ k: 'desk', name: DESK[kind] || 'Ticket counter', x: 0, z: -d / 2 + 3.2 }); sign(poi.name, 12, 1.3, 0, H - 1.6, -d / 2 + .17, 0, col, '#ffffff');
@@ -71,8 +73,8 @@ window.BBFeatures.push(function (bb) {
   // other city buildings
   function generic(b, door) { const h = b.h, kind = h > 22 ? 'flats' : h > 11 ? 'office' : 'shop'; const w = kind === 'shop' ? 10 : 14, d = kind === 'shop' ? 9 : 12, H = kind === 'shop' ? 3.6 : 4;
     const name = kind === 'flats' ? 'Apartment lobby' : kind === 'office' ? 'Office building' : 'Kirana store';
-    return room(door, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, plant } = K; const wall = kind === 'shop' ? '#efe2c6' : '#e9e6e0';
-      box(w, .02, d, 0, .01, 0, kind === 'shop' ? '#b9a27a' : '#cfc9bc'); K.walls(w, d, H, wall, '#f6f3ee'); box(1.4, .04, .5, 0, H - .05, 0, glow('#fff6e0'));
+    return room(door, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, plant } = K; const wall = LOOK[kind][1];
+      box(w, .02, d, 0, .01, 0, LOOK[kind][0]); K.walls(w, d, H, wall, '#f6f3ee'); box(1.4, .04, .5, 0, H - .05, 0, glow('#fff6e0'));
       if (kind === 'shop') { for (const s of [-1, 1]) for (let r = 0; r < 4; r++) { box(.5, .05, 6, s * (w / 2 - .5), .5 + r * .6, -.5, '#8a5a3a', r === 0); for (let i = 0; i < 9; i++) box(.3, .35, .4, s * (w / 2 - .5), .72 + r * .6, -3.2 + i * .65, ['#e8573e', '#f2c14e', '#2f7fc1', '#3aa66b', '#ff9f1c'][(i + r) % 5]); }
         box(3, 1.0, .7, 0, .5, -d / 2 + 1.6, '#8a5a3a', true); person('#f4f1ea', 0, -d / 2 + .9, 0); pts.push({ k: 'buy', name: 'Buy a snack and a cold drink · ₹30', x: 0, z: -d / 2 + 2.6 }); seats.push(...benchRow(K, w / 2 - 2.5, d / 2 - 1.2, Math.PI, 1.8, '#5a4a3a')); }
       else { box(3, 1.05, .8, 0, .52, -d / 2 + 2.2, kind === 'flats' ? '#5a4a3a' : '#2b3a5a', true); person(kind === 'flats' ? '#3a4a6a' : '#2f7fc1', 0, -d / 2 + 1.4, 0); sign(kind === 'flats' ? 'SECURITY' : 'RECEPTION', 2.4, .45, 0, 2.6, -d / 2 + .17, 0, '#2b2b30', '#ffd36a');
@@ -92,6 +94,12 @@ window.BBFeatures.push(function (bb) {
     const tt = tileTex(big ? 'hall' : 'room').clone(); tt.needsUpdate = true; tt.repeat.set(w / (big ? 1.6 : 1.2), d / (big ? 1.6 : 1.2)); const fl = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshLambertMaterial({ map: tt, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); fl.rotation.x = -Math.PI / 2; fl.position.y = .035; g.add(fl);
     // skirting and a dado line
     const sk = kind === 'mechanic' ? '#3a3b40' : '#6b5a4a'; box(w, .14, .04, 0, .07, -d / 2 + .02, sk); box(w, .14, .04, 0, .07, d / 2 - .02, sk); box(.04, .14, d, -w / 2 + .02, .07, 0, sk); box(.04, .14, d, w / 2 - .02, .07, 0, sk);
+    // wood panelling on the lower walls with an accent stripe above it, in the room's own colour
+    const acc = (LOOK[kind] || LOOK.jobs)[2]; const wp = big ? 1.4 : 1.05;
+    for (const [ww, x, z, ry] of [[w, 0, -d / 2 + .03, 0], [d, -w / 2 + .03, 0, Math.PI / 2], [d, w / 2 - .03, 0, -Math.PI / 2]]) { const pnl = new T.Mesh(new T.PlaneGeometry(ww, wp), M('#6b4a32')); pnl.position.set(x, wp / 2, z); pnl.rotation.y = ry; g.add(pnl); const st = new T.Mesh(new T.PlaneGeometry(ww, .12), M(acc)); st.position.set(x, wp + .08, z + (ry === 0 ? .002 : 0)); st.rotation.y = ry; g.add(st); }
+    // a big patterned rug in the middle
+    const rt = document.createElement('canvas'); rt.width = 256; rt.height = 160; const rx = rt.getContext('2d'); rx.fillStyle = acc; rx.fillRect(0, 0, 256, 160); rx.strokeStyle = '#e9c46a'; rx.lineWidth = 8; rx.strokeRect(10, 10, 236, 140); rx.lineWidth = 3; rx.strokeRect(24, 24, 208, 112); rx.fillStyle = '#e9c46a'; for (let i = 0; i < 5; i++) { rx.beginPath(); rx.moveTo(128, 40 + i * 4); rx.lineTo(168 - i * 6, 80); rx.lineTo(128, 120 - i * 4); rx.lineTo(88 + i * 6, 80); rx.closePath(); rx.globalAlpha = .25 + i * .12; rx.fill(); } rx.globalAlpha = 1;
+    if (kind !== 'cars' && kind !== 'bikes' && kind !== 'mechanic') { const rug = new T.Mesh(new T.PlaneGeometry(big ? 10 : 4.4, big ? 6 : 2.8), new T.MeshLambertMaterial({ map: new T.CanvasTexture(rt), polygonOffset: true, polygonOffsetFactor: -3 })); rug.rotation.x = -Math.PI / 2; rug.position.set(big ? 0 : -w / 4, .045, big ? 4 : 1); g.add(rug); }
     // false ceiling: a frame and panel lights
     const cm = new T.Mesh(new T.PlaneGeometry(w, d), M('#f3f0ea')); cm.rotation.x = Math.PI / 2; cm.position.y = H - .02; g.add(cm); const step = big ? 4 : 3;
     for (let x = -w / 2 + step / 2; x < w / 2; x += step) for (let z = -d / 2 + step / 2; z < d / 2; z += step) { box(.62, .03, .62, x, H - .04, z, glow('#fffaf0')); box(.68, .02, .68, x, H - .025, z, '#d9d4cc'); }
@@ -100,7 +108,8 @@ window.BBFeatures.push(function (bb) {
       for (let i = 0; i < 3; i++) { const b = new T.Mesh(new T.BoxGeometry(.95, .015, .16), M('#e9e4d6')); b.position.set(Math.cos(i * 2.094) * .52, 0, Math.sin(i * 2.094) * .52); b.rotation.y = -i * 2.094; f.add(b); } g.add(f); fans.push(f); }
     // windows with daylight on the left wall
     const glass = glow('#cfe6f5'); for (let z = -d / 2 + 2.2; z < d / 2 - 2; z += big ? 4.5 : 3.2) { const ww = big ? 3 : 1.8, wh = big ? 3 : 1.4, y = big ? 3.6 : 1.85; const q = new T.Mesh(new T.PlaneGeometry(ww, wh), glass); q.position.set(-w / 2 + .03, y, z); q.rotation.y = Math.PI / 2; g.add(q);
-      for (const [a, b2, c, dx, dy] of [[.08, wh + .16, .1, 0, -ww / 2], [.08, wh + .16, .1, 0, ww / 2], [.08, .08, ww, wh / 2, 0], [.1, .1, ww + .3, -wh / 2 - .04, 0], [.06, wh, .05, 0, 0]]) box(a, b2, c, -w / 2 + .06, y + (dx || 0), z + (dy || 0), '#8a7a6a'); }
+      for (const [a, b2, c, dx, dy] of [[.08, wh + .16, .1, 0, -ww / 2], [.08, wh + .16, .1, 0, ww / 2], [.08, .08, ww, wh / 2, 0], [.1, .1, ww + .3, -wh / 2 - .04, 0], [.06, wh, .05, 0, 0]]) box(a, b2, c, -w / 2 + .06, y + (dx || 0), z + (dy || 0), '#8a7a6a');
+        for (const sd of [-1, 1]) box(.06, wh + .5, .45, -w / 2 + .12, y - .1, z + sd * (ww / 2 + .3), acc); box(.08, .08, ww + 1.4, -w / 2 + .14, y + wh / 2 + .3, z, '#c9a227'); }
     // glass entrance doors in the front wall (where you came in)
     const dw = big ? 4 : 2.4, dh = big ? 3.2 : 2.5; const dg = new T.Mesh(new T.PlaneGeometry(dw, dh), glow('#e8f4fb')); dg.position.set(0, dh / 2, d / 2 - .03); dg.rotation.y = Math.PI; g.add(dg); box(.1, dh, .12, 0, dh / 2, d / 2 - .06, '#5a5d62'); box(dw + .3, .14, .14, 0, dh + .07, d / 2 - .06, '#5a5d62'); for (const s2 of [-1, 1]) box(.12, dh, .14, s2 * (dw / 2 + .08), dh / 2, d / 2 - .06, '#5a5d62');
     K.sign('EXIT', .8, .28, 0, dh + .45, d / 2 - .05, Math.PI, '#1e8a4c', '#ffffff');

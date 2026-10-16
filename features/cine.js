@@ -37,7 +37,7 @@ window.BBFeatures.push(function (bb) {
 
   function play(o) { if (cur) stop(); if (bb.player.mode === 'drive') bb.exitVehicle(true); for (const k in keys) keys[k] = false;
     const pp = bb.ppos(); cur = { o, t: o.elapsed || 0, t0: Date.now() - (o.elapsed || 0) * 1000, li: -1, look: o.look || 'side', start: { x: pp.x, z: pp.z, h: bb.player.h }, cp: new T.Vector3(), cl: new T.Vector3(), snap: true, seg: 0 };
-    if (o.venue) bb.enterVenue(o.venue);
+    if (o.venue) { o.venue.noDoor = true; bb.enterVenue(o.venue); }
     if (o.clouds) addClouds(o.clouds);
     document.body.classList.add('cine'); el.hidden = false; el.className = 'k-' + (o.kind || 'none') + (o.hud ? ' hudless' : '') + ((o.look || 'side') === 'fwd' ? ' lookfwd' : '');
     const btn = (o.buttons || []).map(b => `<button class="buy ghost" data-c="b:${b.id}">${esc(b.label)}</button>`).join('');

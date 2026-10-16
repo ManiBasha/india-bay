@@ -53,7 +53,7 @@ window.BBFeatures.push(function (bb) {
   setInterval(() => { const S = sale(); if (!bb.started) return; if (S && bb.gameDay > S.day + 1) { P().extra.sale = null; bb.setDirty(); bb.toast(`${esc(S.name)} found another vehicle · the sale is off`, '#ff9f1c'); }
     const pp = bb.ppos(); const near = S && Math.hypot(S.x - pp.x, S.z - pp.z) < 260;
     if (near && !buyer) { const g = bb.buildPerson(bb.LMat('#2f7fc1'), { female: /Fatima|Priya|Meera|Anita|Lakshmi/.test(S.name) }); g.position.set(S.x - Math.cos(S.h) * 1.6, .3, S.z + Math.sin(S.h) * 1.6); g.rotation.y = S.h - Math.PI / 2; const U = g.userData; U.arms.forEach(a => a.rotation.x = -1.6);
-      const b = new T.Mesh(new T.PlaneGeometry(.9, .45), new T.MeshBasicMaterial({ map: sign(), side: T.DoubleSide })); b.position.set(0, 1.75, .45); g.add(b); bb.scene.add(g); buyer = g; }
+      const b = new T.Mesh(new T.PlaneGeometry(.9, .45), new T.MeshBasicMaterial({ map: sign() })); b.position.set(0, 1.75, .45); if (bb.twoSided) bb.twoSided(b); g.add(b); bb.scene.add(g); buyer = g; }
     else if (!near && buyer) { bb.scene.remove(buyer); buyer = null; } }, 1500);
   bb.addMapMarks(() => { const S = sale(); return S ? [{ x: S.x, z: S.z, col: '#3ddc97', txt: '🤝', name: `${S.name} · buyer`, sub: `${bb.inr(S.price)} for your ${bb.SPEC[S.type].label.toLowerCase()}` }] : []; });
   (bb.addFirstPrompt || bb.addPrompt)(() => { const S = sale(); if (!S || bb.inside) return null; const v = bb.player.veh; const pp = bb.ppos(); if (Math.hypot(S.x - pp.x, S.z - pp.z) > 12) return null;

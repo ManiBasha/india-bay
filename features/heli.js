@@ -35,10 +35,12 @@ window.BBFeatures.push(function (bb) {
     const pad = { x, z, name, zone }; pads.push(pad); bb.addPoi({ type: 'helipad', name, x: x, z: z + 11.5, rot: 0, extra: pads.length - 1 }); return pad; }
   const free = (x, z) => bb.isLand(x, z) && !bb.isWater(x, z) && !bb.roadAt(x, z, 10) && [[-11, 0], [11, 0], [0, -11], [0, 11]].every(([a, b]) => bb.isLand(x + a, z + b) && !bb.isWater(x + a, z + b) && !bb.roadAt(x + a, z + b, 2));
   const NAMES = { mumbai: 'Juhu Aerodrome helipad', bengaluru: 'HAL helipad, Bengaluru', mysuru: 'Mysuru helipad', panaji: 'Panaji helipad', kochi: 'Kochi helipad', jaipur: 'Jaipur helipad', udaipur: 'Udaipur helipad', ahmedabad: 'Ahmedabad helipad', pune: 'Pune helipad', hosapete: 'Hampi helipad (Hosapete)', thiruvananthapuram: 'Thiruvananthapuram helipad' };
-  for (const z of W.zones) { if (z.size === 'small' && !NAMES[z.id]) continue; const open = bb.blocks.filter(b => b.zone === z && b.land && b.open && free(b.x, b.z)); let spot = open.length ? [open[0].x, open[0].z] : null;
+  for (const z of W.zones) { if (!NAMES[z.id]) continue; /* Beta v1.01.27: helipads only in the big cities and tourist hubs */ const open = bb.blocks.filter(b => b.zone === z && b.land && b.open && free(b.x, b.z)); let spot = open.length ? [open[0].x, open[0].z] : null;
     if (!spot) { const x0 = z.x0, z0 = z.z0, x1 = z.x0 + z.nx * 80, z1 = z.z0 + z.nz * 80; const cand = []; for (let t = 20; t <= 80; t += 20) for (const [x, zz] of [[x0 - t - 12, (z0 + z1) / 2], [x1 + t + 12, (z0 + z1) / 2], [(x0 + x1) / 2, z0 - t - 12], [(x0 + x1) / 2, z1 + t + 12], [x0 - t, z0 - t], [x1 + t, z1 + t]]) cand.push([x, zz]); spot = cand.find(([x, zz]) => free(x, zz)); }
     if (spot) addPad(spot[0], spot[1], NAMES[z.id] || `${z.name} helipad`, z); }
 
+  // some helipads have a helicopter parked on the H (it steps aside while a ride uses the pad)
+  pads.forEach((pd, i) => { if (i % 2) return; const g = buildHeli(['#f4f1ea', '#2d6cdf', '#d62f4b', '#1c1c20'][i % 4]); g.position.set(pd.x, .2, pd.z); g.rotation.y = (i * 1.3) % 6.28; bb.scene.add(g); pd.parkedG = g; });
   /* ---------- helicopters over the cities ---------- */
   const amb = [0, 1].map(i => { const g = buildHeli(i ? '#2d6cdf' : '#f4f1ea'); g.visible = false; bb.scene.add(g); return { g, a: i * Math.PI, c: null, r: 220 + i * 90, y: 70 + i * 25 }; });
   let ambT = 0;
@@ -65,7 +67,7 @@ window.BBFeatures.push(function (bb) {
   /* ---------- rides with a pilot ---------- */
   /* Beta v1.01.24: the helicopter flies in and lands on the H first; you walk up and board, then the ride starts.
      During the ride you sit inside the cabin (features/cabins.js) and can look round and change seat. */
-  function arrive(pad, col, then) { const g = buildHeli(col); bb.scene.add(g); const sx = pad.x - 260, sz = pad.z - 160, sy = 95; const pp = bb.ppos(); const vx = pad.x + 16, vz = pad.z + 18;
+  function arrive(pad, col, then) { if (pad.parkedG) { pad.parkedG.visible = false; clearTimeout(pad.backT); pad.backT = setTimeout(() => { if (!(bb.CINE && bb.CINE.on)) pad.parkedG.visible = true; else pad.backT = setTimeout(() => pad.parkedG.visible = true, 60000); }, 90000); } const g = buildHeli(col); bb.scene.add(g); const sx = pad.x - 260, sz = pad.z - 160, sy = 95; const pp = bb.ppos(); const vx = pad.x + 16, vz = pad.z + 18;
     bb.CINE.play({ kind: 'none', label: 'Helipad', title: 'Your helicopter is coming in', sub: 'Stay clear of the H until the rotors slow', dur: 11, lookToggle: false, skipLabel: 'Board now ⏭', cancel: 'Cancel',
       cam: (f, dt) => { const e = f < .8 ? 1 - Math.pow(1 - f / .8, 2.2) : 1; const x = sx + (pad.x - sx) * e, z = sz + (pad.z - sz) * e, y = f < .8 ? sy * (1 - e) + .2 : .2; g.position.set(x, y, z); g.rotation.set(f < .8 ? .12 * (1 - e) : 0, Math.atan2(pad.x - sx, pad.z - sz), 0, 'YXZ'); spin(g, dt, f < .85 ? 1 : .6);
         return { x: vx, y: 1.7, z: vz, lx: x, ly: y + 2, lz: z, lookK: 4, px: vx, pz: vz }; },
@@ -90,7 +92,7 @@ window.BBFeatures.push(function (bb) {
 
   /* ---------- flying it yourself ---------- */
   let parked = null; // your own helicopter, parked where you landed
-  function fly(x, z, h, rented) { if (parked) { bb.scene.remove(parked.g); parked = null; } const g = buildHeli('#d62f4b'); bb.scene.add(g); const S = { x, z, y: .2, h: h || 0, v: 0, vy: 0, bank: 0, view: 'chase', landed: true, k: {}, home: nearPad(x, z), floor: 0 };
+  function fly(x, z, h, rented) { if (parked) { bb.scene.remove(parked.g); parked = null; } const pd0 = pads.find(p => Math.hypot(p.x - x, p.z - z) < 14); if (pd0 && pd0.parkedG) pd0.parkedG.visible = false; const g = buildHeli('#d62f4b'); bb.scene.add(g); const S = { x, z, y: .2, h: h || 0, v: 0, vy: 0, bank: 0, view: 'chase', landed: true, k: {}, home: nearPad(x, z), floor: 0 };
     const K = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', Space: 'u', KeyE: 'u', KeyQ: 'd', ShiftLeft: 'd', ShiftRight: 'd' };
     const pad = `<div class="fhud" id="fhud"></div><div class="fpad l"><span></span><button data-f="f">▲</button><span></span><button data-f="l">◀</button><button data-f="b">▼</button><button data-f="r">▶</button></div><div class="fpad r"><button data-f="u">⤒</button><button data-f="d">⤓</button></div>`;
     const W0 = W.W, H0 = W.H;
@@ -119,7 +121,7 @@ window.BBFeatures.push(function (bb) {
         const ck = S.view === 'cockpit'; if (S.cab) { S.cab.g.visible = ck; for (const c of g.children) if (c !== g.userData.rotor && c !== g.userData.tail) c.visible = !ck; if (ck) { S.cab.g.position.set(S.x, S.y + 1.05, S.z); S.cab.g.rotation.set(S.v / 32 * .18, S.h, S.bank * .6, 'YXZ'); } }
         if (ck) { const ch = Math.cos(S.h), sh = Math.sin(S.h); const ex = S.x + .5 * ch + .32 * sh, ez = S.z - .5 * sh + .32 * ch; return { x: ex, y: S.y + 1.05 + 1.3, z: ez, lx: ex + sh * 40, ly: S.y - 4, lz: ez + ch * 40, lookK: 8, hard: true, px: S.x, pz: S.z }; }
         return { x: S.x - Math.sin(S.h) * 17, y: S.y + 7, z: S.z - Math.cos(S.h) * 17, lx: S.x + Math.sin(S.h) * 8, ly: S.y + 1.5, lz: S.z + Math.cos(S.h) * 8, lookK: 5, px: S.x, pz: S.z }; },
-      onStop: () => { if (S.cab) bb.scene.remove(S.cab.g); },
+      onStop: () => { if (S.cab) bb.scene.remove(S.cab.g); if (pd0 && pd0.parkedG) setTimeout(() => { pd0.parkedG.visible = true; }, 20000); },
       onDone: () => { // get out
         if (S.crashed) return afterCrash(S, g, rented);
         let ox = S.x + Math.cos(S.h) * 4, oz = S.z - Math.sin(S.h) * 4; if (S.y > 3 || bb.isWater(S.x, S.z)) { const pd = pads.slice().sort((a, b) => Math.hypot(a.x - S.x, a.z - S.z) - Math.hypot(b.x - S.x, b.z - S.z))[0]; bb.toast(`You can only get out after landing on ground · the autopilot lands you at ${pd.name}`, '#ff9f1c'); S.x = pd.x; S.z = pd.z; S.y = .2; ox = pd.x; oz = pd.z + 12; }

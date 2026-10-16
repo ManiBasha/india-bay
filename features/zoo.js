@@ -49,7 +49,7 @@ window.BBFeatures.push(function (bb) {
   for (const h of HAB) { const m = h.id === 'monkey' ? 3 : 2.5; blk.push([h.x - h.rx - m, h.z - h.rz - m, h.x + h.rx + m, h.z + h.rz + m]); }
   let Z = null; const live = [];
   function zooVenue(poi) { const zoo = poi.zoo; live.length = 0;
-    return { poi, name: zoo.name, w: W2, d: D2, bg: '#a9d8f2', exitName: `Exit · back outside ${zoo.name}`, exit: { x: 0, z: D2 / 2 - 2 }, start: { x: 0, z: D2 / 2 - 5, h: Math.PI }, blk,
+    return { noDoor: true,  poi, name: zoo.name, w: W2, d: D2, bg: '#a9d8f2', exitName: `Exit · back outside ${zoo.name}`, exit: { x: 0, z: D2 / 2 - 2 }, start: { x: 0, z: D2 / 2 - 5, h: Math.PI }, blk,
       build: g => { // sunlight for an outdoor venue
         const sun = new T.DirectionalLight(0xfff2dc, .5); sun.position.set(60, 90, 40); g.add(sun);
         add(g, new T.PlaneGeometry(W2, D2), '#7fae5a', 0, 0, 0).rotation.x = -Math.PI / 2; lamp = bb.interScene.children.find(o => o.isPointLight); if (lamp) { lampK = lamp.intensity; lamp.intensity = 0; }
