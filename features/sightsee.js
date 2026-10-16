@@ -89,7 +89,7 @@ window.BBFeatures.push(function (bb) {
     if (Math.random() < .5) { const cap = new T.Mesh(new T.SphereGeometry(.13, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), pick(capMs)); cap.position.set(0, 1.74, 0); cap.scale.set(1, .6, 1.05); g.add(cap); const brim = new T.Mesh(new T.BoxGeometry(.16, .015, .1), cap.material); brim.position.set(0, 1.75, .13); g.add(brim); }
     if (Math.random() < .45) { const bp = new T.Mesh(new T.BoxGeometry(.3, .38, .16), pick(packMs)); bp.position.set(0, 1.25, -.2); g.add(bp); }
     const cam = new T.Group(); const body = new T.Mesh(new T.BoxGeometry(.12, .08, .06), camM); cam.add(body); const lens = new T.Mesh(new T.CylinderGeometry(.025, .03, .05, 10), lensM); lens.rotation.x = Math.PI / 2; lens.position.z = .05; cam.add(lens);
-    cam.position.set(0, -.62, .1); if (U.arms && U.arms[1]) U.arms[1].add(cam); U.cam = cam; return g; }
+    cam.position.set(0, -.32, .1); if (U.fores && U.fores[1]) U.fores[1].add(cam); else if (U.arms && U.arms[1]) { cam.position.y = -.62; U.arms[1].add(cam); } U.cam = cam; return g; }
   let active = null; const people = [], parked = [];
   function okSpot(x, z) { return !blockedAt(x, z) && !bb.roadAt(x, z, 1.2) && !(bb.wetNear && bb.wetNear(x, z, 5)); }
   function viewSpot(A) { for (let i = 0; i < 12; i++) { const a = Math.random() * 6.283, d = A.R + MR(3, 16), x = A.x + Math.cos(a) * d, z = A.z + Math.sin(a) * d; if (okSpot(x, z)) return { x, z }; }

@@ -133,11 +133,14 @@ window.BBFeatures.push(function (bb) {
     const s = J.stops[J.i]; const inV = bb.player.veh === J.v; return { pri: 50, k: `${J.g.icon} ${J.g.name} · ${J.i + 1} of ${J.stops.length}`, t: inV ? `Drive to ${s.name}` : `Get in your ${bb.SPEC[J.g.veh] ? bb.SPEC[J.g.veh].label.toLowerCase() : 'vehicle'}`, m: `${tt}`, target: inV ? { x: s.x, z: s.z, col: 0x7fd858 } : { x: J.v.pos.x, z: J.v.pos.z, col: 0x5fb4ff } }; });
   /* shift: time passes */
   function shift(g) { bb.startActivity({ kind: g.name, title: `${g.icon} ${g.name}`, sub: g.line, minutes: (g.h || 4) * 60, effects: { energy: -(g.h || 4) * 4, hunger: -(g.h || 4) * 3 }, onDone: () => paid(g, 1, `${g.h || 4} hour shift`) }); }
+  // a driving gig needs the licence for its vehicle (Beta v1.01.25: shown as locked in the lists)
+  const lockOf = g => { if (g.kind !== 'drive' || !bb.JOBLIC) return ''; return bb.JOBLIC.hasLic(g.veh) ? '' : bb.JOBLIC.licName(g.veh); };
   /* the site sheet */
   function gigSheet(g) { const done = ex()[g.id] || 0; bb.openSheet(`${g.icon} ${g.name}`, `${KIND[g.kind]} · ${esc(g.zoneObj.name)}`, `<p class="note">${esc(g.line || '')}</p>` +
+      (lockOf(g) ? bb.rowHtml('rto', `🔒 Locked · needs a ${lockOf(g)}`, 'Go to the nearest RTO office and pass the test', 'Directions') : '') +
       bb.rowHtml('start', J ? 'Finish your current job first' : 'Start work', g.kind === 'craft' ? '8 rounds of the timing game' : g.kind === 'carry' ? `${g.n} trips, on foot, against the clock` : g.kind === 'drive' ? `Company ${bb.SPEC[g.veh] ? bb.SPEC[g.veh].label.toLowerCase() : 'vehicle'} · ${g.to ? 'to another city' : (g.stops || 3) + ' stops'}` : `${g.h || 4} hours (Bay time)`, `up to ${bb.inr(Math.round(payOf(g) * (g.kind === 'shift' ? 1 : 1.15)))}`, J ? 'ghost' : '') +
       `<p class="note">${done ? `Done ${done} time${done > 1 ? 's' : ''} · experience pays ${Math.min(50, done * 5)}% more` : 'Pay goes up a little every time you do it.'}</p>`,
-      s => s.onclick = e => { if (e.target.dataset.id !== 'start' || J) return; if (g.kind === 'drive' && ['truck', 'bus'].includes(g.veh) && !(P().lic && P().lic.heavy)) return bb.toast('You need a heavy vehicle licence · RTO office', '#ff9f1c');
+      s => s.onclick = e => { if (e.target.dataset.id === 'rto') { if (bb.JOBLIC) bb.JOBLIC.goRto(); return; } if (e.target.dataset.id !== 'start' || J) return; if (g.kind === 'drive' && ['truck', 'bus'].includes(g.veh) && !(P().lic && P().lic.heavy)) return bb.toast('You need a heavy vehicle licence · RTO office', '#ff9f1c');
         if (g.kind === 'drive' && ['taxi', 'suv'].includes(g.veh) && !(P().lic && P().lic.lmv)) return bb.toast('You need a car licence (LMV) · RTO office', '#ff9f1c'); if (g.kind === 'drive' && ['bike', 'sportsbike'].includes(g.veh) && !(P().lic && P().lic.two)) return bb.toast('You need a two-wheeler licence · RTO office', '#ff9f1c');
         if (g.kind === 'drive' && g.veh === 'auto' && !(P().lic && P().lic.three)) return bb.toast('You need an auto rickshaw licence · RTO office', '#ff9f1c');
         bb.closeSheet(); ({ craft, carry: startCarry, drive: startDrive, shift })[g.kind](g); }); }
@@ -145,8 +148,9 @@ window.BBFeatures.push(function (bb) {
   /* Menu → Local work */
   function listSheet() { const pp = bb.ppos(); const st = bb.stateAt(pp.x, pp.z); const mine = GIGS.filter(g => g.site && g.zoneObj.st === st); const list = (mine.length ? mine : GIGS.filter(g => g.site)).sort((a, b) => Math.hypot(a.site.x - pp.x, a.site.z - pp.z) - Math.hypot(b.site.x - pp.x, b.site.z - pp.z));
     bb.openSheet('💼 Local work', `${mine.length ? esc(W.states[st] || st) : 'Nearest first'} · ${list.length} jobs${J ? ' · on the job: ' + esc(J.g.name) : ''}`, (J ? bb.rowHtml('quit', 'Stop the current job', esc(J.g.name), 'Stop', 'danger') : '') +
-      list.map(g => bb.rowHtml(g.id, `${g.icon} ${esc(g.name)}`, `${esc(g.zoneObj.name)} · ${KIND[g.kind]} · ${(Math.hypot(g.site.x - pp.x, g.site.z - pp.z) * 2.4 / 1000).toFixed(1)} km`, `${bb.inr(payOf(g))} · Go`, 'ghost')).join(''),
+      list.map(g => bb.rowHtml(g.id, `${lockOf(g) ? '🔒 ' : ''}${g.icon} ${esc(g.name)}`, `${esc(g.zoneObj.name)} · ${KIND[g.kind]} · ${(Math.hypot(g.site.x - pp.x, g.site.z - pp.z) * 2.4 / 1000).toFixed(1)} km${lockOf(g) ? ' · needs a ' + esc(lockOf(g)) : ''}`, `${bb.inr(payOf(g))} · Go`, 'ghost')).join(''),
       s => s.onclick = e => { const id = e.target.dataset.id; if (!id) return; if (id === 'quit') { stopJob(false, 'You stopped the job'); return listSheet(); } const g = GIGS.find(q => q.id === id); if (!g) return; bb.closeSheet(); if (bb.TRAVEL) bb.TRAVEL.setGps(g.site.x, g.site.z, g.name); bb.toast(`🧭 Directions to ${g.name}, ${g.zoneObj.name}`, '#ffc93c'); }); }
+  bb.GIGVEH = { forVeh: t => { const pp = bb.ppos(); const st = bb.stateAt(pp.x, pp.z); return GIGS.filter(g => g.kind === 'drive' && g.veh === t && g.site && g.zoneObj.st === st).map(g => g.name); } };
   bb.addApp({ id: 'localwork', label: 'Local work', icon: '🛠', group: 'menu', fn: listSheet });
   bb.LOCALJOBS = { GIGS, timing, get current() { return J; } };
 });

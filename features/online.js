@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.24';
+window.__ibOnlineV = '1.01.25';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -313,9 +313,9 @@ window.BBFeatures.push(function (bb) {
     r.kind = kind;
     if (d.m === 'd') {
       r.body = bb.buildVeh(d.v); if (d.pl && bb.setPlate) bb.setPlate(r.body, d.pl); const sp = bb.SPEC[d.v] || {};
-      if (sp.two || sp.pedal) { const rider = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); rider.position.set(0, .35, -.15); const U = rider.userData; U.legs.forEach(l => l.rotation.x = -1.3); r.body.add(rider); }
+      if (sp.two || sp.pedal) { const rider = bb.buildPerson(mat(d.c || '#e8573e'), Object.assign(lookOpts(d), { seated: true })); const st = sp.seat || [0, .95, -.2]; rider.position.set(0, st[1] - .6, st[2]); const U = rider.userData; U.legs.forEach(l => l.rotation.x = -1.2); U.arms.forEach(a => a.rotation.x = -.95); r.body.add(rider); r.body.userData.rider = rider; }
       r.tagY = TALL[d.v] || 2.9;
-    } else if (d.m === 'r') { r.body = new THREE.Group(); const sit = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); const U = sit.userData; U.legs.forEach(l => l.rotation.x = -1.4); sit.position.y = -.5; r.body.add(sit); r.tagY = 2.1; }
+    } else if (d.m === 'r') { r.body = new THREE.Group(); const sit = bb.buildPerson(mat(d.c || '#e8573e'), Object.assign(lookOpts(d), { seated: true })); const U = sit.userData; U.legs.forEach(l => l.rotation.x = -1.3); U.arms.forEach(a => a.rotation.x = -.45); sit.position.y = -.6; r.body.add(sit); r.tagY = 2.1; }
     else { r.body = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); r.tagY = 2.45; }
     r.g.add(r.body); r.tag.position.y = r.tagY; if (r.bub) r.bub.position.y = r.tagY + 1.1;
   }
@@ -385,9 +385,11 @@ window.BBFeatures.push(function (bb) {
   function freeSeat(type) { const cap = (CAP[type] || 2) - 1; const used = new Set([...riders.values()].map(q => q.s)); for (let i = 0; i < cap; i++) if (!used.has(i)) return i; return -1; }
   function seatWorld(x, z, h, type, i) { const o = seatOff(type, i); const c = Math.cos(h), s = Math.sin(h); return [x + o[0] * c + o[2] * s, o[1], z - o[0] * s + o[2] * c]; }
   function startRide(r, s, n) { if (bb.player.mode !== 'foot' || bb.inside) return; ride = { id: r.id, s, n: n || r.n, type: r.v }; bb.avatar.visible = false; lastSent = null; bb.toast(`Riding with ${bb.esc(ride.n)} · press E to get off`, '#3ddc97'); }
-  function endRide(msg) { if (!ride) return; const r = remotes.get(ride.id); const pl = bb.player;
+  function endRide(msg, jumped) { if (!ride) return; const r = remotes.get(ride.id); const pl = bb.player;
     if (r) { const sp = bb.SPEC[r.v || ride.type] || { wid: 2 }; const sx = Math.cos(r.h), sz = -Math.sin(r.h); let px = r.x + sx * (sp.wid / 2 + 1), pz = r.z + sz * (sp.wid / 2 + 1); if (!bb.drivable(px, pz)) { px = r.x - sx * (sp.wid / 2 + 1); pz = r.z - sz * (sp.wid / 2 + 1); } pl.pos.set(px, 0, pz); }
-    ride = null; bb.avatar.visible = true; lastSent = null; if (msg) bb.toast(msg, '#d6c8e4'); }
+    const spd = Math.abs((r && r.s) || 0); ride = null; bb.avatar.visible = true; lastSent = null; const U = bb.avatar.userData; if (U.legs) U.legs.forEach(l => l.rotation.z = 0); if (bb.seatAvatar) bb.seatAvatar(false);
+    if (jumped && spd > 2) { const kmh = Math.round(spd * 3.6); const hurt = Math.min(85, spd * 2.6) * (bb.P.helmet ? .5 : 1); bb.player.knock = 1.4 + Math.min(1.5, spd / 10); bb.damage(hurt, 'Jumped off a moving vehicle'); bb.toast(`🤕 You jumped off at ${kmh} km/h · -${Math.round(hurt)} health`, '#ff5d73'); if (bb.sfx) bb.sfx('hit'); return; }
+    if (msg) bb.toast(msg, '#d6c8e4'); }
   function takeParked(r) { const pk = r.park; if (!pk) return; const type = r.pkType; const v = bb.makeVeh(type, pk.position.x, pk.position.z, pk.rotation.y, 'parked'); bb.scene.remove(pk); r.park = null; r.parkTaken = type;
     vsend('take', r.id); bb.enterVehicle(v); bb.toast(`You took ${bb.esc(r.n)}'s ${(bb.SPEC[type] || {}).label || 'vehicle'}`, '#ffc93c'); }
   function onV(d) { const r = remotes.get(d.id), pl = bb.player; const nm = bb.esc(d.n || 'A player');
@@ -409,7 +411,7 @@ window.BBFeatures.push(function (bb) {
   bb.on('exitVehicle', () => { for (const id of riders.keys()) vsend('drop', id); riders.clear(); lastSent = null; });
   bb.on('teleport', () => { if (ride) { vsend('leave', ride.id); ride = null; bb.avatar.visible = true; } });
   bb.addFirstPrompt(() => {
-    if (ride) return { text: `Get off · riding with ${ride.n}`, fn: () => { vsend('leave', ride.id); endRide(); } };
+    if (ride) return { text: Math.abs(ride.spd || 0) > 2 ? `Jump off · ${ride.n} is moving!` : `Get off · riding with ${ride.n}`, fn: () => { vsend('leave', ride.id); endRide(null, true); } };
     if (status !== 'on' || bb.player.mode !== 'foot') return null;
     const p = bb.ppos(); let best = null, bd = 1e9, kind = '';
     for (const r of remotes.values()) {
@@ -427,7 +429,10 @@ window.BBFeatures.push(function (bb) {
     const pl = bb.player, now = performance.now();
     if (ride) { const r = remotes.get(ride.id);
       if (!r || r.m !== 'd' || !ws) endRide('The driver got out · you are on foot');
-      else { const [x, , z] = seatWorld(r.x, r.z, r.h, r.v || ride.type, ride.s); pl.pos.set(x, 0, z); pl.h = r.h; pl.v = 0; bb.avatar.visible = false; } }
+      else { const [x, y, z] = seatWorld(r.x, r.z, r.h, r.v || ride.type, ride.s); pl.pos.set(x, 0, z); pl.h = r.h; pl.v = 0; ride.spd = r.s || 0;
+        // you are seen sitting behind the driver (Beta v1.01.25), not hidden
+        const A = bb.avatar, U = A.userData; const two = (bb.SPEC[r.v || ride.type] || {}).two; A.visible = bb.camMode !== 2 || !two ? true : false; A.position.set(x, y - .6, z); A.rotation.set(0, r.h, 0); if (bb.seatAvatar) bb.seatAvatar(true);
+        if (U.legs) U.legs.forEach((l, i) => { l.rotation.x = two ? -1.25 : -1.5; l.rotation.z = (i ? 1 : -1) * (two ? .12 : .05); }); if (U.arms) U.arms.forEach(a => a.rotation.x = two ? -.45 : -.4); } }
     for (const r of remotes.values()) { if (r.m !== 'r' || !r.body) continue; let vx, vz, vh, vt;
       if (r.rid === myId && pl.mode === 'drive' && pl.veh) { const v = pl.veh; vx = v.pos.x; vz = v.pos.z; vh = v.h; vt = v.type; }
       else { const d = remotes.get(r.rid); if (!d || d.m !== 'd') { r.g.visible = false; continue; } vx = d.x; vz = d.z; vh = d.h; vt = d.v; }

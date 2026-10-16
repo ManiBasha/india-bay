@@ -42,17 +42,17 @@ window.BBFeatures.push(function (bb) {
     bb.setDirty(); bb.emit('adventure', { id: a.id, place: poi.spot.name }); }
 
   /* ---------- meshes ---------- */
-  function rider(g, x, y, z, sit) { const p = bb.buildPerson(mat((P().outfit && P().outfit.topCol) || '#ffc93c')); p.position.set(x, y, z); if (sit && p.userData.legs) { p.userData.legs[0].rotation.x = p.userData.legs[1].rotation.x = -1.4; p.position.y -= .5; } g.add(p); return p; }
+  function rider(g, x, y, z, sit) { const p = bb.buildPerson(mat((P().outfit && P().outfit.topCol) || '#ffc93c'), sit ? { seated: true } : {}); p.position.set(x, y, z); if (sit && p.userData.legs) { p.userData.legs[0].rotation.x = p.userData.legs[1].rotation.x = -1.45; p.position.y -= .74; } g.add(p); return p; }
   function canopy(col, r) { const g = new T.Group(); const c = new T.Mesh(new T.TorusGeometry(r, r * .14, 4, 18, Math.PI), new T.MeshLambertMaterial({ color: col, side: T.DoubleSide })); c.scale.set(1, .45, 2.4); g.add(c);
     for (const s of [-1, 1]) { const ln = new T.Mesh(new T.CylinderGeometry(.02, .02, r * 1.3, 3), mat('#dddddd')); ln.position.set(s * r * .45, -r * .55, 0); ln.rotation.z = s * .5; g.add(ln); } return g; }
   function craft(kind) { const g = new T.Group(); const B = (w, h, d, x, y, z, c) => { const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); g.add(m); return m; };
     if (kind === 'kayak') { B(.8, .35, 3.8, 0, .1, 0, '#ffb000'); rider(g, 0, .25, 0, true); }
-    if (kind === 'raft') { B(2.4, .55, 4.6, 0, .15, 0, '#e8473a'); for (let i = 0; i < 6; i++) rider(g, (i % 2 ? .7 : -.7), .35, -1.5 + Math.floor(i / 2) * 1.5, true); }
+    if (kind === 'raft') { B(2.4, .55, 4.6, 0, .15, 0, '#e8473a'); for (let i = 0; i < 6; i++) rider(g, (i % 2 ? .7 : -.7), .35, -1.5 + Math.floor(i / 2) * 1.5, true); const gd = rider(g, 0, .42, -2.1, true); gd.userData.arms.forEach(a => a.rotation.x = -1); B(.06, .06, 2.2, .5, .9, -2.1, '#3a2a1c'); }
     if (kind === 'coracle') { const c = new T.Mesh(new T.CylinderGeometry(1.4, 1.1, .6, 18, 1, true), new T.MeshLambertMaterial({ color: '#7a5a3a', side: T.DoubleSide })); c.position.y = .2; g.add(c); rider(g, .4, .1, 0, true); rider(g, -.5, .3, .2, false); }
     if (kind === 'houseboat' && window.IB_KETTU) { const wm = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T) }), tm = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T), color: '#a8844e', side: T.DoubleSide });
       for (const [geo, col] of window.IB_KETTU(T)) { const m = new T.Mesh(geo, col === 'weave' ? wm : col === 'thatch' ? tm : mat(col)); m.position.y = -.5; g.add(m); } rider(g, .7, .6, 5.6, false); rider(g, -1.2, .5, 7.2, false); }
     if (kind === 'boat') { B(2.6, 1, 7, 0, .3, 0, '#f4f1ea'); B(1.8, 1.2, 2, 0, 1.3, -.5, '#2d6cdf'); rider(g, .6, .8, 2.2, false); }
-    if (kind === 'jetski') { B(1, .6, 2.8, 0, .2, 0, '#ffd23a'); B(.5, .4, .8, 0, .7, .4, '#2b2b30'); rider(g, 0, .5, -.2, true); }
+    if (kind === 'jetski') { B(1, .6, 2.8, 0, .2, 0, '#ffd23a'); B(.5, .4, .8, 0, .7, .4, '#2b2b30'); rider(g, 0, .78, -.2, true); }
     if (kind === 'board') { B(.65, .12, 2.6, 0, .05, 0, '#ff6fa8'); const r = rider(g, 0, .1, 0, false); r.rotation.y = Math.PI / 2; }
     if (kind === 'jeep') { B(2.2, 1.1, 4.2, 0, 1.1, 0, '#4b5320'); B(2, .8, 2, 0, 2, -.4, '#2b2b30'); for (const [x, z] of [[-1.1, 1.4], [1.1, 1.4], [-1.1, -1.4], [1.1, -1.4]]) { const w = new T.Mesh(new T.CylinderGeometry(.5, .5, .4, 10), mat('#1b1b1b')); w.rotation.z = Math.PI / 2; w.position.set(x, .5, z); g.add(w); } }
     bb.scene.add(g); return g; }

@@ -6,12 +6,12 @@
 window.BBFeatures.push(function (bb) {
   const W = bb.WORLD, P = () => bb.P;
   const JOBS = {
-    delivery: { name: 'Swiggy delivery partner', kind: 'food', app: 'Swiggy', bag: '#fc8019', veh: ['cycle', 'bike', 'sportsbike'], unlock: 'Cycle: no licence · motorbike: two-wheeler licence', rate: .32, base: 30, icon: '🧡', desc: 'Restaurant orders on the Swiggy app · streak bonus every 3rd order' },
-    zomato: { name: 'Zomato delivery partner', kind: 'food', app: 'Zomato', bag: '#e23744', veh: ['cycle', 'bike', 'sportsbike'], unlock: 'Cycle: no licence · motorbike: two-wheeler licence', rate: .34, base: 26, icon: '❤️', desc: 'Restaurant orders on the Zomato app · customers often tip' },
+    delivery: { name: 'Swiggy delivery partner', kind: 'food', app: 'Swiggy', bag: '#fc8019', veh: ['cycle', 'bike', 'sportsbike', 'scooter'], unlock: 'Cycle: no licence · motorbike or scooter: two-wheeler licence', rate: .32, base: 30, icon: '🧡', desc: 'Restaurant orders on the Swiggy app · streak bonus every 3rd order' },
+    zomato: { name: 'Zomato delivery partner', kind: 'food', app: 'Zomato', bag: '#e23744', veh: ['cycle', 'bike', 'sportsbike', 'scooter'], unlock: 'Cycle: no licence · motorbike or scooter: two-wheeler licence', rate: .34, base: 26, icon: '❤️', desc: 'Restaurant orders on the Zomato app · customers often tip' },
     baycart: { name: 'BayCart delivery agent', kind: 'parcel', app: 'BayCart', bag: '#2a62c9', veh: ['cycle', 'bike', 'sportsbike', 'auto', 'car', 'sedan', 'suv'], unlock: 'Licence for the vehicle you use', rate: .2, base: 20, icon: '📦', desc: 'Pick up 3 parcels at the BayCart hub and deliver them around town' },
-    auto: { name: 'Auto taxi', veh: ['auto'], unlock: 'Auto rickshaw licence', rate: .3, icon: '🛺', desc: 'Short city rides' },
-    cab: { name: 'Cab (app style)', veh: ['car', 'sedan', 'taxi', 'suv'], unlock: 'Car licence (LMV) and 3.5★ in any job', rate: .45, icon: '🚕', desc: 'Better fares, pickier riders' },
-    truck: { name: 'Truck delivery', veh: ['truck'], unlock: 'Heavy vehicle licence', rate: .2, icon: '🚚', desc: 'City to city cargo, company truck' },
+    auto: { name: 'Auto taxi', veh: ['auto', 'erickshaw'], unlock: 'Auto rickshaw licence', rate: .3, icon: '🛺', desc: 'Short city rides' },
+    cab: { name: 'Cab (app style)', veh: ['car', 'sedan', 'taxi', 'suv', 'mpv'], unlock: 'Car licence (LMV) and 3.5★ in any job', rate: .45, icon: '🚕', desc: 'Better fares, pickier riders' },
+    truck: { name: 'Truck delivery', veh: ['truck', 'lorry'], unlock: 'Heavy vehicle licence', rate: .2, icon: '🚚', desc: 'City to city cargo, company truck' },
     bus: { name: 'Bus driver', veh: ['bus'], unlock: 'Heavy vehicle licence', rate: 0, icon: '🚌', desc: 'Fixed route and stops, company bus' },
     dabba: { name: 'Dabbawala', veh: ['cycle', 'foot'], unlock: 'No licence needed', rate: .35, icon: '🥡', desc: 'Home tiffin to office, by noon, on cycle or local train' }
   };
@@ -37,7 +37,7 @@ window.BBFeatures.push(function (bb) {
   const rating = t => (P().ratings[t] != null ? P().ratings[t] : 3);
   const bestRating = () => Math.max(3, ...Object.values(P().ratings || { a: 3 }));
   // Licence each vehicle needs for paid work. Cycles, cycle rickshaws and walking need none.
-  const VLIC = { bike: 'two', sportsbike: 'two', auto: 'three', taxi: 'lmv', car: 'lmv', sedan: 'lmv', suv: 'lmv', sports: 'lmv', truck: 'heavy', bus: 'heavy' };
+  const VLIC = { bike: 'two', sportsbike: 'two', scooter: 'two', auto: 'three', erickshaw: 'three', taxi: 'lmv', car: 'lmv', sedan: 'lmv', suv: 'lmv', sports: 'lmv', mpv: 'lmv', van: 'lmv', coupe: 'lmv', convertible: 'lmv', limo: 'lmv', ambulance: 'lmv', camper: 'lmv', pickup: 'lmv', police: 'lmv', tractor: 'lmv', truck: 'heavy', bus: 'heavy', lorry: 'heavy', tanker: 'heavy', towtruck: 'heavy', firetruck: 'heavy' };
   const hasLic = type => !VLIC[type] || !!P().lic[VLIC[type]];
   function unlocked(t) { const p = P(); if (t === 'cab') return p.lic.lmv && bestRating() >= 3.5; if (t === 'truck' || t === 'bus') return p.lic.heavy; if (t === 'auto') return !!p.lic.three; return true; }
   function needVeh(t) { const v = bb.player.mode === 'drive' ? bb.player.veh : null; const ok = JOBS[t].veh; if (ok.includes('foot') && bb.player.mode === 'foot') return true; return v && ok.includes(v.type) && hasLic(v.type); }
@@ -122,13 +122,31 @@ window.BBFeatures.push(function (bb) {
     if (J.t === 'bus') { const s = J.extra.stops[J.extra.i]; return { pri: 50, k: `Bus route · stop ${J.extra.i + 1} of ${J.extra.stops.length}`, t: s.name, m: `${Math.round(Math.hypot(pp.x - s.x, pp.z - s.z) * 2.4 / 10) * 10} m · ${J.late ? 'late' : tt + ' to finish'} · earned ${bb.inr(J.pay)}`, target: { x: s.x, z: s.z, col: 0xffb347 } }; }
     const tg = J.stage === 'pickup' ? J.from : J.to; const need = needVeh(J.t) ? '' : vehProblem(J.t) ? ' · needs a licence for this vehicle' : ` · needs ${JOBS[J.t].veh.map(t => t === 'foot' ? 'on foot' : bb.SPEC[t].label).join(' or ')}`;
     return { pri: 50, cls: J.stage === 'drop' ? 'ride' : '', k: `${JOBS[J.t].name} · ${J.agent ? 'agent' : 'freelance'} · ${rating(J.t).toFixed(1)}★`, t: (J.stage === 'pickup' ? 'Pick up: ' : 'Drop: ') + tg.name, m: `${Math.round(Math.hypot(pp.x - tg.x, pp.z - tg.z) * 2.4 / 10) * 10} m · ${tt} to ${J.stage === 'pickup' ? 'pick up' : 'drop'} · ${bb.inr(J.pay)}${need}`, target: { x: tg.x, z: tg.z, col: J.stage === 'pickup' ? 0x3ddc97 : 0xff9f1c } }; });
-  function jobsSheet() { const p = P(); const rows = Object.entries(JOBS).map(([id, j]) => { const ok = unlocked(id); const r = rating(id); return bb.rowHtml(id, `${j.icon} ${j.name}`, `${j.desc} · ${ok ? r.toFixed(1) + '★ · ' + (p.jobs[id] || 0) + ' done · ' + j.unlock : 'Needs: ' + j.unlock}`, J && J.t === id ? 'Active' : ok ? 'Start' : 'Locked', ok ? '' : 'ghost'); }).join('');
+  // Beta v1.01.25: jobs for the vehicle you are on come first; jobs you can't do yet are locked, with the way to unlock them
+  const curVeh = () => bb.player.mode === 'drive' && bb.player.veh ? bb.player.veh : null;
+  const fitsNow = id => { const v = curVeh(); return v ? JOBS[id].veh.includes(v.type) : JOBS[id].veh.includes('foot') || JOBS[id].veh.includes('cycle'); };
+  function lockWhy(id) { if (unlocked(id)) { const vp = vehProblem(id); return vp ? `🔒 ${licName(curVeh().type)} needed for your ${curVeh().spec.label.toLowerCase()}` : ''; } return '🔒 Needs: ' + JOBS[id].unlock; }
+  function nearestRto() { const pp = bb.ppos(); let b = null, bd = 1e12; for (const p of bb.pois) if (p.type === 'rto') { const d = Math.hypot(p.x - pp.x, p.z - pp.z); if (d < bd) { bd = d; b = p; } } return b; }
+  function goRto() { const r = nearestRto(); if (!r) return bb.toast('No RTO office found', '#ff9f1c'); if (bb.TRAVEL) bb.TRAVEL.go(r.x, r.z, r.name); bb.toast(`🪪 Directions to ${r.name} · pass the test there to get your licence`, '#ffc93c'); }
+  function jobsSheet() { const p = P(); const v = curVeh(); const ids = Object.keys(JOBS); const mine = ids.filter(fitsNow), rest = ids.filter(id => !fitsNow(id));
+    const row = id => { const j = JOBS[id]; const lk = lockWhy(id); const r = rating(id); return bb.rowHtml(id, `${j.icon} ${j.name}`, `${j.desc} · ${lk ? lk : r.toFixed(1) + '★ · ' + (p.jobs[id] || 0) + ' done · ' + j.unlock}`, J && J.t === id ? 'Active' : lk ? '🔒 Unlock' : 'Start', lk ? 'ghost' : ''); };
+    const head = t => `<h3 style="margin:12px 0 4px;font-size:14px">${t}</h3>`;
+    const esc = bb.esc; const rows = (mine.length ? head(v ? `With your ${esc(v.spec.label.toLowerCase())}` : 'On foot or by cycle') + mine.map(row).join('') : '') + (rest.length ? head(mine.length ? 'Other jobs' : 'Jobs') + rest.map(row).join('') : '');
     bb.openSheet('Jobs', `${freelance ? 'Freelance · keep 100%, find your own customers' : 'Job agent · steady work, agent keeps 5%'}`, `<div class="chips"><button class="chip${freelance ? '' : ' on'}" data-mode="agent">Agent</button><button class="chip${freelance ? ' on' : ''}" data-mode="free">Freelance</button></div>${rows}${J ? bb.rowHtml('quit', 'Quit current job', 'Your rating drops a little', 'Quit', 'danger') : ''}<p class="note">Every job has a countdown worked out from the road distance and your vehicle. Finish early for a bonus. Licences come from RTO offices. Truck and bus jobs give you a company vehicle.</p>`,
       s => s.onclick = e => { const m = e.target.dataset.mode; if (m) { freelance = m === 'free'; jobsSheet(); return; } const id = e.target.dataset.id; if (!id) return; if (id === 'quit') { finish(false, 'You quit the job'); bb.closeSheet(); return; }
-        if (J) { bb.toast('Finish or quit your current job first', '#ff9f1c'); return; } if (!unlocked(id)) { bb.toast(`Locked · ${JOBS[id].unlock}`, '#ff9f1c'); return; }
-        const vp = vehProblem(id); if (vp) { bb.toast(vp, '#ff9f1c'); return; }
+        if (J) { bb.toast('Finish or quit your current job first', '#ff9f1c'); return; } if (!unlocked(id) || vehProblem(id)) { lockSheet(id); return; }
         if (!['truck', 'bus'].includes(id) && !needVeh(id)) { bb.toast(`You need to be ${JOBS[id].veh.map(t => t === 'foot' ? 'on foot' : 'on a ' + bb.SPEC[t].label.toLowerCase()).join(' or ')}`, '#ff9f1c'); if (JOBS[id].kind === 'food' && bb.P.cash >= bb.cost('svc.cyclerent', 50)) { rentCycle(); } return; }
         bb.closeSheet(); if (freelance) { freelanceType = id; nextOfferT = 3; bb.toast(id === 'auto' || id === 'cab' ? 'Freelance · look for waving customers' : JOBS[id].app ? `Online on ${JOBS[id].app} · orders will ping your phone` : 'Freelance · orders will ping your phone', '#ffc93c'); } else newJob(id); }); }
+  function lockSheet(id) { const j = JOBS[id]; const vp = vehProblem(id); const needLic = vp || /licen/i.test(j.unlock) && !unlocked(id);
+    bb.openSheet(`🔒 ${j.name}`, 'Locked for now', `<p class="note">${bb.esc(vp || 'Needs: ' + j.unlock)}</p>` + (needLic ? bb.rowHtml('rto', '🪪 Go to the nearest RTO office', 'Pass a short road-rules test there to get the licence', 'Directions') : '') + (id === 'cab' && P().lic.lmv ? bb.rowHtml('x', 'Raise your rating', 'Reach 3.5★ in any job first (deliveries or auto rides)', '') : '') + bb.rowHtml('back', 'Back to jobs', '', 'Back', 'ghost'),
+      s => s.onclick = e => { const k = e.target.dataset.id; if (k === 'rto') goRto(); else if (k === 'back') jobsSheet(); }); }
+  // when you get on a vehicle: which jobs it can do, or which licence you need for paid work on it
+  const toldVeh = {}; bb.on('enterVehicle', v => { if (!v || J || v.company || v.rental || v.state === 'net') return; const now = Date.now(); if (toldVeh[v.type] && now - toldVeh[v.type] < 15 * 60 * 1000) return;
+    const fit = Object.keys(JOBS).filter(id => JOBS[id].veh.includes(v.type)); const loc = bb.GIGVEH ? bb.GIGVEH.forVeh(v.type) : []; if (!fit.length && !loc.length) return; toldVeh[v.type] = now;
+    setTimeout(() => { if (bb.player.veh !== v || !bb.notify) return; const lab = v.spec.label.toLowerCase();
+      if (!hasLic(v.type)) bb.notify('🪪', `Licence needed for paid work`, `Your ${lab} needs a ${licName(v.type)} for jobs · tap for the nearest RTO`, () => goRto(), 'joblic');
+      else bb.notify('💼', `Jobs for your ${lab}`, [...fit.map(id => JOBS[id].name), ...loc.slice(0, 2)].slice(0, 3).join(' · ') + ' · tap to see', () => jobsSheet(), 'jobveh'); }, 1500); });
+  bb.JOBLIC = { VLIC, hasLic, licName, goRto, nearestRto };
   function rentCycle() { if (!bb.spend(bb.cost('svc.cyclerent', 50))) return; const pp = bb.ppos(); const r = bb.nearestRoadPoint(pp.x, pp.z, 200); if (!r) return; const e = r.e; const v = bb.makeVeh('cycle', r.x + e.dz * (e.w / 2 + 1), r.z - e.dx * (e.w / 2 + 1), Math.atan2(e.dx, e.dz), 'parked', { company: true }); bb.toast(`Rented a cycle for ${bb.inr(bb.cost('svc.cyclerent', 50))} · it is next to you`, '#3ddc97'); }
   bb.poiHandlers.jobs = () => jobsSheet();
   bb.addApp({ id: 'jobs', label: 'Jobs', icon: '💼', group: 'menu', fn: jobsSheet });

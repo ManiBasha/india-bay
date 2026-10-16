@@ -452,10 +452,10 @@ function botSpeed(l,sp,type){const hw=l.e.kind!=='city'&&l.e.kind!=='service';co
 // slow vehicles (buses, trucks, autos, two-wheelers, tractors) keep to the left lane; cars use the right lane to overtake
 function slowType(t){const sp=SPEC[t];return !sp||sp.two||sp.max<20||/bus|truck|auto|tractor|tempo|rickshaw|cart|lorry|tanker/.test(t);}
 function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;if(l.e.deadEnd&&Math.random()<.85)return null;   // v1.01.22: little traffic near dead ends
-  lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.slow=slowType(type);l.k=l.e.multi&&!l.slow&&Math.random()<.4?1:0;l.fast=!!l.k;l.vmax=botSpeed(l,sp,type)*(l.e.kind==='city'?1:1.6);
+  lanePos(l,_lp);let type=trafficTypeAt(_lp.x,_lp.z);if((type==='cycle'||type==='rickshaw')&&l.e.kind!=='city'&&l.e.kind!=='service')type=Math.random()<.5?'scooter':'bike';const sp=SPEC[type];l.slow=slowType(type);l.k=l.e.multi&&!l.slow&&Math.random()<.4?1:0;l.fast=!!l.k;l.vmax=botSpeed(l,sp,type)*(l.e.kind==='city'?1:1.6);
   vehLivery=type==='bus'&&hooks.livery?hooks.livery(_lp.x,_lp.z):null;const v=makeVeh(type,0,0,0,'traffic');vehLivery=null;v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
 const riderMat=['#d9483b','#2f7fc1','#e8a628','#3aa66b','#f4f1ea'].map(c=>LMat(c));
-function addRider(v){const r=buildPerson(mpick(pedCols));const U=r.userData;U.legs.forEach(l=>l.rotation.x=-1.25);U.arms.forEach(a=>a.rotation.x=-1.05);const seat=(v.spec.seat||[0,.95,-.2]);r.position.set(0,seat[1]-.82,seat[2]-.05);
+function addRider(v){const r=buildPerson(mpick(pedCols),{seated:true});const U=r.userData;U.legs.forEach((l,i)=>{l.rotation.x=-1.2;l.rotation.z=(i?1:-1)*.1;});U.arms.forEach(a=>a.rotation.x=-.95);const seat=(v.spec.seat||[0,.95,-.2]);r.position.set(0,seat[1]-.62,seat[2]);
   if(v.type!=='cycle'){const h=new THREE.Mesh(G.sph,mpick([VM.black,VM.red,VM.white,VM.blue]));h.scale.set(.17,.16,.19);h.position.set(0,1.75,0);r.add(h);}v.m.add(r);v.m.userData.driver=r;}
 
 /* ================= player ================= */
@@ -467,7 +467,7 @@ const PG={torsoM:lathe([[0,.87],[.214,.87],[.21,.98],[.194,1.06],[.212,1.18],[.2
   hips:lathe([[0,.78],[.19,.78],[.204,.84],[.206,.9],[0,.91]]),kurta:lathe([[0,.5],[.262,.5],[.236,.78],[.216,1.0],[.212,1.08],[0,1.09]]),
   saree:lathe([[0,.05],[.29,.05],[.262,.4],[.226,.76],[.204,.98],[0,1.0]]),mundu:lathe([[0,.12],[.215,.12],[.218,.5],[.212,.96],[0,.97]]),
   neck:new THREE.CylinderGeometry(.05,.056,.14,10),head:new THREE.SphereGeometry(1,12,9),cap:new THREE.SphereGeometry(1,12,7,0,Math.PI*2,0,Math.PI*.4),
-  eye:new THREE.SphereGeometry(1,6,4),box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,6),leg:new THREE.CylinderGeometry(.088,.062,.8,10),
+  eye:new THREE.SphereGeometry(1,6,4),box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,6),leg:new THREE.CylinderGeometry(.088,.062,.8,10),thigh:new THREE.CylinderGeometry(.09,.072,.43,10),shin:new THREE.CylinderGeometry(.07,.058,.4,10),knee:new THREE.SphereGeometry(.073,9,7),elbow:new THREE.SphereGeometry(.058,8,6),
   sleeve:new THREE.CylinderGeometry(.072,.062,.3,10),fore:new THREE.CylinderGeometry(.054,.044,.31,9),hand:new THREE.SphereGeometry(1,9,7),ring:new THREE.TorusGeometry(1,.14,5,14),ring4:new THREE.TorusGeometry(1,.14,4,4).rotateZ(Math.PI/4),cyl:new THREE.CylinderGeometry(1,1,1,10),bun:new THREE.SphereGeometry(1,9,7)};
 const SKIN=['#5c3a24','#7b4a2e','#8d5524','#a0673f','#b97a4f','#c68642','#d19a6a','#e3b98f'],HAIRC=['#141010','#1e1612','#2b1d14','#3a2a20','#5a3a24','#8a8580','#d8d4cc','#7a2e1a'],SHOES=['#2a1d14','#1b1b1d','#5a3b22','#6b6b6b','#f1f1f1'];
 const PANTS=['#2d3142','#4a4e57','#3b3024','#1f3a5f','#e9e4d6','#2c4a7a'],SAREE=['#c2185b','#f57c00','#1565c0','#2e7d32','#f9a825','#6a1b9a','#00838f','#d84315','#e9e0c8'];
@@ -537,36 +537,51 @@ function randomLook(female){const old=Math.random()<.15,r=Math.random();return{f
   build:mpick(['slim','average','average','athletic','broad','heavy']),bindi:Math.random()<.6,hairC:old?mpick(['#8a8580','#d8d4cc','#9a9590']):Math.random()<.06?'#7a2e1a':mpick(HAIRC.slice(0,5)),specs:old&&Math.random()<.6?mpick(['round','square']):Math.random()<.16?mpick(['round','square','sun']):'none',
   hat:!female&&r<.07?'turban':!female&&r<.13?'cap':!female&&r<.15?'topi':'none',hatC:mpick(['#e8572a','#f4c430','#c8102e','#f4f1ea','#2d6cdf','#ff8fd0','#1f8a4c']),nose:mpick(LOOKS.nose),brows:mpick(LOOKS.brows)};}
 // One person = a body piece, two legs and two arms (5 draws), each part coloured per vertex. opts.mats keeps separate materials (the player, so outfits and looks can recolour it).
+/* Knees and elbows (Beta v1.01.25): every person has a knee and an elbow joint. Code that only swings the hips and shoulders
+   still looks right, because the joints follow by themselves: a leg that is lifted forward past ~45° (sitting, riding) bends its
+   knee so the shin hangs down; a walking leg bends its knee while it swings forward and straightens while it carries the weight;
+   arms keep a slight natural bend. Set userData.jointLock=true to pose the joints yourself. */
+let RIGF=0;
+function jointRig(g,legs,knees,arms,fores){const st=[0,0],amp=[.3,.3];let last=-1;
+  const run=()=>{if(last===RIGF)return;last=RIGF;const U=g.userData;if(U.jointLock)return;
+    for(let i=0;i<2;i++){const th=legs[i].rotation.x,d=th-st[i];st[i]=th;let kt;
+      if(th<-.75)kt=Math.min(1.75,-th-.05+(U.sitK||0));else{amp[i]=Math.max(.15,amp[i]*.995,Math.abs(th));kt=d<-1e-4?.12+.95*amp[i]*(1-Math.min(1,Math.abs(th)/amp[i])*.6):d>1e-4?.08+Math.max(0,th)*.35:.04;}
+      knees[i].rotation.x+=(kt-knees[i].rotation.x)*.35;
+      if(U.armLock)continue;const a=arms[i].rotation.x;const et=a<-.7?-.35-Math.min(.6,(-a-.7)*.4):a<-.15?-.2+a*.4:-.18-Math.max(0,a)*.25;fores[i].rotation.x+=(et-fores[i].rotation.x)*.35;}};
+  const hook=m=>{m.onBeforeRender=run;};knees.forEach(k=>k.children.forEach(hook));}
 function buildPerson(shirt,opts={}){const g=new THREE.Group();const shirtC=typeof shirt==='string'?shirt:'#'+shirt.color.getHexString();
   const female=opts.female!=null?opts.female:!opts.mats&&Math.random()<.4;const L=opts.look||randomLook(female);L.female=female;
   const skin=opts.skin||L.skin||mpick(SKIN),hair=L.hairC||mpick(HAIRC.slice(0,5)),shoe=female?mpick(['#5a3b22','#c9a46a','#8a2a2a']):mpick(SHOES);
-  const c=opts.clothes?Object.assign({},opts.clothes):opts.mats?{dress:'shirt',shirt:shirtC,pants:'#2d3142'}:pickClothes(female,shirtC);if(!opts.mats&&Math.random()<.18)c.bag=mpick(['#3a2a1c','#1f3a5f','#8a2a2a','#2d3142']);const legC=c.dress==='saree'||c.dress==='mundu'?c.pants:c.pants;
+  const c=opts.clothes?Object.assign({},opts.clothes):opts.mats?{dress:'shirt',shirt:shirtC,pants:'#2d3142'}:pickClothes(female,shirtC);if(opts.seated&&c.dress==='saree')c.dress='kurta';if(!opts.mats&&Math.random()<.18)c.bag=mpick(['#3a2a1c','#1f3a5f','#8a2a2a','#2d3142']);const legC=c.dress==='saree'||c.dress==='mundu'?c.pants:c.pants;
   const k=BUILDK(L.build);const sleeveC=c.shirt,armSkin=c.dress==='kurta'||c.dress==='salwar'?c.shirt:skin;
-  const parts=bodyParts(L,c).concat(headParts(L,skin,hair,female));const legs=[],arms=[];let body=null,hairM=null,headG=null;
-  const watch=!opts.mats&&Math.random()<.3;const armParts=sx=>[['shirt',PG.sleeve,sleeveC,1,1,1,0,-.15,0],['skin',PG.fore,armSkin,1,1,1,0,-.45,0],...(watch&&sx<0?[['watch',PG.cyl,'#2a2522',.05,.025,.05,0,-.57,0]]:[]),['skin',PG.hand,skin,.048,.062,.034,0,-.645,.004],['skin',PG.hand,skin,.017,.03,.017,-sx*.032,-.62,.025]];
-  const legParts=[['pants',PG.leg,legC,1,1,1,0,-.4,0],['shoe',PG.head,shoe,.058,.045,.118,0,-.818,.04],['shoe',PG.box,shade(shoe,.7),.115,.022,.24,0,-.852,.04]];
+  const parts=bodyParts(L,c).concat(headParts(L,skin,hair,female));const legs=[],arms=[],knees=[],fores=[];let body=null,hairM=null,headG=null;
+  const watch=!opts.mats&&Math.random()<.3;const armParts=sx=>[['shirt',PG.sleeve,sleeveC,1,1,1,0,-.15,0],['shirt',PG.elbow,sleeveC,1,1,1,0,-.3,0]],foreParts=sx=>[['skin',PG.fore,armSkin,1,1,1,0,-.15,0],...(watch&&sx<0?[['watch',PG.cyl,'#2a2522',.05,.025,.05,0,-.27,0]]:[]),['skin',PG.hand,skin,.048,.062,.034,0,-.345,.004],['skin',PG.hand,skin,.017,.03,.017,-sx*.032,-.32,.025]];
+  const legParts=[['pants',PG.thigh,legC,1,1,1,0,-.215,0],['pants',PG.knee,legC,1,1,1,0,-.42,0]],shinParts=[['pants',PG.shin,legC,1,1,1,0,-.2,0],['shoe',PG.head,shoe,.058,.045,.118,0,-.398,.04],['shoe',PG.box,shade(shoe,.7),.115,.022,.24,0,-.432,.04]];
   if(opts.mats){const M2={shirt,pants:opts.legM||pm(legC),skin:opts.skinM||LMat(skin),hair:opts.hairM||LMat(hair)};M2.beard=M2.hair;
     const mk=(list,parent)=>{const by=new Map();for(const q of list){const key=M2[q[0]]?q[0]:q[2];if(!by.has(key))by.set(key,[]);by.get(key).push(q);}const out={};
       for(const [key,l] of by){const geo=merge(l.map(([r,gg,cc,sx,sy,sz,x,y,z,rx,rz])=>{const t=gg.clone();t.scale(sx,sy,sz);if(rx)t.rotateX(rx);if(rz)t.rotateZ(rz);t.translate(x,y,z);return t;}));const m=new THREE.Mesh(geo,M2[key]||pm(key));m.castShadow=true;parent.add(m);out[key]=m;}return out;};
     const bodyM=mk(parts.filter(q=>!['skin','hair','beard','eyeW','eyeD','lip','red','gold'].includes(q[0])),g);body=bodyM.shirt;g.userData.hips=bodyM.pants;
     headG=new THREE.Group();g.add(headG);const hm=mk(headParts(L,skin,hair,female),headG);hairM=hm.hair;
-    for(const sx of [-1,1]){const lp=new THREE.Group();lp.position.set(sx*.1*k,.86,0);const lm=mk(legParts,lp);lp.children.sort((a,b)=>(a===lm.pants?-1:b===lm.pants?1:0));g.add(lp);legs.push(lp);
-      const ap=new THREE.Group();ap.position.set(sx*.285*k,1.44,0);ap.rotation.z=sx*.05;const am=mk(armParts(sx),ap);ap.children.sort((a,b)=>(a===am.shirt?-1:b===am.shirt?1:0));g.add(ap);arms.push(ap);}
-    g.userData={legs,arms,body,head:body,hair:hairM||{visible:true},legM:M2.pants,female,skinM:M2.skin,hairM:M2.hair,headG,hips:bodyM.pants,belt:bodyM['#3a2a1c'],look:L,mk,M2};return g;}
+    for(const sx of [-1,1]){const lp=new THREE.Group();lp.position.set(sx*.1*k,.86,0);const lm=mk(legParts,lp);const kn=new THREE.Group();kn.position.y=-.42;const km=mk(shinParts,kn);lp.add(kn);kn.userData.pants=km.pants;g.add(lp);legs.push(lp);knees.push(kn);
+      const ap=new THREE.Group();ap.position.set(sx*.285*k,1.44,0);ap.rotation.z=sx*.05;const am=mk(armParts(sx),ap);const fo=new THREE.Group();fo.position.y=-.3;mk(foreParts(sx),fo);ap.add(fo);g.add(ap);arms.push(ap);fores.push(fo);}
+    jointRig(g,legs,knees,arms,fores);
+    g.userData={legs,arms,knees,fores,body,head:body,hair:hairM||{visible:true},legM:M2.pants,female,skinM:M2.skin,hairM:M2.hair,headG,hips:bodyM.pants,belt:bodyM['#3a2a1c'],look:L,mk,M2};return g;}
   body=new THREE.Mesh(mergeC(parts.map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8],q[9],q[10]))),PEDMAT);body.castShadow=true;g.add(body);
-  for(const sx of [-1,1]){const lp=new THREE.Group();lp.position.set(sx*.1*k,.86,0);const lm=new THREE.Mesh(mergeC(legParts.map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8]))),PEDMAT);lm.castShadow=true;lp.add(lm);g.add(lp);legs.push(lp);
-    const ap=new THREE.Group();ap.position.set(sx*.285*k,1.44,0);ap.rotation.z=sx*.05;const am=new THREE.Mesh(mergeC(armParts(sx).map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8]))),PEDMAT);am.castShadow=true;ap.add(am);g.add(ap);arms.push(ap);}
+  const cm=(list,parent)=>{const m=new THREE.Mesh(mergeC(list.map(q=>cgeo(q[1],q[2],q[3],q[4],q[5],q[6],q[7],q[8]))),PEDMAT);m.castShadow=true;parent.add(m);return m;};
+  for(const sx of [-1,1]){const lp=new THREE.Group();lp.position.set(sx*.1*k,.86,0);cm(legParts,lp);const kn=new THREE.Group();kn.position.y=-.42;cm(shinParts,kn);lp.add(kn);g.add(lp);legs.push(lp);knees.push(kn);
+    const ap=new THREE.Group();ap.position.set(sx*.285*k,1.44,0);ap.rotation.z=sx*.05;cm(armParts(sx),ap);const fo=new THREE.Group();fo.position.y=-.3;cm(foreParts(sx),fo);ap.add(fo);g.add(ap);arms.push(ap);fores.push(fo);}
+  jointRig(g,legs,knees,arms,fores);
   g.scale.setScalar(L.height==='tall'?1.05:L.height==='short'?.94:opts.kid?MR(.6,.72):MR(.93,1.07));
-  g.userData={legs,arms,body,head:body,hair:{visible:true},legM:pm(legC),female};return g;}
+  g.userData={legs,arms,knees,fores,body,head:body,hair:{visible:true},legM:pm(legC),female};return g;}
 const avatar=buildPerson(LMat('#e8573e'),{mats:true,female:false,skin:'#a0673f'});scene.add(avatar);avatar.visible=false;
 const AU=avatar.userData;
-const gunMeshes={bat:part(G.box,LMat('#c99a5b'),.09,.09,1.1,0,-.6,.45,AU.arms[1]),pistol:part(G.box,VM.black,.1,.16,.4,0,-.62,.18,AU.arms[1]),shotgun:part(G.box,VM.black,.1,.12,1.1,0,-.6,.5,AU.arms[1])};
+const gunMeshes={bat:part(G.box,LMat('#c99a5b'),.09,.09,1.1,0,-.3,.45,AU.fores[1]),pistol:part(G.box,VM.black,.1,.16,.4,0,-.32,.18,AU.fores[1]),shotgun:part(G.box,VM.black,.1,.12,1.1,0,-.3,.5,AU.fores[1])};
 const grp=(parent,list)=>{const g=new THREE.Group();for(const [geo,m,sx,sy,sz,x,y,z,rz] of list){const q=part(geo,m,sx,sy,sz,x,y,z,g);if(rz)q.rotation.z=rz;}parent.add(g);return g;};
 const outfitParts={kurta:(()=>{const m=new THREE.Mesh(PG.kurta,LMat('#ffffff'));m.scale.set(1.05,1,.7);avatar.add(m);return m;})(),saree:(()=>{const m=new THREE.Mesh(PG.saree,LMat('#ffffff'));m.scale.set(1.04,1,.74);avatar.add(m);return m;})(),
   pallu:(()=>{const m=part(G.box,LMat('#ffffff'),.2,.68,.022,.03,1.18,.142,avatar);m.rotation.z=-.55;return m;})(),
   glasses:grp(avatar,[[G.box,VM.black,.17,.012,.01,0,1.735,.113],[G.box,LMat('#20262e'),.056,.03,.006,-.04,1.722,.114],[G.box,LMat('#20262e'),.056,.03,.006,.04,1.722,.114],[G.box,VM.black,.008,.01,.11,-.104,1.73,.06],[G.box,VM.black,.008,.01,.11,.104,1.73,.06]]),
   cap:grp(avatar,[[G.sph,LMat('#2d6cdf'),.124,.07,.13,0,1.79,-.005],[G.box,LMat('#2d6cdf'),.15,.012,.1,0,1.79,.13]]),
-  helmet:part(G.sph,VM.black,.155,.155,.165,0,1.745,0,avatar),sneakers:[part(G.box,LMat('#ffffff'),.13,.075,.27,0,-.82,.045,AU.legs[0]),part(G.box,LMat('#ffffff'),.13,.075,.27,0,-.82,.045,AU.legs[1])]};
+  helmet:part(G.sph,VM.black,.155,.155,.165,0,1.745,0,avatar),sneakers:[part(G.box,LMat('#ffffff'),.13,.075,.27,0,-.4,.045,AU.knees[0]),part(G.box,LMat('#ffffff'),.13,.075,.27,0,-.4,.045,AU.knees[1])]};
 const player={mode:'drive',veh:null,pos:new THREE.Vector3(2940,0,8736),h:Math.PI/2,v:0,shake:0,anim:0,fireCd:0,arrestT:0,coolT:0,stars:0,hitCd:0,run:false,knock:0};
 const ppos=()=>player.mode==='drive'&&player.veh?player.veh.pos:player.pos;
 const WEAP={fist:{name:'Fists',range:1.9,rate:.45,melee:true},bat:{name:'Cricket bat',range:2.6,rate:.55,melee:true},pistol:{name:'Pistol',range:60,rate:.32,ammo:'pistol'},shotgun:{name:'Shotgun',range:28,rate:.95,ammo:'shotgun'}};
@@ -604,7 +619,11 @@ function placePed(p,minD){const pp=ppos();const bl=pedBlocksNear(pp.x,pp.z);if(!
   p.state='walk';p.sp=MR(1,1.8);p.g.rotation.set(0,0,0);p.g.visible=true;}
 function addPed(){const g=buildPerson(mpick(pedCols),{kid:Math.random()<.07});scene.add(g);const p={g,x:0,z:0,ry:0,state:'walk',ph:Math.random()*6};placePed(p,started?60:0);peds.push(p);return p;}
 function setPedCount(n){while(peds.length<n)addPed();while(peds.length>n){const p=peds.pop();scene.remove(p.g);}}
-function knockPed(p,crime){if(p.state==='down')return;p.state='down';setTimeout(()=>fleeFrom(p.x,p.z,22),0);p.downT=14;p.g.rotation.set(-Math.PI/2,p.ry,0,'YXZ');if(crime)addWanted(1,crime);emit('pedDown',p);}
+function knockPed(p,crime){if(p.state==='down')return;p.state='down';p.fallT=0;p.hp=null;setTimeout(()=>fleeFrom(p.x,p.z,22),0);p.downT=14;if(crime)addWanted(1,crime);emit('pedDown',p);}
+/* Fist fights (Beta v1.01.25): a person takes two or three punches (a bat hits twice as hard), staggers back from each one,
+   and some of them fight back. They fall over backwards rather than snapping flat. */
+function hitPed(p,dmg,ox,oz){if(p.state==='down')return;if(p.hp==null)p.hp=Math.random()<.35?3:2;p.hp-=dmg;const dx=p.x+(p.ox||0)-ox,dz=p.z+(p.oz||0)-oz,d=Math.hypot(dx,dz)||1;p.ox=(p.ox||0)+dx/d*.55;p.oz=(p.oz||0)+dz/d*.55;
+  if(!p.hitOnce){p.hitOnce=true;addWanted(1,'Assault');}if(p.hp<=0){knockPed(p,null);return;}p.state='hit';p.hitT=.5;p.ry=Math.atan2(-dx,-dz);if(p.fighter==null)p.fighter=Math.random()<.3;}
 function fleeFrom(x,z,r){for(const p of peds){if(p.state!=='walk'&&p.state!=='flee')continue;if(Math.hypot(p.x-x,p.z-z)<r){p.state='flee';p.fleeT=8;const ex=p.side<2?1:0,ez=1-ex;p.dir=Math.sign(((p.x-x)*ex+(p.z-z)*ez)||1);}}}
 function ejectDriver(v){const p=peds.find(q=>q.state==='walk'&&Math.hypot(q.x-ppos().x,q.z-ppos().z)>40)||peds[0];if(!p)return;const sx=Math.cos(v.h),sz=-Math.sin(v.h);p.x=v.pos.x+sx*(v.spec.wid/2+.8);p.z=v.pos.z+sz*(v.spec.wid/2+.8);const a=Math.atan2(p.x-v.pos.x,p.z-v.pos.z);p.vx=Math.sin(a)*5;p.vz=Math.cos(a)*5;p.ry=a;p.state='run';p.runT=6;p.g.visible=true;p.g.rotation.set(0,a,0);}
 /* Animals: rounded bodies with painted coats (stripes, spots, patches), proper legs with knees and hooves or paws,
@@ -799,7 +818,7 @@ const fireHooks=[];function fire(){for(const f of fireHooks){try{if(f())return;}
   player.fireCd=Wp.rate;player.anim=.25;const ox=player.pos.x,oz=player.pos.z;const cone=Wp.melee?1.1:.32;let best=null,bd=1e9;const cand=[];
   for(const p of peds)if(p.state!=='down'&&p.g.visible)cand.push({k:'ped',o:p,x:p.x,z:p.z});for(const v of vehicles)if(v.state==='traffic'||v.state==='police')cand.push({k:'veh',o:v,x:v.pos.x,z:v.pos.z});
   for(const c of cand){const dx=c.x-ox,dz=c.z-oz,d=Math.hypot(dx,dz);const lim=Wp.range+(c.k==='veh'?c.o.spec.len/2:0);if(d>lim||d<.01)continue;const da=Math.abs(wrapA(Math.atan2(dx,dz)-player.h));if(da<cone&&d<bd){bd=d;best=c;}}
-  if(Wp.melee){sfxPunch();if(best&&best.k==='ped'&&bd<Wp.range+.4){player.h=Math.atan2(best.x-ox,best.z-oz);knockPed(best.o,'Assault');fleeFrom(ox,oz,25);}return;}
+  if(Wp.melee){sfxPunch();player.lastPunch=performance.now();player.punchSide=1-(player.punchSide|0);if(best&&best.k==='ped'&&bd<Wp.range+.4){player.h=Math.atan2(best.x-ox,best.z-oz);hitPed(best.o,P.weapon==='bat'?2:1,ox,oz);fleeFrom(ox,oz,25);}return;}
   P.ammo[Wp.ammo]--;dirty=true;updWeap();sfxShot(1);flash.position.set(ox+Math.sin(player.h),1.4,oz+Math.cos(player.h));flash.intensity=3;let tx=ox+Math.sin(player.h)*Wp.range,tz=oz+Math.cos(player.h)*Wp.range;
   const hitOne=c=>{if(c.k==='ped')knockPed(c.o,null);else{const v=c.o;if(v.state==='police'){v.hp-=25;addWanted(1,'Shot at police');if(v.hp<=0){v.dead=true;v.v=0;}}else{v.stopT=8;}}};
   if(best){player.h=Math.atan2(best.x-ox,best.z-oz);tx=best.x;tz=best.z;hitOne(best);if(best.k==='ped')addWanted(1,'Attack');}

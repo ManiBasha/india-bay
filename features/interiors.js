@@ -16,7 +16,7 @@ window.BBFeatures.push(function (bb) {
     const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return new T.CanvasTexture(c); };
     const sign = (text, w, h, x, y, z, ry, bg, fg) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: tex(512, Math.round(512 * h / w), (c, W2, H2) => { c.fillStyle = bg; c.fillRect(0, 0, W2, H2); c.fillStyle = fg; let f = Math.round(H2 * .5); c.font = `800 ${f}px "Baloo 2",sans-serif`; while (c.measureText(text).width > W2 - 30 && f > 12) { f -= 2; c.font = `800 ${f}px "Baloo 2",sans-serif`; } c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, W2 / 2, H2 / 2 + 2); }) }));
       m.position.set(x, y, z); m.rotation.y = ry || 0; g.add(m); return m; };
-    const person = (col, x, z, ry, sitY) => { const p = bb.buildPerson(M(col), { female: Math.random() < .45 }); p.position.set(x, sitY != null ? sitY - .62 : 0, z); p.rotation.y = ry || 0; if (sitY != null && p.userData.legs) p.userData.legs.forEach(l => l.rotation.x = -1.45); g.add(p); return p; };
+    const person = (col, x, z, ry, sitY) => { const p = bb.buildPerson(M(col), { female: Math.random() < .45 }); p.position.set(x, sitY != null ? sitY + .03 - .86 * p.scale.y : 0, z); p.rotation.y = ry || 0; if (sitY != null && p.userData.legs) p.userData.legs.forEach(l => l.rotation.x = -1.45); g.add(p); return p; };
     const plant = (x, z, s = 1) => { cyl(.28 * s, .22 * s, .5 * s, x, .25 * s, z, '#8a5a3a'); const b = new T.Mesh(new T.SphereGeometry(.5 * s, 9, 7), M('#3e8c3a')); b.position.set(x, .95 * s, z); b.scale.set(1, 1.3, 1); g.add(b); };
     // walls that face into the room: from outside (where the camera may be) they are see-through
     const walls = (w, d, H, col, ceil) => { const m = typeof col === 'string' ? M(col) : col; const P2 = (pw, ph, x, y, z, ry) => { const o = new T.Mesh(new T.PlaneGeometry(pw, ph), m); o.position.set(x, y, z); o.rotation.y = ry; g.add(o); };
@@ -80,10 +80,39 @@ window.BBFeatures.push(function (bb) {
         for (const s of [-1, 1]) { box(1.2, 2.4, .1, s * 3, 1.2, -d / 2 + .2, '#b9bcc1'); box(.05, 2.3, .11, s * 3, 1.2, -d / 2 + .2, '#5a5d62'); } sign('LIFT', 1, .3, 0, 2.95, -d / 2 + .17, 0, '#2b2b30', '#ffffff');
         seats.push(...sofa(K, -w / 2 + 1.6, 1, Math.PI / 2, 3, '#3d4a5a')); seats.push(...sofa(K, w / 2 - 1.6, 1, -Math.PI / 2, 2, '#3d4a5a')); plant(-w / 2 + 1, -d / 2 + 1); plant(w / 2 - 1, -d / 2 + 1);
         if (kind === 'flats') for (let i = 0; i < 12; i++) box(.3, .25, .05, -2 + (i % 6) * .35, 1.2 + Math.floor(i / 6) * .3, d / 2 - .2, '#c9a227'); } }, name); }
+  /* Beta v1.01.25: rooms that look lived in — polished tiles with grout lines, skirting, a false ceiling with panel lights,
+     ceiling fans that turn, windows with daylight, glass entrance doors, a wall clock, framed pictures and a water cooler. */
+  const TX = {}; function tileTex(kind) { if (TX[kind]) return TX[kind]; const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
+    const big = kind === 'hall'; x.strokeStyle = 'rgba(40,30,20,.45)'; x.lineWidth = 3; x.strokeRect(1.5, 1.5, 253, 253); if (!big) { x.beginPath(); x.moveTo(128, 0); x.lineTo(128, 256); x.moveTo(0, 128); x.lineTo(256, 128); x.stroke(); }
+    for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(255,255,255,${Math.random() * .08})`; x.beginPath(); x.ellipse(Math.random() * 256, Math.random() * 256, 10 + Math.random() * 30, 2 + Math.random() * 5, Math.random() * 3, 0, 6.3); x.fill(); }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return TX[kind] = t; }
+  const fans = []; bb.onUpdate(dt => { for (let i = fans.length - 1; i >= 0; i--) { const f = fans[i]; if (!f.parent) { fans.splice(i, 1); continue; } f.rotation.y += dt * 7; } });
+  function dress(K, kind, w, d, H) { const g = K.g, big = w > 24; const { box } = K;
+    // tiles over the floor colour
+    const tt = tileTex(big ? 'hall' : 'room').clone(); tt.needsUpdate = true; tt.repeat.set(w / (big ? 1.6 : 1.2), d / (big ? 1.6 : 1.2)); const fl = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshLambertMaterial({ map: tt, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); fl.rotation.x = -Math.PI / 2; fl.position.y = .035; g.add(fl);
+    // skirting and a dado line
+    const sk = kind === 'mechanic' ? '#3a3b40' : '#6b5a4a'; box(w, .14, .04, 0, .07, -d / 2 + .02, sk); box(w, .14, .04, 0, .07, d / 2 - .02, sk); box(.04, .14, d, -w / 2 + .02, .07, 0, sk); box(.04, .14, d, w / 2 - .02, .07, 0, sk);
+    // false ceiling: a frame and panel lights
+    const cm = new T.Mesh(new T.PlaneGeometry(w, d), M('#f3f0ea')); cm.rotation.x = Math.PI / 2; cm.position.y = H - .02; g.add(cm); const step = big ? 4 : 3;
+    for (let x = -w / 2 + step / 2; x < w / 2; x += step) for (let z = -d / 2 + step / 2; z < d / 2; z += step) { box(.62, .03, .62, x, H - .04, z, glow('#fffaf0')); box(.68, .02, .68, x, H - .025, z, '#d9d4cc'); }
+    // ceiling fans in the smaller rooms
+    if (!big && kind !== 'cars' && kind !== 'bikes') for (const fx of w > 12 ? [-w / 4, w / 4] : [0]) { const f = new T.Group(); f.position.set(fx, H - .55, 1.5); const rod = new T.Mesh(new T.CylinderGeometry(.03, .03, .5, 6), M('#5a5d62')); rod.position.y = .3; f.add(rod); const hub = new T.Mesh(new T.CylinderGeometry(.14, .12, .12, 10), M('#e9e4d6')); f.add(hub);
+      for (let i = 0; i < 3; i++) { const b = new T.Mesh(new T.BoxGeometry(.95, .015, .16), M('#e9e4d6')); b.position.set(Math.cos(i * 2.094) * .52, 0, Math.sin(i * 2.094) * .52); b.rotation.y = -i * 2.094; f.add(b); } g.add(f); fans.push(f); }
+    // windows with daylight on the left wall
+    const glass = glow('#cfe6f5'); for (let z = -d / 2 + 2.2; z < d / 2 - 2; z += big ? 4.5 : 3.2) { const ww = big ? 3 : 1.8, wh = big ? 3 : 1.4, y = big ? 3.6 : 1.85; const q = new T.Mesh(new T.PlaneGeometry(ww, wh), glass); q.position.set(-w / 2 + .03, y, z); q.rotation.y = Math.PI / 2; g.add(q);
+      for (const [a, b2, c, dx, dy] of [[.08, wh + .16, .1, 0, -ww / 2], [.08, wh + .16, .1, 0, ww / 2], [.08, .08, ww, wh / 2, 0], [.1, .1, ww + .3, -wh / 2 - .04, 0], [.06, wh, .05, 0, 0]]) box(a, b2, c, -w / 2 + .06, y + (dx || 0), z + (dy || 0), '#8a7a6a'); }
+    // glass entrance doors in the front wall (where you came in)
+    const dw = big ? 4 : 2.4, dh = big ? 3.2 : 2.5; const dg = new T.Mesh(new T.PlaneGeometry(dw, dh), glow('#e8f4fb')); dg.position.set(0, dh / 2, d / 2 - .03); dg.rotation.y = Math.PI; g.add(dg); box(.1, dh, .12, 0, dh / 2, d / 2 - .06, '#5a5d62'); box(dw + .3, .14, .14, 0, dh + .07, d / 2 - .06, '#5a5d62'); for (const s2 of [-1, 1]) box(.12, dh, .14, s2 * (dw / 2 + .08), dh / 2, d / 2 - .06, '#5a5d62');
+    K.sign('EXIT', .8, .28, 0, dh + .45, d / 2 - .05, Math.PI, '#1e8a4c', '#ffffff');
+    // a wall clock and framed pictures on the back wall, a water cooler by the door
+    const clk = new T.Mesh(new T.CircleGeometry(.32, 20), M('#f7f5ef')); clk.position.set(w / 2 - 1.6, H - 1.1, -d / 2 + .04); g.add(clk); const rim = new T.Mesh(new T.RingGeometry(.32, .37, 20), M('#2b2b30')); rim.position.copy(clk.position); rim.position.z += .005; g.add(rim);
+    for (const [hx, hl] of [[.12, .2], [-.02, .26]]) { const hd = new T.Mesh(new T.PlaneGeometry(.02, hl), M('#1c1c20')); hd.position.set(clk.position.x + hx * .3, clk.position.y + hl / 2 * .7, clk.position.z + .01); hd.rotation.z = hx * 6; g.add(hd); }
+    const PIC = ['#3e6e8a', '#b35a2a', '#3a7a4a', '#7a3d9a']; for (const [px, i] of [[-w / 2 + 2.2, 0], [w / 2 - 3.4, 1]]) { box(1.3, .9, .05, px, 2.1, -d / 2 + .05, '#5a4030'); box(1.15, .75, .06, px, 2.1, -d / 2 + .06, PIC[(i + w) % 4]); }
+    if (kind !== 'cars' && kind !== 'bikes') { box(.38, 1.0, .38, w / 2 - .5, .5, d / 2 - 1.2, '#e9e4d6', true); K.cyl(.15, .15, .4, w / 2 - .5, 1.2, d / 2 - 1.2, new T.MeshPhongMaterial({ color: 0x8fc8e8, transparent: true, opacity: .7 })); } }
   // a room = an enterVenue description; seats are interior points too
   function room(poi, kind, w, d, H, build, title) { const blk = [], seats = [], pts = [];
-    return { poi, name: title || poi.name, w, d, bg: '#dcd6cc', exitName: `Exit · back outside`, exit: { x: 0, z: d / 2 - 1.1 }, start: { x: 0, z: d / 2 - 3.2, h: Math.PI }, blk, _ib: true, _kind: kind,
-      build: g => { const K = Object.assign(kit(g, blk), { g, blk }); build(K, seats, pts); const L = new T.PointLight(0xfff4e0, 1.1, 60); L.position.set(0, H - .5, 0); g.add(L); const L2 = new T.HemisphereLight(0xffffff, 0x887766, .55); g.add(L2);
+    return { poi, name: title || poi.name, w, d, H, bg: '#dcd6cc', exitName: `Exit · back outside`, exit: { x: 0, z: d / 2 - 1.1 }, start: { x: 0, z: d / 2 - 3.2, h: Math.PI }, blk, _ib: true, _kind: kind,
+      build: g => { const K = Object.assign(kit(g, blk), { g, blk }); build(K, seats, pts); dress(K, kind, w, d, H); const L = new T.PointLight(0xfff4e0, 1.1, 60); L.position.set(0, H - .5, 0); g.add(L); const L2 = new T.HemisphereLight(0xffffff, 0x887766, .55); g.add(L2);
         seats.forEach((s, i) => { if (!s.taken) pts.push({ k: 'seat' + i, name: s.name, x: s.x + Math.sin(s.h) * .55, z: s.z + Math.cos(s.h) * .55 }); }); return pts; },
       onAction: k => { if (k === 'desk') { poi._desk = true; try { return bb.openPoi(poi); } finally { poi._desk = false; } }
         if (k === 'buy') { if (!bb.spend(30, true)) return; P().hunger = Math.min(100, P().hunger + 15); bb.emit('eat'); return bb.toast('🥤 A cold drink and chips · hunger +15', '#3ddc97'); }
@@ -104,20 +133,21 @@ window.BBFeatures.push(function (bb) {
       const door = { x: p.x, z: p.z, rot, name: kind.replace('Go into the ', '').replace(/^./, c => c.toUpperCase()), type: 'bld' }; bb.enterVenue(generic(b, door)); } }; });
   /* ---------- sitting ---------- */
   const SEATS = []; const SH = new Map();
-  const addSeat = s => { SEATS.push(s); const k = Math.floor(s.x / 30) + ',' + Math.floor(s.z / 30); let a = SH.get(k); if (!a) SH.set(k, a = []); a.push(s); };
+  const addSeat = s => { SEATS.push(s); if (!s.indoor && bb.pedBlock) bb.pedBlock(s.x, s.z, .5); const k = Math.floor(s.x / 30) + ',' + Math.floor(s.z / 30); let a = SH.get(k); if (!a) SH.set(k, a = []); a.push(s); };
   function seatNear(x, z) { let b = null, bd = 1.25; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = SH.get((Math.floor(x / 30) + i) + ',' + (Math.floor(z / 30) + j)); if (!a) continue; for (const s of a) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; b = s; } } } return b; }
   bb.addPrompt(() => { if (bb.inside || bb.player.mode !== 'foot') return null; const p = bb.player.pos; const s = seatNear(p.x, p.z); return s ? { text: s.name || 'Sit on the bench', fn: () => sit(s, false) } : null; });
   function sit(s, indoor) { if (!bb.CINE) return; const A = bb.avatar, U = A.userData; const S = { yaw: 0 }; const base = indoor ? 0 : .3; let rest = 0;
     bb.CINE.play({ keepInside: true, kind: 'none', hud: true, lookToggle: false, showAvatar: true, label: indoor ? 'Inside' : 'Taking a break', title: 'Sitting', sub: 'Relax · ◀ ▶ or drag to look round · Stand up when you are ready', skipLabel: 'Stand up',
       cam: (f, dt, st, keys) => { if (keys) { if (keys.ArrowLeft || keys.KeyA) S.yaw += dt * 1.3; if (keys.ArrowRight || keys.KeyD) S.yaw -= dt * 1.3; }
-        A.position.set(s.x, base + s.y - .62, s.z); A.rotation.set(0, s.h, 0); if (U.legs) U.legs.forEach(l => l.rotation.x = -1.45); if (U.arms) U.arms.forEach(a => a.rotation.x = -.35);
+        if (bb.seatAvatar) bb.seatAvatar(true); const sc = A.scale.y || 1; A.position.set(s.x - Math.sin(s.h) * .1, s.y + .03 - .86 * sc, s.z - Math.cos(s.h) * .1); A.rotation.set(0, s.h, 0); if (U.legs) U.legs.forEach((l, i) => { l.rotation.x = -1.52; l.rotation.z = (i ? 1 : -1) * .06; }); if (U.arms) U.arms.forEach(a => a.rotation.x = -.55);
         rest += dt; if (rest > 3) { rest = 0; P().energy = Math.min(100, P().energy + .6); }
         const a = s.h + Math.PI + .5 + S.yaw, r = indoor ? 2.4 : 3.6; const cx = s.x + Math.sin(a) * r, cz = s.z + Math.cos(a) * r; return { x: cx, y: base + (indoor ? 1.7 : 2.0), z: cz, lx: s.x, ly: base + s.y + .4, lz: s.z, lookK: 6, px: s.x, pz: s.z }; },
-      onStop: () => { if (U.legs) U.legs.forEach(l => l.rotation.x = 0); if (U.arms) U.arms.forEach(a => a.rotation.x = 0); const p = bb.player.pos; p.set(s.x + Math.sin(s.h) * .8, 0, s.z + Math.cos(s.h) * .8); bb.player.h = s.h; } }); }
+      onStop: () => { if (bb.seatAvatar) bb.seatAvatar(false); if (U.legs) U.legs.forEach(l => { l.rotation.x = 0; l.rotation.z = 0; }); if (U.arms) U.arms.forEach(a => a.rotation.x = 0); const p = bb.player.pos; p.set(s.x + Math.sin(s.h) * .8, 0, s.z + Math.cos(s.h) * .8); bb.player.h = s.h; } }); }
   // outdoor benches: at tea and food stalls and bus stops (where there is room)
   const bm = bb.LMat('#6b4a2e'), lm = bb.LMat('#3a3b40'); const V = new T.Vector3();
   function bench(x, z, h, name) { const parts = [[1.7, .07, .42, 0, .45, 0, bm], [1.7, .38, .05, 0, .72, -.2, bm], [.06, .45, .36, -.75, .22, 0, lm], [.06, .45, .36, .75, .22, 0, lm]];
     for (const [w, hh, d, lx, y, lz, m] of parts) { const g = new T.BoxGeometry(w, hh, d); g.rotateY(h); g.translate(x + lx * Math.cos(h) + lz * Math.sin(h), y, z - lx * Math.sin(h) + lz * Math.cos(h)); bb.addStatic(g, m); }
+    if (bb.pedBlock) bb.pedBlock(x, z, .95);
     for (const lx of [-.4, .4]) addSeat({ x: x + lx * Math.cos(h) + .05 * Math.sin(h), z: z - lx * Math.sin(h) + .05 * Math.cos(h), y: .5, h, name: name || 'Sit on the bench' }); }
   const clear = (x, z) => { if (bb.isWater(x, z) || bb.roadAt(x, z, .6)) return false; V.set(x, 0, z); return !bb.collideTest(V) && !bb.pois.some(p => Math.abs(p.x - x) < 1.6 && Math.abs(p.z - z) < 1.6); };
   let nb = 0; for (const p of bb.pois) { if (p.type !== 'food' && p.type !== 'bus') continue; const r = p.rot || 0; for (const side of [1, -1]) { const x = p.x + Math.cos(r) * 3.2 * side, z = p.z - Math.sin(r) * 3.2 * side; if (clear(x, z) && clear(x + Math.cos(r) * .8, z - Math.sin(r) * .8)) { bench(x, z, r, p.type === 'bus' ? 'Sit at the bus stop' : 'Sit on the bench by the stall'); nb++; break; } } }

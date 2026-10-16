@@ -21,6 +21,20 @@ window.BBFeatures.push(function (bb) {
   function go(x, z, name, direct) { if (!direct && bb.TRANSIT && bb.TRANSIT.choose(x, z, name)) return; const r = bb.nearestRoadPoint(x, z, 400); setGps(r && Math.hypot(r.x - x, r.z - z) < 60 ? r.x : x, r && Math.hypot(r.x - x, r.z - z) < 60 ? r.z : z, name); bb.toast(`Directions to ${bb.esc(name)} · follow the blue line`, '#5fb4ff'); }
   function selectCard(sh, x, z, name, sub, pin) { const el = sh.querySelector('#msel'); const pp = bb.ppos(); el.innerHTML = `<div class="selcard"><div><b>${bb.esc(name)}</b><small>${bb.esc(sub || '')} · ${dkm(Math.hypot(x - pp.x, z - pp.z))} away</small></div><div class="btnrow" style="gap:6px;flex-wrap:nowrap"><button class="go" data-dir>Directions</button><button class="buy ghost" data-unsel>Close</button></div></div>`;
     el.querySelector('[data-dir]').onclick = () => go(x, z, name); el.querySelector('[data-unsel]').onclick = () => { el.innerHTML = ''; if (pin) pin(null); }; if (pin) pin([x, z]); }
+  /* Map search (Beta v1.01.25): every place on the map, cities, famous places, attractions, activities, player businesses
+     (with the owner's username) and friends who share their location with you (by username). */
+  function searchIndex() { const out = [], pp = bb.ppos(); const add = (name, sub, x, z, icon, extra) => out.push({ name, sub, x, z, icon, key: (name + ' ' + sub + ' ' + (extra || '')).toLowerCase(), d: Math.hypot(x - pp.x, z - pp.z) });
+    for (const p of bb.pois) { if (p.type === 'home' && !P().homes.includes(p.extra)) continue; const zn = p.zone ? p.zone.name : (bb.zoneAt(p.x, p.z, 200) || {}).name || ''; add(p.name, `${bb.PLABEL[p.type] || p.type}${zn ? ' · ' + zn : ''}`, p.x, p.z, bb.PICON[p.type] || '📍', `${p.type} ${typeof p.extra === 'string' ? p.extra : ''} ${p.type === 'activity' || p.type === 'ride' ? 'activity things to do' : ''}`); }
+    for (const q of W.zones) add(q.name, `City · ${W.states[q.st] || ''}`, q.x0 + q.nx * 40, q.z0 + q.nz * 40, '🏙', 'city town ' + q.st);
+    for (const pl of W.places) add(pl[0], 'Famous place', pl[1], pl[2], '⭐', 'attraction sightseeing landmark');
+    if (bb.ATTRACTIONS) for (const a of bb.ATTRACTIONS.list || []) if (a.name) add(a.name, 'Attraction · parking and visitor centre', a.x, a.z, '🎟', 'attraction sightseeing tour');
+    if (bb.BUSINESS) { for (const b of bb.BUSINESS.others || []) add(b.name, `@${b.owner || 'player'}'s ${bb.BUSINESS.TYPES[b.t] ? bb.BUSINESS.TYPES[b.t].name : 'business'}`, b.x, b.z, '🏪', 'business ' + (b.owner || '') + ' ' + b.t); for (const b of P().biz || []) if (b.t && b.x != null) add(b.name, 'Your business', b.x, b.z, '🏪', 'business mine ' + b.t); }
+    if (bb.LOCSHARE) for (const [n, q] of bb.LOCSHARE.live) if (q && q.x != null) add('@' + n, `${q.once ? 'Shared once' : 'Sharing live'}${q.place ? ' · ' + q.place : ''}`, q.x, q.z, '📍', 'friend player ' + n);
+    return out; }
+  function searchRun(sh, q) { const el = sh.querySelector('#mres'); if (!el) return; q = q.trim().toLowerCase(); if (q.length < 2) { el.innerHTML = ''; return; } const words = q.split(/\s+/);
+    const hits = searchIndex().filter(h => words.every(w => h.key.includes(w))).map(h => ({ h, sc: (h.name.toLowerCase().startsWith(q) ? 0 : h.name.toLowerCase().includes(q) ? 1 : 2) * 1e7 + h.d })).sort((a, b) => a.sc - b.sc).slice(0, 12).map(x => x.h);
+    el._hits = hits; el.innerHTML = hits.length ? hits.map((h, i) => bb.rowHtml('s' + i, `${h.icon} ${bb.esc(h.name)}`, `${bb.esc(h.sub)} · ${dkm(h.d)}`, 'Directions', 'ghost')).join('') : '<p class="note">Nothing found · try a city, a place or a username</p>';
+    el.onclick = e => { const id = e.target.closest('[data-id]') && e.target.closest('[data-id]').dataset.id; if (!id || id[0] !== 's') return; e.stopPropagation(); const h = el._hits[+id.slice(1)]; if (!h) return; el.innerHTML = ''; sh.querySelector('#msearch').value = ''; selectCard(sh, h.x, h.z, h.name, h.sub, sh._pin); if (sh._centre) sh._centre(h.x, h.z); }; }
   function curZone() { const pp = bb.ppos(); return bb.zoneAt(pp.x, pp.z, 150) || W.zones.slice().sort((a, b) => Math.hypot(a.x0 + a.nx * 40 - pp.x, a.z0 + a.nz * 40 - pp.z) - Math.hypot(b.x0 + b.nx * 40 - pp.x, b.z0 + b.nz * 40 - pp.z))[0]; }
 
   /* Zoomable map: drag to pan, pinch or scroll to zoom, tap for directions. */
@@ -30,7 +44,7 @@ window.BBFeatures.push(function (bb) {
     const near = bb.pois.filter(p => (p.type !== 'home' || P().homes.includes(p.extra)) && Math.hypot(p.x - pp.x, p.z - pp.z) < 700).map(p => ({ p, d: Math.hypot(p.x - pp.x, p.z - pp.z) })).sort((a, b) => a.d - b.d).slice(0, 30);
     const zs = W.zones.map(q => ({ z: q, d: Math.hypot(q.x0 + q.nx * 40 - pp.x, q.z0 + q.nz * 40 - pp.z) })).sort((a, b) => a.d - b.d);
     const sub = gps ? `Route to ${bb.esc(gps.name)} · drag, pinch or scroll to zoom` : 'Drag to move · pinch or scroll to zoom · tap a place for directions';
-    bb.openSheet(`🗺 ${bb.esc(z.name)} · ${W.states[z.st]}`, sub, tabs() +
+    bb.openSheet(`🗺 ${bb.esc(z.name)} · ${W.states[z.st]}`, sub, tabs() + `<input type="search" id="msearch" placeholder="🔎 Search places, attractions, activities or a friend" autocomplete="off" style="width:100%;margin:2px 0 6px"><div id="mres"></div>` +
       `<div class="mapwrap zmap"><canvas id="zm"></canvas><div class="zbtns"><button data-zb="in" aria-label="Zoom in">+</button><button data-zb="out" aria-label="Zoom out">−</button><button data-zb="me" aria-label="Centre on me">◎</button>${R0 || gps ? '<button data-zb="ahead" aria-label="Navigation view: the road ahead">🧭</button><button data-zb="route" aria-label="Show whole route">⤢</button>' : ''}</div><div class="zscale" id="zsc"></div></div>
       <div id="msel"></div><div class="legend"><span><b style="color:#2f7bff">━</b> Your route</span><span><b style="color:#d62f4b">●</b> Destination</span><span><b style="color:#ff9f1c">━</b> Busy · <b style="color:#e8473a">━</b> Jammed</span><span><b style="color:#ffd36a">━</b> Expressway</span><span>✈ Airport · 🏡 Home</span><span><b style="color:${bb.CFG.accent}">▲</b> You</span></div>` +
       `<details open><summary class="dsum">Near you (${near.length})</summary>${near.map((q, i) => bb.rowHtml('p' + i, `${bb.PICON[q.p.type] || '📍'} ${bb.esc(q.p.name)}`, `${bb.PLABEL[q.p.type] || ''} · ${dkm(q.d)}`, 'Directions', 'ghost')).join('')}</details>` +
@@ -76,6 +90,8 @@ window.BBFeatures.push(function (bb) {
         const h = bb.player.veh ? bb.player.veh.h : bb.player.h; x.save(); x.translate(sx(pp.x), sz(pp.z)); x.fillStyle = 'rgba(47,123,255,.18)'; x.beginPath(); x.arc(0, 0, 18, 0, 6.29); x.fill(); x.rotate(Math.PI - h); x.fillStyle = bb.CFG.accent; x.strokeStyle = '#1a1430'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -10); x.lineTo(8, 8); x.lineTo(0, 3); x.lineTo(-8, 8); x.closePath(); x.fill(); x.stroke(); x.restore();
         const sc = sh.querySelector('#zsc'); if (sc) { const m = [50, 100, 200, 500, 1000, 2000, 5000].find(v => v * s > 50) || 5000; sc.style.width = Math.round(m * s) + 'px'; sc.textContent = dkm(m); } }
       const redraw = () => { if (!raf) raf = requestAnimationFrame(draw); };
+      sh._pin = p => { pin = p; redraw(); }; sh._centre = (cx0, cz0) => { V.cx = cx0; V.cz = cz0; V.s = Math.max(V.s, .7); redraw(); };
+      { const q = sh.querySelector('#msearch'); if (q) { let tmo = 0; q.addEventListener('input', () => { clearTimeout(tmo); tmo = setTimeout(() => searchRun(sh, q.value), 120); }); q.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { const el = sh.querySelector('#mres'); if (el && el._hits && el._hits[0]) el.querySelector('[data-id=s0]').click(); } }); } }
       draw();
       const zoomAt = (f, px, py) => { const ax = wx(px), az = wz(py); V.s = Math.max(sMin, Math.min(sMax, V.s * f)); V.cx = ax - (px - cw / 2) / V.s; V.cz = az - (py - ch / 2) / V.s; redraw(); };
       const pts = new Map(); let moved = 0, pinch = null, lastTap = 0;
@@ -201,7 +217,11 @@ window.BBFeatures.push(function (bb) {
     for (const s of [-1, 1]) { m(new T3.BoxGeometry(.05, .7, 8), L('#24323d'), s * 2.11, 2.3, -.8); for (let k = 0; k < 4; k++) { const r = m(new T3.TorusGeometry(.28, .07, 5, 10), L('#ff5a1f'), s * 2.15, 1.7, -4 + k * 2.4); r.rotation.y = Math.PI / 2; } }
     m(new T3.BoxGeometry(4.2, .12, 9), L('#c9c2b2'), 0, 3.05, -.8); for (const s of [-1, 1]) m(new T3.BoxGeometry(.06, .6, 9), L('#9aa4ae'), s * 2.08, 3.4, -.8);
     m(new T3.BoxGeometry(2, 1.2, 2), L('#f4f1ea'), 0, 3.7, 2.4); m(new T3.BoxGeometry(2.05, .4, .05), L('#24323d'), 0, 3.9, 3.42);
-    m(new T3.CylinderGeometry(.35, .4, 1.6, 10), L('#d62f2f'), 0, 4, -4); bb.scene.add(g); return g; }
+    m(new T3.CylinderGeometry(.35, .4, 1.6, 10), L('#d62f2f'), 0, 4, -4);
+    // Beta v1.01.25: a captain at the wheel and a few passengers at the bow rail
+    const cap = bb.buildPerson(L('#f4f1ea'), { female: false }); cap.position.set(0, 3.12, 2.7); cap.userData.arms.forEach(a => a.rotation.x = -.9); g.add(cap);
+    for (let i = 0; i < 4; i++) { const q = bb.buildPerson(L(['#d9483b', '#2f7fc1', '#e8a628', '#3aa66b'][i])); q.position.set(-1.4 + i * .95, 1.27, 4.6 + (i % 2) * .7); g.add(q); }
+    bb.scene.add(g); return g; }
   // each ferry waits at the water's edge by its jetty (never on the land), Beta v1.01.07
   const FERRY = W.ferries.map(f => { const L = Math.hypot(f.bx - f.ax, f.bz - f.az) || 1; const wetAt = u => bb.isWater(f.ax + (f.bx - f.ax) * u, f.az + (f.bz - f.az) * u);
     let s0 = -1, s1 = -1; for (let d = 0; d <= L; d += 2) if (wetAt(d / L)) { s0 = Math.min(1, (d + 7) / L); break; } for (let d = 0; d <= L; d += 2) if (wetAt(1 - d / L)) { s1 = Math.max(0, 1 - (d + 7) / L); break; }

@@ -60,10 +60,10 @@ nav.sub{margin-top:-4px}label.wide{grid-column:1/-1}.list .lrow label.wide texta
 </div>
 <script src="../js/site-config.js"></script>
 <script src="../js/online-config.js"></script>
-<script src="../js/config.js"></script>
+<script src="../js/config.js?v=1.01.25"></script>
 <script src="../js/world-west.js"></script>
 <script src="../js/world-southwest.js"></script>
-<script src="../js/prices.js"></script>
+<script src="../js/prices.js?v=1.01.25"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <script>
 (function () {
@@ -129,10 +129,11 @@ nav.sub{margin-top:-4px}label.wide{grid-column:1/-1}.list .lrow label.wide texta
   const CHL = { signal: 'Red light', licence: 'No licence', helmet: 'No helmet', puc: 'No PUC', insurance: 'No insurance', speeding: 'Speeding', queue: 'Queue jumping' };
   const num = (p, l, min, max, step) => `<label>${l}<input type="number" data-p="${p}" min="${min}" max="${max}" step="${step || 1}"></label>`;
   const txt = (p, l, max) => `<label>${l}<input type="text" data-p="${p}" maxlength="${max}"></label>`;
+  const vnum = (p, l, d) => `<label>${esc(l)}<input type="number" data-p="${p}" min="0" max="400" step="1" placeholder="${d} km/h"></label>`;
   const ck = (p, l) => `<label class="ck"><input type="checkbox" data-p="${p}" data-b="1"> ${l}</label>`;
   const sel = (p, l, opts) => `<label>${l}<select data-p="${p}">${opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select></label>`;
   async function settingsTab() {
-    const c = await loadCfg();
+    const c = await loadCfg(); c.vspeed = c.vspeed || {}; for (const [t] of (window.IB_VEHS || [])) c.vspeed[t] = c.vspeed[t] || {};
     const S = [
       ['Announcements', `<label style="grid-column:1/-1">Announcement on the start screen<textarea data-p="announce" maxlength="240" placeholder="Diwali update: double fares this week"></textarea></label>`],
       ['Weather', sel('weather', 'Weather', [['auto', 'Follows the season'], ['clear', 'Always clear'], ['cloudy', 'Cloudy'], ['rain', 'Rain'], ['monsoon', 'Monsoon storm'], ['fog', 'Fog']])],
@@ -140,6 +141,7 @@ nav.sub{margin-top:-4px}label.wide{grid-column:1/-1}.list .lrow label.wide texta
       ['Queues (real seconds per person)', Object.keys(QUE).map(k => num('queue.' + k, QUE[k], 1, 300)).join('')],
       ['Travel tickets and times', Object.keys(TRV).map(k => num('travel.' + k + '.0', TRV[k] + ' ticket (₹)', 0, 100000, 10) + num('travel.' + k + '.1', TRV[k] + ' longest trip (s)', 5, 1800, 5)).join('')],
       ['Streets and police', num('traffic', 'Traffic vehicles near the player', 0, 60) + num('peds', 'Pedestrians near the player', 0, 80) + sel('police', 'Police', [['off', 'Off'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']]) + ck('weapons', 'Weapons and bank robbery')],
+      ['Vehicle speeds', num('botSpeedPct', 'Street traffic speed (% of normal)', 30, 300, 5) + num('playerSpeedPct', 'Player vehicles speed (% of normal)', 30, 300, 5) + '<p class="note" style="grid-column:1/-1;margin:0">Top speed for each vehicle in km/h. Leave a box empty or at 0 to keep the normal speed shown in grey. Traffic is the street bots; players is anyone driving it.</p>' + (window.IB_VEHS || []).map(([t, l, d]) => vnum('vspeed.' + t + '.b', l + ' · traffic', d) + vnum('vspeed.' + t + '.p', l + ' · players', d)).join('')],
       ['Online and moderation', ck('voiceChat', 'Voice messages between players (turn off if there is trouble; takes effect within a minute for everyone)') + ck('baygramOn', 'BayGram feed: players post photos and clips taken in the game (turn off to pause the feed and posting)') + ck('challansOn', 'Traffic challans: red lights, speed cameras, riding without a helmet') + ck('filmOn', 'Film mode for every player: cinematic cameras and video recording (Profile → Film mode)') + ck('chatOn', 'Chat between players: nearby chat, BayGram messages and comments') + ck('callsOn', 'Phone calls between players') + `<label style="grid-column:1/-1">Announcement when chat or calls are off<input type="text" data-p="chatNote" maxlength="200" placeholder="Chat is paused for maintenance until 6 pm"></label>`],
       ['Heroes', ck('heroes.vidyut', '⚡ Vidyut, the Lightning Guardian (Kerala)') + ck('heroes.varsha', '🌧 Varsha, the Monsoon Guardian (Maharashtra)') + ck('heroes.marudhar', '🦅 Marudhar, the Desert Falcon (Rajasthan)') + ck('heroes.patang', '🪁 Patang, the Kite Ace (Gujarat)') + ck('heroes.sagar', '🌊 Sagar, the Tide Rider (Goa)') + ck('heroes.chandan', '🌿 Chandan, the Forest Spirit (Karnataka)') + `<p class="note" style="grid-column:1/-1;margin:0">Each hero shows in one city of its state at a time and moves every 20 minutes. Switch one off to hide it from every player.</p>`],
       ['States', `<p class="note" style="grid-column:1/-1;margin:0">Untick a state to close it for every player: it cannot be picked on the start screen and no trips are sold to it. Players already there can still drive out.</p>` + [...new Set(W.zones.map(z => z.st))].map(st => `<label class="ck"><input type="checkbox" data-p="states.${st}" data-b="1" data-inv="0"> ${esc(W.states[st] || st)}</label>`).join('')]

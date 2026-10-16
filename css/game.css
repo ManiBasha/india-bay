@@ -73,6 +73,7 @@ button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .pad button.on{background:color-mix(in srgb,var(--acc) 55%,transparent)}
 .pad .gas{height:94px;border-radius:35px;background:rgba(61,220,151,.28)}
 .pad .brake{background:rgba(255,93,115,.25)}
+.pad .hb{background:rgba(255,201,60,.25);font-size:12px}body:not(.driving) .pad .hb{display:none}
 .pad .fire{background:rgba(255,93,115,.35)}
 @media (hover:none){.pad{display:flex}#speed{bottom:calc(env(safe-area-inset-bottom,0px) + 100px)}#speed b{font-size:32px}#prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 244px)}}
 #intro{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding-inline:16px;overflow:auto;background:linear-gradient(180deg,rgba(26,20,48,.1),rgba(26,20,48,.88) 62%)}
@@ -652,3 +653,7 @@ body.cine #evbar,body.film #evbar,body.photo #evbar{display:none}
 /* Beta v1.01.24: 3D ride cabins need no painted window frame, and the minimap stays on during every ride */
 #cine.k-cabin .hole,#cine.k-cabin .cab{display:none}
 body.cine #rcol{display:flex!important;z-index:6}body.cine #rcol .btns,body.cine #miniZ{display:none!important}
+
+#breath{position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:14px;background:rgba(20,18,40,.72);color:#fff;font-weight:700}#breath[hidden]{display:none}#breath i{display:block;width:140px;height:8px;border-radius:5px;background:rgba(255,255,255,.18);overflow:hidden}#breath b{display:block;height:100%;width:100%;border-radius:5px;transition:width .2s}
+
+.spick .spgo{display:flex;align-items:center;justify-content:center;width:100%;margin-top:10px;padding:12px 16px;font-size:17px;border-radius:14px}

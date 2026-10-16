@@ -90,7 +90,7 @@ window.BBFeatures.push(function (bb) {
 
   /* ---------- flying it yourself ---------- */
   let parked = null; // your own helicopter, parked where you landed
-  function fly(x, z, h, rented) { if (parked) { bb.scene.remove(parked.g); parked = null; } const g = buildHeli('#d62f4b'); bb.scene.add(g); const S = { x, z, y: .2, h: h || 0, v: 0, vy: 0, bank: 0, view: 'chase', landed: true, k: {} };
+  function fly(x, z, h, rented) { if (parked) { bb.scene.remove(parked.g); parked = null; } const g = buildHeli('#d62f4b'); bb.scene.add(g); const S = { x, z, y: .2, h: h || 0, v: 0, vy: 0, bank: 0, view: 'chase', landed: true, k: {}, home: nearPad(x, z), floor: 0 };
     const K = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', Space: 'u', KeyE: 'u', KeyQ: 'd', ShiftLeft: 'd', ShiftRight: 'd' };
     const pad = `<div class="fhud" id="fhud"></div><div class="fpad l"><span></span><button data-f="f">▲</button><span></span><button data-f="l">◀</button><button data-f="b">▼</button><button data-f="r">▶</button></div><div class="fpad r"><button data-f="u">⤒</button><button data-f="d">⤓</button></div>`;
     const W0 = W.W, H0 = W.H;
@@ -99,11 +99,21 @@ window.BBFeatures.push(function (bb) {
       keys: (code, down) => { const m = K[code]; if (!m) return false; S.k[m] = down; return true; },
       onStart: el => { el.querySelectorAll('[data-f]').forEach(b => { const m = b.dataset.f; const on = e => { e.preventDefault(); S.k[m] = true; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} }; const off = () => { S.k[m] = false; b.classList.remove('on'); }; b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off); }); },
       cam: (f, dt) => { const k = S.k; const vt = k.f ? 32 : k.b ? -7 : 0; S.v += (vt - S.v) * Math.min(1, dt * (vt ? .7 : 1.2)); const turn = (k.l ? 1 : 0) - (k.r ? 1 : 0); S.h += turn * 1.1 * dt; S.bank += (-turn * .35 - S.bank) * Math.min(1, dt * 3);
-        const vyt = k.u ? 9 : k.d ? -9 : 0; S.vy += (vyt - S.vy) * Math.min(1, dt * 2.5); if (S.landed && !k.u) { S.v = 0; S.vy = 0; } if (k.u) S.landed = false;
+        const vyt = k.u ? 9 : k.d ? -9 : 0; S.vy += (vyt - S.vy) * Math.min(1, dt * 2.5); if (S.landed && !k.u) { S.v = 0; S.vy = 0; } if (k.u) { S.landed = false; S.roof = 0; }
+        const px0 = S.x, pz0 = S.z, py0 = S.y, vy0 = S.vy;
         S.x = Math.max(20, Math.min(W0 - 20, S.x + Math.sin(S.h) * S.v * dt)); S.z = Math.max(20, Math.min(H0 - 20, S.z + Math.cos(S.h) * S.v * dt)); S.y = Math.max(.2, Math.min(420, S.y + S.vy * dt));
-        const water = bb.isWater(S.x, S.z) && !bb.roadAt(S.x, S.z); if (water && S.y < 3 && !S.landed) { S.y = 3; S.vy = Math.max(0, S.vy); } if (!water && S.y <= .25 && !S.landed && Math.abs(S.v) < 6) { S.landed = true; bb.toast('Landed · tap Get out, or climb to take off again', '#3ddc97'); }
+        // Beta v1.01.25: buildings, hills and landmarks are solid. Touch down gently on a roof, or crash into a wall or the ground.
+        const top = solidTop(S.x, S.z, S.h); S.floor = top;
+        if (S.y < top + .2 && !S.landed) { const fromAbove = py0 >= top + .1; const imp = fromAbove ? Math.max(-vy0, Math.abs(S.v) * .5) : Math.abs(S.v);
+          if (fromAbove && -vy0 < 6 && Math.abs(S.v) < 8) { S.y = top + .2; S.vy = 0; if (!k.u) { S.landed = true; S.v = 0; S.roof = top > 1 ? top : 0; bb.toast(top > 1 ? 'Landed on the roof · climb to take off again' : 'Landed · tap Get out, or climb to take off again', '#3ddc97'); } }
+          else if (imp > 9) { return crash(imp); }
+          else { S.x = px0; S.z = pz0; S.y = Math.max(py0, top + .2); S.v *= -.35; S.vy = Math.max(0, S.vy); bb.shake && bb.shake(.25); if (!S.bumpT || performance.now() - S.bumpT > 1500) { S.bumpT = performance.now(); bb.toast('⚠ Too close · pull up!', '#ff5d73'); } } }
+        if (S.landed && S.roof) S.y = S.roof + .2;
+        const water = bb.isWater(S.x, S.z) && !bb.roadAt(S.x, S.z); if (water && S.y < 3 && !S.landed) { if (vy0 < -9) return crash(-vy0, true); S.y = 3; S.vy = Math.max(0, S.vy); } if (!water && S.y <= top + .25 && !S.landed && Math.abs(S.v) < 6) { S.landed = true; bb.toast('Landed · tap Get out, or climb to take off again', '#3ddc97'); }
+        else if (!water && S.y <= .25 && !S.landed && Math.abs(S.v) >= 6 && -vy0 > 7) return crash(Math.hypot(S.v, vy0));
         g.position.set(S.x, S.y, S.z); g.rotation.set(S.v / 32 * .18, S.h, S.bank, 'YXZ'); spin(g, dt, S.landed ? .25 : 1);
-        const hud = document.getElementById('fhud'); if (hud) hud.innerHTML = `ALT ${Math.round(S.y * 2.4)} m · ${Math.round(Math.abs(S.v) * 2.4 * 3.6)} km/h${S.landed ? ' · landed' : water && S.y < 4 ? ' · over water' : ''}`;
+        const hud = document.getElementById('fhud'); if (hud) { const np = nearPad(S.x, S.z); let rel = Math.atan2(np.x - S.x, np.z - S.z) - S.h; while (rel > Math.PI) rel -= 2 * Math.PI; while (rel < -Math.PI) rel += 2 * Math.PI; const arrow = ['⬆', '↖', '⬅', '↙', '⬇', '↘', '➡', '↗'][((Math.round(rel / (Math.PI / 4)) % 8) + 8) % 8]; const dd = Math.hypot(np.x - S.x, np.z - S.z) * 2.4;
+          hud.innerHTML = `ALT ${Math.round((S.y - S.floor) * 2.4)} m · ${Math.round(Math.abs(S.v) * 2.4 * 3.6)} km/h${S.landed ? ' · landed' : water && S.y < 4 ? ' · over water' : S.y - S.floor < 12 && !S.landed ? ' · ⚠ low' : ''}<br><span style="opacity:.85">${arrow} H ${bb.esc(np.name)} · ${dd < 1000 ? Math.round(dd) + ' m' : (dd / 1000).toFixed(1) + ' km'}</span>`; }
         // Beta v1.01.24: the cockpit view puts you in the pilot's seat inside the cabin, with the instruments in front
         if (!S.cab && bb.CABIN) { S.cab = bb.CABIN.build('heli'); S.cab.g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } if (o.userData && o.userData.isPilot) o.visible = false; }); S.cab.g.visible = false; bb.scene.add(S.cab.g); }
         const ck = S.view === 'cockpit'; if (S.cab) { S.cab.g.visible = ck; for (const c of g.children) if (c !== g.userData.rotor && c !== g.userData.tail) c.visible = !ck; if (ck) { S.cab.g.position.set(S.x, S.y + 1.05, S.z); S.cab.g.rotation.set(S.v / 32 * .18, S.h, S.bank * .6, 'YXZ'); } }
@@ -111,10 +121,32 @@ window.BBFeatures.push(function (bb) {
         return { x: S.x - Math.sin(S.h) * 17, y: S.y + 7, z: S.z - Math.cos(S.h) * 17, lx: S.x + Math.sin(S.h) * 8, ly: S.y + 1.5, lz: S.z + Math.cos(S.h) * 8, lookK: 5, px: S.x, pz: S.z }; },
       onStop: () => { if (S.cab) bb.scene.remove(S.cab.g); },
       onDone: () => { // get out
+        if (S.crashed) return afterCrash(S, g, rented);
         let ox = S.x + Math.cos(S.h) * 4, oz = S.z - Math.sin(S.h) * 4; if (S.y > 3 || bb.isWater(S.x, S.z)) { const pd = pads.slice().sort((a, b) => Math.hypot(a.x - S.x, a.z - S.z) - Math.hypot(b.x - S.x, b.z - S.z))[0]; bb.toast(`You can only get out after landing on ground · the autopilot lands you at ${pd.name}`, '#ff9f1c'); S.x = pd.x; S.z = pd.z; S.y = .2; ox = pd.x; oz = pd.z + 12; }
-        bb.teleport(ox, oz, S.h); bb.scene.remove(g); hx().flights++; bb.emit('heli', { kind: 'fly' });
-        if (!rented) { const pg = buildHeli('#d62f4b'); pg.position.set(S.x, .2, S.z); pg.rotation.y = S.h; bb.scene.add(pg); parked = { g: pg, x: S.x, z: S.z, h: S.h }; hx().parked = { x: S.x, z: S.z, h: S.h }; bb.setDirty(); bb.toast('Your helicopter is parked here · walk up to it to fly again', '#d6c8e4'); }
-        else bb.toast('The rental company picks up the helicopter', '#d6c8e4'); } }); }
+        bb.teleport(ox, oz, S.h); hx().flights++; bb.emit('heli', { kind: 'fly' });
+        // Beta v1.01.25: after you get out, the helicopter takes off by itself and flies back to a helipad
+        const back = rented ? S.home : nearPad(S.x, S.z); const onPad = Math.hypot(back.x - S.x, back.z - S.z) < 14;
+        if (!rented && onPad) { bb.scene.remove(g); const pg = buildHeli('#d62f4b'); pg.position.set(S.x, .2, S.z); pg.rotation.y = S.h; bb.scene.add(pg); parked = { g: pg, x: S.x, z: S.z, h: S.h }; hx().parked = { x: S.x, z: S.z, h: S.h }; bb.setDirty(); bb.toast(`Your helicopter is parked at ${back.name} · walk up to it to fly again`, '#d6c8e4'); }
+        else { flyBack(g, S, back, rented); bb.toast(rented ? `🚁 The rental helicopter flies itself back to ${back.name}` : `🚁 Autopilot · your helicopter flies back to ${back.name} and parks there`, '#d6c8e4'); } } });
+    function crash(imp, wet) { if (S.crashed) return null; S.crashed = true; S.imp = imp; S.wet = !!wet; setTimeout(() => bb.CINE.finish(false), 0); return null; } }
+  function nearPad(x, z) { let b = pads[0], bd = 1e12; for (const p of pads) { const d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; b = p; } } return b || { x, z, name: 'helipad' }; }
+  // the highest solid thing under the helicopter: centre, nose, tail and the rotor tips
+  function solidTop(x, z, h) { if (!bb.obstTop) return 0; const s = Math.sin(h), c = Math.cos(h); let t = 0; for (const [a, b] of [[0, 0], [3, 0], [-5, 0], [0, 3.6], [0, -3.6]]) { const v = bb.obstTop(x + s * a + c * b, z + c * a - s * b); if (v > t) t = v; } return t; }
+  function afterCrash(S, g, rented) { const imp = S.imp || 10; const hurt = Math.min(95, 25 + imp * 3); bb.big ? bb.big('CRASHED', '#ff5d73') : bb.toast('💥 Crashed!', '#ff5d73');
+    g.rotation.set(.5, S.h, 1.1, 'YXZ'); g.position.y = S.wet ? .5 : Math.max(.6, S.floor > 1 ? 0 : .6); const smoke = setInterval(() => { if (bb.puff) bb.puff(g.position.x, g.position.y + 2, g.position.z); }, 300); setTimeout(() => { clearInterval(smoke); bb.scene.remove(g); }, 9000);
+    let ox = S.x + Math.cos(S.h) * 5, oz = S.z - Math.sin(S.h) * 5; for (let k = 0; k < 12 && !(bb.drivable(ox, oz) && !bb.isWater(ox, oz) && bb.obstTop(ox, oz) < 1); k++) { const a = k * .9, r = 6 + k * 3; ox = S.x + Math.cos(a) * r; oz = S.z + Math.sin(a) * r; }
+    bb.teleport(ox, oz, S.h); bb.player.knock = 2.5; bb.damage(hurt, 'Helicopter crash');
+    const bill = Math.round(bb.cost('heli.crash', rented ? 25000 : 60000)); const P0 = P(); const pay = Math.min(P0.cash + P0.bank, bill); let left = pay; const fromCash = Math.min(P0.cash, left); P0.cash -= fromCash; left -= fromCash; P0.bank -= left; bb.setDirty();
+    if (!rented) { const np = nearPad(S.x, S.z); hx().parked = { x: np.x, z: np.z, h: 0 }; setTimeout(() => { if (parked) return; const pg = buildHeli('#d62f4b'); pg.position.set(np.x, .2, np.z); bb.scene.add(pg); parked = { g: pg, x: np.x, z: np.z, h: 0 }; }, 9500); }
+    bb.toast(`💥 Helicopter crash · -${Math.round(hurt)} health · repair bill ${bb.inr(pay)}${rented ? '' : ' · it is repaired and waiting at ' + nearPad(S.x, S.z).name}`, '#ff5d73'); bb.emit('heli', { kind: 'crash' }); }
+  // the empty helicopter takes off, climbs, flies to the pad and lands there
+  const flying = [];
+  function flyBack(g, S, pad, rented) { const sx = S.x, sz = S.z, sy = S.y, d = Math.hypot(pad.x - sx, pad.z - sz); flying.push({ g, sx, sz, sy, pad, rented, t: 0, dur: Math.max(10, d / 40 + 8), h0: S.h, h1: Math.atan2(pad.x - sx, pad.z - sz) }); }
+  bb.onUpdate(dt => { for (let i = flying.length - 1; i >= 0; i--) { const q = flying[i]; q.t += dt; const u = Math.min(1, q.t / q.dur); const g = q.g; const up = Math.min(1, q.t / 4), down = Math.max(0, (q.t - (q.dur - 5)) / 5);
+      const m = Math.max(0, Math.min(1, (q.t - 3) / Math.max(1, q.dur - 8))); const e = m * m * (3 - 2 * m); const x = q.sx + (q.pad.x - q.sx) * e, z = q.sz + (q.pad.z - q.sz) * e;
+      const cruise = Math.max(q.sy + 50, 60, (bb.obstTop ? bb.obstTop(x, z) : 0) + 30); const y = q.t < 4 ? q.sy + (cruise - q.sy) * up * up : q.t > q.dur - 5 ? cruise - (cruise - .2) * Math.min(1, down) : cruise;
+      g.position.set(x, y, z); let dh = q.h1 - q.h0; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; g.rotation.set(e > 0 && e < 1 ? .12 : 0, q.h0 + dh * Math.min(1, q.t / 4), 0, 'YXZ'); spin(g, dt, 1);
+      if (u >= 1) { flying.splice(i, 1); if (q.rented) { setTimeout(() => bb.scene.remove(g), 4000); } else { bb.scene.remove(g); const pg = buildHeli('#d62f4b'); pg.position.set(q.pad.x, .2, q.pad.z); pg.rotation.y = q.h1; bb.scene.add(pg); if (parked) bb.scene.remove(parked.g); parked = { g: pg, x: q.pad.x, z: q.pad.z, h: q.h1 }; hx().parked = { x: q.pad.x, z: q.pad.z, h: q.h1 }; bb.setDirty(); } } } });
   bb.addPrompt(() => { if (!parked || bb.inside || bb.player.mode !== 'foot') return null; const pp = bb.ppos(); if (Math.hypot(pp.x - parked.x, pp.z - parked.z) > 7) return null; return { text: 'Fly your helicopter', fn: () => { const p = parked; bb.scene.remove(p.g); parked = null; fly(p.x, p.z, p.h, false); } }; });
   bb.onStart(() => { const H = hx(); if (H.own && H.parked && !parked) { const pg = buildHeli('#d62f4b'); pg.position.set(H.parked.x, .2, H.parked.z); pg.rotation.y = H.parked.h; bb.scene.add(pg); parked = { g: pg, x: H.parked.x, z: H.parked.z, h: H.parked.h }; } });
   bb.HELI = { pads, buildHeli, fly };

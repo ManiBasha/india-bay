@@ -352,6 +352,7 @@ window.LANDMARKS = (function () {
     for (let i = 0; i < 3; i++) c.palm(x + 10, z - 16 + i * 16); return { poi: [{ type: 'food', name: 'Fresh catch fry stall', x: x + 9, z: z + 26, rot: 0, extra: 'KL' }] }; };
   let weaveM = null, thatchM = null;
   function houseboat(c, x, z, ry) { const T = c.THREE; if (!weaveM) { weaveM = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T) }); thatchM = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T), color: '#a8844e', side: T.DoubleSide }); }
+    (window.IB_BOATS = window.IB_BOATS || []).push({ x, z, ry, kind: 'kettu', y: .52 });
     for (const [g, col] of window.IB_KETTU(T)) { g.rotateY(ry); g.translate(x, -.35, z); c.add(g, col === 'weave' ? weaveM : col === 'thatch' ? thatchM : mat(c, col)); } }
   L.houseboats = (c, x, z) => { for (let i = 0; i < 3; i++) houseboat(c, x - 12 + i * 12, z - 30 + i * 30, .3 + i * .5); c.far(); return {}; };
   L.athirappilly = (c, x, z) => { const M = c.M; // wide curtain of water over a forest cliff, the 'Niagara of India'

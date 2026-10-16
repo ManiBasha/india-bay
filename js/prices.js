@@ -39,3 +39,6 @@ window.PRICES = (function () {
   const DEF = {}; for (const [, list] of groups) for (const [k, , v] of list) DEF[k] = v;
   return { groups, DEF };
 })();
+
+// Vehicle types and their normal top speed in km/h, for Admin → Settings → Vehicle speeds (Beta v1.01.25)
+window.IB_VEHS = [["cycle","Cycle",32],["rickshaw","Cycle rickshaw",25],["bike","Motorbike",101],["sportsbike","Sports bike",173],["auto","Auto rickshaw",94],["taxi","Kaali-peeli taxi",115],["car","Hatchback",119],["sedan","Sedan",137],["suv","SUV",130],["sports","Sports coupe",166],["police","Police jeep",137],["bus","BEST-style bus",122],["truck","Goods truck",108],["mpv","MPV",122],["van","Van",94],["coupe","Coupe",158],["convertible","Convertible",151],["limo","Limousine",122],["ambulance","Ambulance",130],["camper","Camper van",101],["pickup","Pickup",115],["lorry","Lorry",94],["tanker","Tanker",94],["towtruck","Tow truck",108],["firetruck","Fire engine",115],["tractor","Tractor",43],["scooter","Scooter",86],["atv","ATV quad",72],["golfcart","Golf cart",36],["erickshaw","E-rickshaw",36]];
