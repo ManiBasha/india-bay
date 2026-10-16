@@ -18,7 +18,22 @@ window.BBFeatures.push(function (bb) {
   let J = null; let freelance = false; let streak = 0;
   bb.TIMERS.source(() => J && J.timer > 0 ? [{ icon: J.t === 'bus' ? '🚌' : JOBS[J.t].kind === 'food' ? '🛵' : '📦', label: J.stage === 'pickup' ? 'Pick up' : J.t === 'bus' ? 'Route' : 'Deliver', left: J.timer }] : []);
   // Delivery bag in the app's colour on the back of your vehicle while you carry an order.
-  let bagMesh = null; function bag(on) { const v = bb.player.veh; if (bagMesh && bagMesh.parent) bagMesh.parent.remove(bagMesh); bagMesh = null; if (!on || !v || !J || !JOBS[J.t].bag) return; const sp = v.spec; const g = new bb.THREE.Mesh(new bb.THREE.BoxGeometry(.55, .5, .5), bb.LMat(JOBS[J.t].bag)); g.position.set(0, sp.two || sp.pedal ? 1.35 : 1.2, -(sp.len / 2) + (sp.two || sp.pedal ? .25 : .4)); g.castShadow = true; v.m.add(g); bagMesh = g; } let nextOfferT = 0; let hail = null;
+  // Beta v1.01.22: on a cycle, scooter or motorbike (and on foot to the door) you wear the insulated bag on your back from the
+  // moment you take the order; in a car or auto the box rides in the back. It follows you if you change vehicle.
+  let bagMesh = null, bagAt = null;
+  function makeBag(col, back) { const T = bb.THREE, g = new T.Group(), w = back ? .46 : .55, h = back ? .48 : .5, d = back ? .36 : .5;
+    const box = new T.Mesh(new T.BoxGeometry(w, h, d), bb.LMat(col)); box.castShadow = true; g.add(box);
+    const band = new T.Mesh(new T.BoxGeometry(w + .01, .07, d + .01), bb.LMat('#f6f3ec')); band.position.y = h * .18; g.add(band);
+    const lid = new T.Mesh(new T.BoxGeometry(w + .02, .04, d + .02), bb.LMat('#2a2a2e')); lid.position.y = h / 2; g.add(lid);
+    if (back) for (const sx of [-.12, .12]) { const st = new T.Mesh(new T.BoxGeometry(.05, .5, .03), bb.LMat('#2a2a2e')); st.position.set(sx, .02, d / 2 + .03); g.add(st); }
+    return g; }
+  function bagSync() { const pl = bb.player, job = J && JOBS[J.t] && JOBS[J.t].bag ? JOBS[J.t] : null; let want = null, back = false;
+    if (job) { const v = pl.mode === 'drive' ? pl.veh : null; if (v && !(v.spec.two || v.spec.pedal)) want = v.m; else { want = bb.avatar; back = true; } }
+    if (want === bagAt && (!want || (bagMesh && bagMesh.parent === want))) return;
+    if (bagMesh && bagMesh.parent) bagMesh.parent.remove(bagMesh); bagMesh = null; bagAt = want; if (!want) return;
+    const g = makeBag(job.bag, back); if (back) g.position.set(0, 1.22, -.31); else { const sp = pl.veh.spec; g.position.set(0, 1.2, -(sp.len / 2) + .4); } want.add(g); bagMesh = g; }
+  function bag() { bagSync(); } setInterval(bagSync, 400);
+  let nextOfferT = 0; let hail = null;
   const rating = t => (P().ratings[t] != null ? P().ratings[t] : 3);
   const bestRating = () => Math.max(3, ...Object.values(P().ratings || { a: 3 }));
   // Licence each vehicle needs for paid work. Cycles, cycle rickshaws and walking need none.
@@ -133,5 +148,5 @@ window.BBFeatures.push(function (bb) {
       s => s.onclick = e => { const a = e.target.dataset.a; if (a == null) return; if (+a === ans) quiz(poi, id, i + 1, qs); else { bb.closeSheet(); bb.toast('Wrong answer · test failed. Pay the fee and try again.', '#ff5d73'); } }); }
   bb.poiHandlers.rto = rtoSheet;
   bb.onStart(() => { const p = P(); if (!p.lic) p.lic = {}; if (p.lic.three == null) { p.lic.three = !!(p.lic.lmv || (p.jobs && p.jobs.auto)); bb.setDirty(); } });
-  bb.JOBS = { JOBS, get current() { return J; }, rating };
+  bb.JOBS = { JOBS, get current() { return J; }, rating, take(t) { if (J || !JOBS[t]) return false; newJob(t); acceptOffer(); return !!J; } };
 });

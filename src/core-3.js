@@ -622,14 +622,24 @@ let curPrompt=null;
 function useAction(){if(uiLock()||overT>0||player.knock>0)return;updPrompt();if(curPrompt&&curPrompt.first){curPrompt.fn();return;}
   if(inside){const ip=nearInterior();if(ip)homeAction(ip.k);return;}
   if(player.mode==='drive'){if(curPrompt&&curPrompt.poi&&curPrompt.poi.drive&&Math.abs(player.veh.v)<2){openPoi(curPrompt.poi);return;}exitVehicle();return;}
+  if(curPrompt&&curPrompt.opts){if(curPrompt.opts.length===1)return curPrompt.opts[0].fn();return chooseAction(curPrompt.opts);}
   if(curPrompt&&curPrompt.poi){openPoi(curPrompt.poi);return;}if(curPrompt&&curPrompt.fn){curPrompt.fn();return;}const v=nearestVeh();if(v)enterVehicle(v);}
+// Beta v1.01.22: when more than one thing is in reach (your SUV and the lodge door), E asks which one
+function chooseAction(opts){const L=opts.slice(0,6);openSheet('What do you want to do?','Several things are here',L.map((o,i)=>rowHtml('o'+i,esc(o.text),esc(o.sub||''),o.btn||'Go')).join(''),s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;const o=L[+id.slice(1)];closeSheet();if(o)o.fn();});}
+function vehText(v){return v.state==='traffic'?'Take this '+v.spec.label+' (crime)':v.state==='police'?(v.dead?'Take the wrecked jeep':'Steal police jeep'):v.fallen?'Pick up the '+v.spec.label:(v.owned?'Get in your '+v.spec.label:v.company?'Company '+v.spec.label:'Get in '+v.spec.label);}
+function footOpts(pf){const o=[];if(pf)o.push({text:pf.text,fn:pf.fn,first:true});
+  let best=null,bd=2.8;for(const p of pois){const d=Math.hypot(player.pos.x-p.x,player.pos.z-p.z);if(d<bd){bd=d;best=p;}}
+  if(best){const own=best.type==='home'&&P.homes.includes(best.extra);const b=best;o.push({text:best.prompt?best.prompt:best.type==='home'?(own?'Enter '+best.name:best.name+' · for sale'):best.name,fn:()=>openPoi(b),btn:'Open',poi:best});}
+  for(const f of prompts){let r=null;try{r=f(api);}catch(e){}if(r){o.push({text:r.text,fn:r.fn});break;}}
+  const v=nearestVeh();if(v){const vv=v;o.push({text:vehText(v),fn:()=>enterVehicle(vv),btn:'Get in'});}
+  const seen=new Set();return o.filter(q=>q.text&&!seen.has(q.text)&&seen.add(q.text));}
 function nearInterior(){let b=null,bd=inside&&inside.venue?2.4:1.4;for(const p of inter.pois){const d=Math.hypot(player.pos.x-p.x,player.pos.z-p.z);if(d<bd){bd=d;b=p;}}return b;}
 
 /* ================= audio ================= */
 let ac=null,eng=null,sir=null,muted=store.get('ib.muted')===true,noiseBuf=null;let vehOn=(store.get('ib.snd')||{}).veh!==false;   // Beta v1.01.21: Sound → Vehicle sounds
 function setMuted(m){muted=!!m;store.set('ib.muted',muted);emit('mute',muted);const b=$('#introMute');if(b){b.textContent=muted?'🔇':'🔊';b.setAttribute('aria-label',muted?'Sound off · tap to turn on':'Sound on · tap to mute');}}
 function initAudio(){if(ac)return;try{ac=new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator();o.type='sawtooth';const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=380;
-  const g=ac.createGain();g.gain.value=0;const lfo=ac.createOscillator();lfo.type='square';lfo.frequency.value=11;const lg=ac.createGain();lg.gain.value=.02;lfo.connect(lg);lg.connect(g.gain);o.connect(f);f.connect(g);g.connect(ac.destination);o.start();lfo.start();eng={o,lfo,g};
+  const g=ac.createGain();g.gain.value=0;const lfo=ac.createOscillator();lfo.type='square';lfo.frequency.value=11;const am=ac.createGain();am.gain.value=1;const lg=ac.createGain();lg.gain.value=.6;lfo.connect(lg);lg.connect(am.gain);o.connect(f);f.connect(am);am.connect(g);g.connect(ac.destination);/* v1.01.22: the rumble wobbles a middle stage, so volume 0 is really silent */o.start();lfo.start();eng={o,lfo,g};
   const so=ac.createOscillator();so.type='triangle';so.frequency.value=700;const sl=ac.createOscillator();sl.frequency.value=.7;const sg2=ac.createGain();sg2.gain.value=220;sl.connect(sg2);sg2.connect(so.frequency);const sg=ac.createGain();sg.gain.value=0;so.connect(sg);sg.connect(ac.destination);so.start();sl.start();sir={g:sg};
   noiseBuf=ac.createBuffer(1,ac.sampleRate*.3,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);emit('audio',ac);}catch(e){ac=null;}}
 function hornSfx(){if(!ac||muted||!vehOn)return;const t=ac.currentTime;[392,494].forEach(fr=>{const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=fr;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.06,t+.02);g.gain.setValueAtTime(.06,t+.28);g.gain.exponentialRampToValueAtTime(.0001,t+.36);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.4);});}
@@ -697,6 +707,15 @@ function inPlat(p,x,z,m){const c=Math.cos(p.rot||0),s=Math.sin(p.rot||0),dx=x-p.
 function groundAt(x,z,feet){let y=0,block=false,msg='',bp=null;for(const p of PLATS){if(!inPlat(p,x,z))continue;const ok=!p.ok||p.ok();if(ok&&p.y<=feet+.35){if(p.y>y)y=p.y;}else if((!ok&&feet<p.y-.01)||(ok&&p.y>feet+.35)){block=true;if(!ok)msg=p.msg||'';bp=p;}}return{y,block,msg,p:bp||{}};}
 function jump(){if(player.mode!=='foot'||inside||player.knock>0||overT>0)return;const fl=groundAt(player.pos.x,player.pos.z,player.pos.y||0).y;if((player.pos.y||0)-fl>.06)return;player.vy=5.8;emit('jump');}
 const JCL=new Map();let TIDN=0;
+// Beta v1.01.22: lanes on highways. Slow vehicles stay in the left lane; a car stuck behind slower traffic moves to the right
+// lane when it is clear, overtakes, and comes back to the left after a while. The move is a smooth slide, not a jump.
+function laneClear(c,l,k){const fx=Math.sin(c.h),fz=Math.cos(c.h);const shift=(k===1?1:-1)*(l.e.laneO-l.e.laneI);
+  for(const o of vehicles){if(o===c)continue;const dx=o.pos.x-c.pos.x,dz=o.pos.z-c.pos.z;if(Math.abs(dx)>34||Math.abs(dz)>34)continue;const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz;if(o.state==='traffic'&&dot<.3)continue;
+    const along=dx*fx+dz*fz,lat=-dx*fz+dz*fx;if(along>-14&&along<18&&Math.abs(lat-shift)<2.2)return false;}return true;}
+function laneChange(c,l,dt,stuck,target){l.lcT=Math.max(0,(l.lcT||0)-dt);if(l.vmax0==null)l.vmax0=l.vmax;
+  let want=l.k||0;if(!want&&!l.slow&&stuck&&target<l.vmax*.75)want=1;else if(want===1&&l.slow)want=0;else if(want===1&&l.pass&&(l.passT=(l.passT||0)+dt)>7&&!stuck)want=0;
+  if(want!==(l.k||0)&&l.lcT<=0&&laneClear(c,l,want)){l.k=want;l.lcT=2.5;l.passT=0;if(want===1&&!l.fast){l.pass=true;l.vmax=Math.min(c.spec.max*.68,l.vmax0*1.3);}else if(want===0){l.pass=false;l.vmax=l.vmax0;}}
+  const tgt=laneOff(l);if(l.oe!==l.e||l.off==null){l.oe=l.e;l.off=tgt;}else l.off+=clamp(tgt-l.off,-2.4*dt,2.4*dt);}
 function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos:null;let n=0;
   // another player nearby runs the traffic (features/nettraffic.js): show theirs, not ours
   if(hooks.netFollow){for(const c of vehicles.slice())if(c.state==='traffic')removeVeh(c);return;}
@@ -712,6 +731,7 @@ function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos
       if(along>0&&along<look+o.spec.len/2&&lat<2.4){target=Math.min(target,o.state==='traffic'?o.v*.8:0);if(o.state!=='traffic')blocked=o;else jam=true;}}
     if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>7){c.jamT=0;if(c.pos.distanceTo(pp)>45){removeVeh(c);n--;continue;}else if(c.jamT===0&&(c.jamN=(c.jamN||0)+1)>2)c.ghostT=2;}}else{c.jamT=0;c.jamN=0;}
     for(const q of [fp,...cows.filter(k=>k.active)]){if(!q)continue;const dx=q.x-c.pos.x,dz=q.z-c.pos.z;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);if(along>0&&along<look+2&&lat<2.4)target=0;}
+    if(l.e.multi&&!c.turn)laneChange(c,l,dt,jam||!!blocked,target);
     if(blocked&&c.v<.5){c.blockT+=dt;if(c.blockT>9&&c.pos.distanceTo(pp)>60){removeVeh(c);n--;continue;}}else c.blockT=0;
     if(frame%3===0)c.sigD=sigStop(c);if(c.sigD!=null&&c.sigD<Infinity)target=Math.min(target,c.sigD<1?0:Math.max(0,c.sigD*.7));
     if(c.turn&&c.turn.wait){const T=c.turn;const o=JCL.get(T.key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===T.key&&(T.waited=(T.waited||0)+dt)<8)target=0;else{T.wait=false;JCL.set(T.key,c);}}
@@ -723,9 +743,9 @@ function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos
     else if(!c.turn){l.s+=l.dir*c.v*dt;const left=l.dir>0?l.e.len-l.s:l.s;const TR=Math.min(9,l.e.len*.4);
       if(left<=TR){const pk={e:l.e,s:l.s,dir:l.dir};nextLane(pk);
         if(pk.dead){// a road that ends: far from you the vehicle simply leaves; near you it makes a proper U-turn
-          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir},_lp);
+          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir,k:l.k},_lp);
           c.turn={p0:[c.pos.x,c.pos.z],c:[c.pos.x+fx2*r*1.4,c.pos.z+fz2*r*1.4],c2:[_lp.x+fx2*r*1.4,_lp.z+fz2*r*1.4],p2:[_lp.x,_lp.z],t:0,len:r*3.4+2,key:'u'+(c.tid||(c.tid=++TIDN)),y0:c.pos.y,y2:c.pos.y};l.dir=-l.dir;}
-        else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
+        else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir,k:l.k},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
           const d=Math.hypot(p2[0]-p0[0],p2[1]-p0[1]);let dh=h2-h0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));const k=d*.45;const cc=Math.abs(dh)<.15?[(p0[0]+p2[0])/2,(p0[1]+p2[1])/2]:null;
           const ex=l.dir>0?l.e.bx:l.e.ax,ez=l.dir>0?l.e.bz:l.e.az;const key=Math.round(ex/10)+','+Math.round(ez/10);const busy=pk.e.road!==l.e.road||Math.abs(dh)>.5;
           c.turn=cc?{p0,c:cc,p2,t:0,len:Math.max(1,d)}:{p0,c:[p0[0]+Math.sin(h0)*k,p0[1]+Math.cos(h0)*k],c2:[p2[0]-Math.sin(h2)*k,p2[1]-Math.cos(h2)*k],p2,t:0,len:Math.max(1,d*(1+Math.abs(dh)*.25))};c.turn.key=busy?key:'s'+(c.tid||(c.tid=++TIDN));c.turn.y0=c.pos.y;c.turn.y2=pk.e.fly?flyY(pk.e,s1):0;
@@ -751,7 +771,9 @@ function updPeds(dt,t){const pp=ppos();for(const p of peds){if(p.state==='idle')
 const prompts=[];function addPrompt(fn){prompts.push(fn);}
 const firstPrompts=[];
 function updPrompt(){let txt=null;curPrompt=null;let pf=null;if(!inside)for(const f of firstPrompts){try{pf=f(api);}catch(e){}if(pf)break;}
-  if(pf){curPrompt={fn:pf.fn,first:true};txt=`<kbd>E</kbd>${esc(pf.text)}`;}
+  if(pf&&(inside||player.mode==='drive')){curPrompt={fn:pf.fn,first:true};txt=`<kbd>E</kbd>${esc(pf.text)}`;}
+  else if(player.mode!=='drive'&&!inside){const o=footOpts(pf);if(o.length===1&&o[0].first)curPrompt={fn:o[0].fn,first:true};else if(o.length)curPrompt={opts:o};
+    txt=o.length===1?`<kbd>E</kbd>${esc(o[0].text)}`:o.length?`<kbd>E</kbd>Choose: ${o.slice(0,3).map(q=>esc(q.text)).join(' · ')}`:null;}
   else if(inside){const ip=nearInterior();if(ip)txt=`<kbd>E</kbd>${esc(ip.name)}`;}
   else if(player.mode==='drive'){const near=pois.find(p=>Math.hypot(player.veh.pos.x-p.x,player.veh.pos.z-p.z)<(p.drive?7:6));if(near){curPrompt={poi:near};txt=near.drive?`<kbd>E</kbd>${esc(near.name)}${Math.abs(player.veh.v)>2?' · stop first':''}`:`<kbd>E</kbd>Get out to visit ${esc(near.name)}`;if(!near.drive)curPrompt=null;}}
   else{let best=null,bd=2.8;for(const p of pois){const d=Math.hypot(player.pos.x-p.x,player.pos.z-p.z);if(d<bd){bd=d;best=p;}}
@@ -845,7 +867,7 @@ $('#go').onclick=()=>{if(!P.name)return profileSheet(true,begin);begin();};
 let botScale=1;function setBotScale(k){k=clamp(k,.2,1);if(Math.abs(k-botScale)<.04)return;botScale=k;if(started)setPedCount(Math.round(CFG.peds*botScale));}
 const api={onFire:f=>fireHooks.push(f),setBotScale,get botScale(){return botScale;},openPoi:p=>openPoi(p),foodSheet:p=>foodSheet(p),colliders,cost,rawCost,enterVenue,leaveVenue:()=>leaveHome(),interScene:inter.scene,get insideVenue(){return inside&&inside.venue;},storeOwned,roadSpotNear,THREE,scene,camera,renderer,player,vehicles,peds,pois,SPEC,WORLD:W,REGIONS,FURN,HTYPE,inter,avatar,outfitParts,mapCanvas,MAPS,
   get CFG(){return CFG;},get P(){return P;},get clock(){return clockH;},get gameDay(){return gameDay;},get inside(){return inside;},get muted(){return muted;},setMuted,get vehSound(){return vehOn;},set vehSound(v){vehOn=!!v;},get testMode(){return TESTMODE;},setTestMode(on){save();store.set('ib.testmode',!!on);sessionStorage.setItem('ib.cloudLoaded','1');location.reload();},get god(){return godMode;},set god(v){godMode=!!v;},get audio(){return ac;},get started(){return started;},get weather(){return wx.cur;},get camMode(){return camMode;},
-  toast,big,openSheet,closeSheet,rowHtml,spend,earn,notify,collideTest(v){const q=v.clone();return collide(q,.5,true);},addPlatform,removePlatform,groundAt,jump,inr,price,esc,addWanted,damage,save,makeVeh,removeVeh,spawnOwned,ownedVeh,buyVehicle,ppos,edgePos,box,boxRot,addStatic,flushStatic,LMat,buildPerson,addSign,
+  toast,big,openSheet,closeSheet,rowHtml,spend,earn,notify,collideTest(v){const q=v.clone();return collide(q,.5,true);},colsAt(x,z,r,foot){const out=[];for(const c of colliders){if(Math.abs(c.x-x)<c.hw+r&&Math.abs(c.z-z)<c.hd+r&&(foot?c.foot:c.veh))out.push(c);}return out;},drivableAt:(x,z)=>drivable(x,z),addPlatform,removePlatform,groundAt,jump,inr,price,esc,addWanted,damage,save,makeVeh,removeVeh,spawnOwned,ownedVeh,buyVehicle,ppos,edgePos,box,boxRot,addStatic,flushStatic,LMat,buildPerson,addSign,
   addPoi(o){const p=makePoi(o);return p;},addApp,addMission,addPrompt,addFirstPrompt(f){firstPrompts.push(f);},poiHandlers,speedMods,on,emit,openWait,closeWait,startActivity,startQueue,startSleep,teleport,nearestRoadPoint,roadAt,drivable,isWater,isLand,zoneAt,stateAt,
   fareMultAt,activeFestivals,activeEvents,addChallan,istISO,istText,bayTime,gameMin,enterVehicle,exitVehicle,applyOutfit,homeById,buildInterior,nearestPoi,phoneSheet,profileSheet,hornSfx,areaName,
   onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},set livery(f){hooks.livery=f;},set netFollow(v){hooks.netFollow=v;},get netFollow(){return hooks.netFollow;},makeBusWith(L,x,z,h,state){vehLivery=L;try{return makeVeh('bus',x,z,h,state||'parked');}finally{vehLivery=null;}},set viewAt(f){hooks.viewAt=f;},get tourSpots(){return TOUR;},get photo(){return hooks.photo;},

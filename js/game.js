@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.21';
+const VERSION='Beta v1.01.22';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -116,8 +116,8 @@ function inRiver(x,z){for(const r of W.rivers){const p=r.pts;for(let k=0;k<p.len
 function isWater(x,z){return !isLand(x,z)||!!inLake(x,z)||!!inRiver(x,z);}
 const EDGES=[];const RH=50,rHash=new Map();const ROADS=[];
 function addRoad(pts,w,kind,name){const r={pts,w,kind,name,edges:[]};ROADS.push(r);for(let k=0;k<pts.length-1;k++){const [ax,az]=pts[k],[bx,bz]=pts[k+1];const len=Math.hypot(bx-ax,bz-az);if(len<1)continue;
-    const e={id:EDGES.length,ax,az,bx,bz,len,dx:(bx-ax)/len,dz:(bz-az)/len,w,kind,road:r,k,lane:w>=16?4:w>=12?3.5:1.6};EDGES.push(e);r.edges.push(e);
-    for(let t=0;t<=len;t+=RH/2){const x=ax+e.dx*t,z=az+e.dz*t;for(const ox of [-1,0,1])for(const oz of [-1,0,1]){const key=Math.floor((x+ox*w/2)/RH)+','+Math.floor((z+oz*w/2)/RH);let a=rHash.get(key);if(!a)rHash.set(key,a=[]);if(a[a.length-1]!==e.id&&!a.includes(e.id))a.push(e.id);}}}return r;}
+    const e={id:EDGES.length,ax,az,bx,bz,len,dx:(bx-ax)/len,dz:(bz-az)/len,w,kind,road:r,k,lane:w>=16?4:w>=12?3.5:1.6};if(kind!=='city'&&kind!=='coast'&&kind!=='service'&&w>=12){e.multi=true;e.laneO=w*.355;e.laneI=w*.135;e.lane=e.laneO;}EDGES.push(e);/* v1.01.22: highways have 2 lanes each way (left slow, right fast) */r.edges.push(e);
+    for(let t=0,st=Math.min(RH/4,6),hw2=w/2+1;t<=len+st;t+=st){const tt=Math.min(t,len),x=ax+e.dx*tt,z=az+e.dz*tt;for(const ox of [-1,0,1])for(const oz of [-1,0,1]){const key=Math.floor((x+ox*hw2)/RH)+','+Math.floor((z+oz*hw2)/RH);/* v1.01.22: samples every 6 m so diagonal roads over water have no gaps */let a=rHash.get(key);if(!a)rHash.set(key,a=[]);if(a[a.length-1]!==e.id&&!a.includes(e.id))a.push(e.id);}}}return r;}
 function edgesNear(x,z){return rHash.get(Math.floor(x/RH)+','+Math.floor(z/RH))||[];}
 function roadAt(x,z,m=0){for(const id of edgesNear(x,z)){const e=EDGES[id];if(segD(x,z,e.ax,e.az,e.bx,e.bz)<e.w/2+m)return e;}return null;}
 function nearestRoadPoint(x,z,maxR=400){let best=null,bd=1e9;for(let r=RH;r<=maxR;r+=RH){for(let ox=-r;ox<=r;ox+=RH)for(let oz=-r;oz<=r;oz+=RH){for(const id of edgesNear(x+ox,z+oz)){const e=EDGES[id];const l2=e.len*e.len;let t=((x-e.ax)*(e.bx-e.ax)+(z-e.az)*(e.bz-e.az))/l2;t=clamp(t,0,1);const px=e.ax+(e.bx-e.ax)*t,pz=e.az+(e.bz-e.az)*t;const d=Math.hypot(px-x,pz-z);if(d<bd){bd=d;best={x:px,z:pz,e,t:t*e.len};}}}if(best)return best;}return best;}
@@ -126,7 +126,7 @@ function drivable(x,z){return !!roadAt(x,z,.5)||(!isWater(x,z)&&x>2&&z>2&&x<W.W-
 /* colliders */
 const CHS=64,cHash=new Map();const colliders=[];
 function addCol(x,z,hw,hd,veh=true,foot=true){const c={x,z,hw,hd,veh,foot};colliders.push(c);for(let i=Math.floor((x-hw)/CHS);i<=Math.floor((x+hw)/CHS);i++)for(let j=Math.floor((z-hd)/CHS);j<=Math.floor((z+hd)/CHS);j++){const k=i+','+j;let a=cHash.get(k);if(!a)cHash.set(k,a=[]);a.push(c);}return c;}
-function collide(p,r,foot){let hit=false;const seen=new Set();for(let i=Math.floor((p.x-r)/CHS);i<=Math.floor((p.x+r)/CHS);i++)for(let j=Math.floor((p.z-r)/CHS);j<=Math.floor((p.z+r)/CHS);j++){const a=cHash.get(i+','+j);if(!a)continue;for(const c of a){if(seen.has(c))continue;seen.add(c);if(foot?!c.foot:!c.veh)continue;
+function collide(p,r,foot){let hit=false;const seen=new Set();for(let i=Math.floor((p.x-r)/CHS);i<=Math.floor((p.x+r)/CHS);i++)for(let j=Math.floor((p.z-r)/CHS);j<=Math.floor((p.z+r)/CHS);j++){const a=cHash.get(i+','+j);if(!a)continue;let onRd=null;for(const c of a){if(seen.has(c))continue;seen.add(c);if(foot?!c.foot:!c.veh)continue;if(c.hw>8&&c.hd>8){if(onRd===null)onRd=!!roadAt(p.x,p.z,-.6);if(onRd)continue;}/* v1.01.22: roads run through big fort and falls footprints */
     const dx=p.x-c.x,dz=p.z-c.z,ex=c.hw+r,ez=c.hd+r;if(Math.abs(dx)<ex&&Math.abs(dz)<ez){const px=ex-Math.abs(dx),pz=ez-Math.abs(dz);if(px<pz)p.x+=Math.sign(dx||1)*px;else p.z+=Math.sign(dz||1)*pz;hit=true;}}}return hit;}
 
 /* ================= terrain ================= */
@@ -570,20 +570,22 @@ function refreshBillboards(){for(const g of boardOf.values())freeBoard(g);boardO
 // Hide a board while the camera is right next to it, so its posts and frame never fill the screen.
 // Beta v1.01.21: a board counts as seen when you pass within 90 m of it facing it (once every 10 minutes): Admin → Dashboards → Ads
 const adSeen=new Map();
-function fadeBoards(){const c=camera.position;const now=performance.now();const fx=Math.sin(player.mode==='drive'&&player.veh?player.veh.h:player.h),fz=Math.cos(player.mode==='drive'&&player.veh?player.veh.h:player.h);for(const [id,g] of boardOf){const dx=g.position.x-c.x,dz=g.position.z-c.z;const d2=dx*dx+dz*dz;g.visible=d2>20*20;
+// v1.01.22: a board near the camera hides only if it stands between the camera and you (so pillar ads no longer vanish as you drive up)
+function blocksView(bx,bz,hw){const c=camera.position,p=ppos();const vx=p.x-c.x,vz=p.z-c.z,L2=vx*vx+vz*vz||1;const t=((bx-c.x)*vx+(bz-c.z)*vz)/L2;if(t<-.05||t>1.05)return false;const qx=c.x+vx*t-bx,qz=c.z+vz*t-bz;const r=hw+1.4;return qx*qx+qz*qz<r*r;}
+function fadeBoards(){const c=camera.position;const now=performance.now();const fx=Math.sin(player.mode==='drive'&&player.veh?player.veh.h:player.h),fz=Math.cos(player.mode==='drive'&&player.veh?player.veh.h:player.h);for(const [id,g] of boardOf){const dx=g.position.x-c.x,dz=g.position.z-c.z;const d2=dx*dx+dz*dz;g.visible=!(d2<5*5||(d2<20*20&&blocksView(g.position.x,g.position.z,g.userData.hw||3)));
   if(started&&d2<90*90&&dx*fx+dz*fz>0&&g.userData.adRef&&now-(adSeen.get(id)||-1e9)>600000){adSeen.set(id,now);emit('adView',g.userData.adRef);}}}
-function updBillboards(px,pz){if(!SLOTS)buildSlots();SLOTS.forEach((s,i)=>{const d=Math.hypot(s.x-px,s.z-pz),has=boardOf.has(s.id);if(d<700&&!has){const g=buildBoard(s,i);g.userData.adRef=s.ad||null;boardOf.set(s.id,g);}else if(d>950&&has){freeBoard(boardOf.get(s.id));boardOf.delete(s.id);}});}
+function updBillboards(px,pz){if(!SLOTS)buildSlots();SLOTS.forEach((s,i)=>{const d=Math.hypot(s.x-px,s.z-pz),has=boardOf.has(s.id);if(d<700&&!has){const g=buildBoard(s,i);g.userData.adRef=s.ad||null;{const bx=new THREE.Box3().setFromObject(g),sz=bx.getSize(new THREE.Vector3());g.userData.hw=Math.max(.8,Math.max(sz.x,sz.z)/2);}boardOf.set(s.id,g);}else if(d>950&&has){freeBoard(boardOf.get(s.id));boardOf.delete(s.id);}});}
 const adRay=new THREE.Raycaster();
 function pickBillboard(cx,cy){if(!billboardMeshes.length)return false;const r=renderer.domElement.getBoundingClientRect();adRay.setFromCamera({x:(cx-r.left)/r.width*2-1,y:-((cy-r.top)/r.height)*2+1},camera);adRay.far=220;
   const hit=adRay.intersectObjects(billboardMeshes,false)[0];if(!hit)return false;adSheet(hit.object.userData.ad,hit.object.userData.slot);return true;}
-function adSheet(ad,slot){emit('adClick',ad);const pp=ppos();const d=ad.target?Math.hypot(ad.target.x-pp.x,ad.target.z-pp.z):0;const dist=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
-  P.extra.adClicks=P.extra.adClicks||{};if(ad.collab){const k=ad.advertiser;P.extra.adClicks[k]=(P.extra.adClicks[k]||0)+1;}
+function adSheet(ad,slot){const pp=ppos();/* v1.01.22: a click counts only when the player takes Directions or visits the site */const d=ad.target?Math.hypot(ad.target.x-pp.x,ad.target.z-pp.z):0;const dist=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
+  const clicked=()=>{emit('adClick',ad);P.extra.adClicks=P.extra.adClicks||{};if(ad.collab){const k=ad.advertiser;P.extra.adClicks[k]=(P.extra.adClicks[k]||0)+1;}};
   openSheet(ad.collab?esc(ad.advertiser):'India Bay',ad.collab?esc(ad.cat||'')||'India Bay':esc(ad.cat||'India Bay'),`<div class="adprev" style="background:${esc(ad.bg)};color:${esc(ad.fg)};border-color:${esc(ad.fg)}"><b>${esc(ad.title)}</b>${ad.line2?`<span>${esc(ad.line2)}</span>`:''}</div>
     ${ad.desc?`<p class="note" style="color:var(--ink);font-size:14.5px">${esc(ad.desc)}</p>`:''}${ad.target?`<p class="note">${esc(ad.target.name)} · ${dist} away</p>`:''}
     <div class="btnrow">${ad.target?'<button class="go" data-id="dir">Directions</button>':''}${ad.collab&&/^https:\/\//.test(ad.link)?'<button class="go" data-id="visit">Visit</button>':''}<button class="buy ghost" data-id="close">Close</button></div>
     ${ad.collab?'<p class="note">Sponsored · opens their website in a new tab.</p>':''}`,s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;if(id==='close')return closeSheet();
-      if(id==='dir'){closeSheet();if(api.TRAVEL&&api.TRAVEL.go)api.TRAVEL.go(ad.target.x,ad.target.z,ad.target.name);return;}
-      if(id==='visit'){window.open(ad.link,'_blank','noopener');closeSheet();}});}
+      if(id==='dir'){clicked();closeSheet();if(api.TRAVEL&&api.TRAVEL.go)api.TRAVEL.go(ad.target.x,ad.target.z,ad.target.name);return;}
+      if(id==='visit'){clicked();window.open(ad.link,'_blank','noopener');closeSheet();}});}
 
 /* ================= vehicles ================= */
 const G={wheel:new THREE.CylinderGeometry(.36,.36,.26,12).rotateZ(Math.PI/2),thin:new THREE.CylinderGeometry(.33,.33,.08,14).rotateZ(Math.PI/2),box:new THREE.BoxGeometry(1,1,1),sph:new THREE.SphereGeometry(1,10,8),cyl:new THREE.CylinderGeometry(1,1,1,8)};
@@ -695,7 +697,8 @@ function removeVeh(v){scene.remove(v.m);const i=vehicles.indexOf(v);if(i>=0)vehi
 function segDist(px,pz,v){const fx=Math.sin(v.h),fz=Math.cos(v.h),half=Math.max(0,v.spec.len/2-v.spec.wid/2);let t=(px-v.pos.x)*fx+(pz-v.pos.z)*fz;t=clamp(t,-half,half);const qx=v.pos.x+fx*t,qz=v.pos.z+fz*t,dx=px-qx,dz=pz-qz;return{d:Math.hypot(dx,dz),dx,dz};}
 
 /* lanes */
-function lanePos(l,out){const e=l.e;const bx=e.ax+e.dx*l.s,bz=e.az+e.dz*l.s;const fx=e.dx*l.dir,fz=e.dz*l.dir;out.x=bx+fz*e.lane;out.z=bz-fx*e.lane;out.h=Math.atan2(fx,fz);return out;}
+function laneOff(l){const e=l.e;return e.multi?(l.k?e.laneI:e.laneO):e.lane;}
+function lanePos(l,out){const e=l.e;const bx=e.ax+e.dx*l.s,bz=e.az+e.dz*l.s;const fx=e.dx*l.dir,fz=e.dz*l.dir;const off=l.off!=null&&l.oe===e?l.off:laneOff(l);out.x=bx+fz*off;out.z=bz-fx*off;out.h=Math.atan2(fx,fz);return out;}
 const _lp={x:0,z:0,h:0};
 function placeLane(v){lanePos(v.lane,_lp);v.pos.set(_lp.x,v.lane.e.fly?flyY(v.lane.e,v.lane.s):0,_lp.z);v.h=_lp.h;v.m.rotation.y=v.h;}
 function nextLane(l){const e=l.e;const r=e.road;const nk=e.k+(l.dir>0?1:-1);const ne=r.edges.find(q=>q.k===nk);if(ne){l.e=ne;l.s=l.dir>0?0:ne.len;return;}
@@ -709,7 +712,10 @@ function randomLaneNear(cx,cz,rmin,rmax){for(let k=0;k<25;k++){const a=Math.rand
 const TT=['taxi','taxi','taxi','car','car','car','sedan','bus','truck','auto','auto','auto','bike','bike','suv','cycle'];
 const TTOWN=['auto','auto','bike','bike','bike','car','truck','bus','suv','cycle','rickshaw','sedan'];
 function trafficTypeAt(x,z){const zz=zoneAt(x,z);if(!zz)return mpick(['truck','truck','bus','car','sedan','suv','bike','taxi']);if(zz.id==='mumbai')return mpick(TT);return mpick(TTOWN);}
-function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.vmax=Math.min(sp.max*.55,type==='bus'||type==='truck'?MR(8,11):MR(9,15))*(l.e.kind==='city'?1:1.6);
+// slow vehicles (buses, trucks, autos, two-wheelers, tractors) keep to the left lane; cars use the right lane to overtake
+function slowType(t){const sp=SPEC[t];return !sp||sp.two||sp.max<20||/bus|truck|auto|tractor|tempo|rickshaw|cart|lorry|tanker/.test(t);}
+function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;if(l.e.deadEnd&&Math.random()<.85)return null;   // v1.01.22: little traffic near dead ends
+  lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.slow=slowType(type);l.k=l.e.multi&&!l.slow&&Math.random()<.4?1:0;l.fast=!!l.k;l.vmax=l.k?Math.min(sp.max*.68,MR(15,20)):Math.min(sp.max*.55,type==='bus'||type==='truck'?MR(8,11):MR(9,15))*(l.e.kind==='city'?1:1.6);
   vehLivery=type==='bus'&&hooks.livery?hooks.livery(_lp.x,_lp.z):null;const v=makeVeh(type,0,0,0,'traffic');vehLivery=null;v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
 const riderMat=['#d9483b','#2f7fc1','#e8a628','#3aa66b','#f4f1ea'].map(c=>LMat(c));
 function addRider(v){const r=buildPerson(mpick(pedCols));const U=r.userData;U.legs.forEach(l=>l.rotation.x=-1.25);U.arms.forEach(a=>a.rotation.x=-1.05);const seat=(v.spec.seat||[0,.95,-.2]);r.position.set(0,seat[1]-.82,seat[2]-.05);
@@ -1687,14 +1693,24 @@ let curPrompt=null;
 function useAction(){if(uiLock()||overT>0||player.knock>0)return;updPrompt();if(curPrompt&&curPrompt.first){curPrompt.fn();return;}
   if(inside){const ip=nearInterior();if(ip)homeAction(ip.k);return;}
   if(player.mode==='drive'){if(curPrompt&&curPrompt.poi&&curPrompt.poi.drive&&Math.abs(player.veh.v)<2){openPoi(curPrompt.poi);return;}exitVehicle();return;}
+  if(curPrompt&&curPrompt.opts){if(curPrompt.opts.length===1)return curPrompt.opts[0].fn();return chooseAction(curPrompt.opts);}
   if(curPrompt&&curPrompt.poi){openPoi(curPrompt.poi);return;}if(curPrompt&&curPrompt.fn){curPrompt.fn();return;}const v=nearestVeh();if(v)enterVehicle(v);}
+// Beta v1.01.22: when more than one thing is in reach (your SUV and the lodge door), E asks which one
+function chooseAction(opts){const L=opts.slice(0,6);openSheet('What do you want to do?','Several things are here',L.map((o,i)=>rowHtml('o'+i,esc(o.text),esc(o.sub||''),o.btn||'Go')).join(''),s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;const o=L[+id.slice(1)];closeSheet();if(o)o.fn();});}
+function vehText(v){return v.state==='traffic'?'Take this '+v.spec.label+' (crime)':v.state==='police'?(v.dead?'Take the wrecked jeep':'Steal police jeep'):v.fallen?'Pick up the '+v.spec.label:(v.owned?'Get in your '+v.spec.label:v.company?'Company '+v.spec.label:'Get in '+v.spec.label);}
+function footOpts(pf){const o=[];if(pf)o.push({text:pf.text,fn:pf.fn,first:true});
+  let best=null,bd=2.8;for(const p of pois){const d=Math.hypot(player.pos.x-p.x,player.pos.z-p.z);if(d<bd){bd=d;best=p;}}
+  if(best){const own=best.type==='home'&&P.homes.includes(best.extra);const b=best;o.push({text:best.prompt?best.prompt:best.type==='home'?(own?'Enter '+best.name:best.name+' · for sale'):best.name,fn:()=>openPoi(b),btn:'Open',poi:best});}
+  for(const f of prompts){let r=null;try{r=f(api);}catch(e){}if(r){o.push({text:r.text,fn:r.fn});break;}}
+  const v=nearestVeh();if(v){const vv=v;o.push({text:vehText(v),fn:()=>enterVehicle(vv),btn:'Get in'});}
+  const seen=new Set();return o.filter(q=>q.text&&!seen.has(q.text)&&seen.add(q.text));}
 function nearInterior(){let b=null,bd=inside&&inside.venue?2.4:1.4;for(const p of inter.pois){const d=Math.hypot(player.pos.x-p.x,player.pos.z-p.z);if(d<bd){bd=d;b=p;}}return b;}
 
 /* ================= audio ================= */
 let ac=null,eng=null,sir=null,muted=store.get('ib.muted')===true,noiseBuf=null;let vehOn=(store.get('ib.snd')||{}).veh!==false;   // Beta v1.01.21: Sound → Vehicle sounds
 function setMuted(m){muted=!!m;store.set('ib.muted',muted);emit('mute',muted);const b=$('#introMute');if(b){b.textContent=muted?'🔇':'🔊';b.setAttribute('aria-label',muted?'Sound off · tap to turn on':'Sound on · tap to mute');}}
 function initAudio(){if(ac)return;try{ac=new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator();o.type='sawtooth';const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=380;
-  const g=ac.createGain();g.gain.value=0;const lfo=ac.createOscillator();lfo.type='square';lfo.frequency.value=11;const lg=ac.createGain();lg.gain.value=.02;lfo.connect(lg);lg.connect(g.gain);o.connect(f);f.connect(g);g.connect(ac.destination);o.start();lfo.start();eng={o,lfo,g};
+  const g=ac.createGain();g.gain.value=0;const lfo=ac.createOscillator();lfo.type='square';lfo.frequency.value=11;const am=ac.createGain();am.gain.value=1;const lg=ac.createGain();lg.gain.value=.6;lfo.connect(lg);lg.connect(am.gain);o.connect(f);f.connect(am);am.connect(g);g.connect(ac.destination);/* v1.01.22: the rumble wobbles a middle stage, so volume 0 is really silent */o.start();lfo.start();eng={o,lfo,g};
   const so=ac.createOscillator();so.type='triangle';so.frequency.value=700;const sl=ac.createOscillator();sl.frequency.value=.7;const sg2=ac.createGain();sg2.gain.value=220;sl.connect(sg2);sg2.connect(so.frequency);const sg=ac.createGain();sg.gain.value=0;so.connect(sg);sg.connect(ac.destination);so.start();sl.start();sir={g:sg};
   noiseBuf=ac.createBuffer(1,ac.sampleRate*.3,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);emit('audio',ac);}catch(e){ac=null;}}
 function hornSfx(){if(!ac||muted||!vehOn)return;const t=ac.currentTime;[392,494].forEach(fr=>{const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=fr;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.06,t+.02);g.gain.setValueAtTime(.06,t+.28);g.gain.exponentialRampToValueAtTime(.0001,t+.36);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.4);});}
@@ -1762,6 +1778,15 @@ function inPlat(p,x,z,m){const c=Math.cos(p.rot||0),s=Math.sin(p.rot||0),dx=x-p.
 function groundAt(x,z,feet){let y=0,block=false,msg='',bp=null;for(const p of PLATS){if(!inPlat(p,x,z))continue;const ok=!p.ok||p.ok();if(ok&&p.y<=feet+.35){if(p.y>y)y=p.y;}else if((!ok&&feet<p.y-.01)||(ok&&p.y>feet+.35)){block=true;if(!ok)msg=p.msg||'';bp=p;}}return{y,block,msg,p:bp||{}};}
 function jump(){if(player.mode!=='foot'||inside||player.knock>0||overT>0)return;const fl=groundAt(player.pos.x,player.pos.z,player.pos.y||0).y;if((player.pos.y||0)-fl>.06)return;player.vy=5.8;emit('jump');}
 const JCL=new Map();let TIDN=0;
+// Beta v1.01.22: lanes on highways. Slow vehicles stay in the left lane; a car stuck behind slower traffic moves to the right
+// lane when it is clear, overtakes, and comes back to the left after a while. The move is a smooth slide, not a jump.
+function laneClear(c,l,k){const fx=Math.sin(c.h),fz=Math.cos(c.h);const shift=(k===1?1:-1)*(l.e.laneO-l.e.laneI);
+  for(const o of vehicles){if(o===c)continue;const dx=o.pos.x-c.pos.x,dz=o.pos.z-c.pos.z;if(Math.abs(dx)>34||Math.abs(dz)>34)continue;const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz;if(o.state==='traffic'&&dot<.3)continue;
+    const along=dx*fx+dz*fz,lat=-dx*fz+dz*fx;if(along>-14&&along<18&&Math.abs(lat-shift)<2.2)return false;}return true;}
+function laneChange(c,l,dt,stuck,target){l.lcT=Math.max(0,(l.lcT||0)-dt);if(l.vmax0==null)l.vmax0=l.vmax;
+  let want=l.k||0;if(!want&&!l.slow&&stuck&&target<l.vmax*.75)want=1;else if(want===1&&l.slow)want=0;else if(want===1&&l.pass&&(l.passT=(l.passT||0)+dt)>7&&!stuck)want=0;
+  if(want!==(l.k||0)&&l.lcT<=0&&laneClear(c,l,want)){l.k=want;l.lcT=2.5;l.passT=0;if(want===1&&!l.fast){l.pass=true;l.vmax=Math.min(c.spec.max*.68,l.vmax0*1.3);}else if(want===0){l.pass=false;l.vmax=l.vmax0;}}
+  const tgt=laneOff(l);if(l.oe!==l.e||l.off==null){l.oe=l.e;l.off=tgt;}else l.off+=clamp(tgt-l.off,-2.4*dt,2.4*dt);}
 function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos:null;let n=0;
   // another player nearby runs the traffic (features/nettraffic.js): show theirs, not ours
   if(hooks.netFollow){for(const c of vehicles.slice())if(c.state==='traffic')removeVeh(c);return;}
@@ -1777,6 +1802,7 @@ function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos
       if(along>0&&along<look+o.spec.len/2&&lat<2.4){target=Math.min(target,o.state==='traffic'?o.v*.8:0);if(o.state!=='traffic')blocked=o;else jam=true;}}
     if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>7){c.jamT=0;if(c.pos.distanceTo(pp)>45){removeVeh(c);n--;continue;}else if(c.jamT===0&&(c.jamN=(c.jamN||0)+1)>2)c.ghostT=2;}}else{c.jamT=0;c.jamN=0;}
     for(const q of [fp,...cows.filter(k=>k.active)]){if(!q)continue;const dx=q.x-c.pos.x,dz=q.z-c.pos.z;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);if(along>0&&along<look+2&&lat<2.4)target=0;}
+    if(l.e.multi&&!c.turn)laneChange(c,l,dt,jam||!!blocked,target);
     if(blocked&&c.v<.5){c.blockT+=dt;if(c.blockT>9&&c.pos.distanceTo(pp)>60){removeVeh(c);n--;continue;}}else c.blockT=0;
     if(frame%3===0)c.sigD=sigStop(c);if(c.sigD!=null&&c.sigD<Infinity)target=Math.min(target,c.sigD<1?0:Math.max(0,c.sigD*.7));
     if(c.turn&&c.turn.wait){const T=c.turn;const o=JCL.get(T.key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===T.key&&(T.waited=(T.waited||0)+dt)<8)target=0;else{T.wait=false;JCL.set(T.key,c);}}
@@ -1788,9 +1814,9 @@ function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos
     else if(!c.turn){l.s+=l.dir*c.v*dt;const left=l.dir>0?l.e.len-l.s:l.s;const TR=Math.min(9,l.e.len*.4);
       if(left<=TR){const pk={e:l.e,s:l.s,dir:l.dir};nextLane(pk);
         if(pk.dead){// a road that ends: far from you the vehicle simply leaves; near you it makes a proper U-turn
-          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir},_lp);
+          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir,k:l.k},_lp);
           c.turn={p0:[c.pos.x,c.pos.z],c:[c.pos.x+fx2*r*1.4,c.pos.z+fz2*r*1.4],c2:[_lp.x+fx2*r*1.4,_lp.z+fz2*r*1.4],p2:[_lp.x,_lp.z],t:0,len:r*3.4+2,key:'u'+(c.tid||(c.tid=++TIDN)),y0:c.pos.y,y2:c.pos.y};l.dir=-l.dir;}
-        else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
+        else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir,k:l.k},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
           const d=Math.hypot(p2[0]-p0[0],p2[1]-p0[1]);let dh=h2-h0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));const k=d*.45;const cc=Math.abs(dh)<.15?[(p0[0]+p2[0])/2,(p0[1]+p2[1])/2]:null;
           const ex=l.dir>0?l.e.bx:l.e.ax,ez=l.dir>0?l.e.bz:l.e.az;const key=Math.round(ex/10)+','+Math.round(ez/10);const busy=pk.e.road!==l.e.road||Math.abs(dh)>.5;
           c.turn=cc?{p0,c:cc,p2,t:0,len:Math.max(1,d)}:{p0,c:[p0[0]+Math.sin(h0)*k,p0[1]+Math.cos(h0)*k],c2:[p2[0]-Math.sin(h2)*k,p2[1]-Math.cos(h2)*k],p2,t:0,len:Math.max(1,d*(1+Math.abs(dh)*.25))};c.turn.key=busy?key:'s'+(c.tid||(c.tid=++TIDN));c.turn.y0=c.pos.y;c.turn.y2=pk.e.fly?flyY(pk.e,s1):0;
@@ -1816,7 +1842,9 @@ function updPeds(dt,t){const pp=ppos();for(const p of peds){if(p.state==='idle')
 const prompts=[];function addPrompt(fn){prompts.push(fn);}
 const firstPrompts=[];
 function updPrompt(){let txt=null;curPrompt=null;let pf=null;if(!inside)for(const f of firstPrompts){try{pf=f(api);}catch(e){}if(pf)break;}
-  if(pf){curPrompt={fn:pf.fn,first:true};txt=`<kbd>E</kbd>${esc(pf.text)}`;}
+  if(pf&&(inside||player.mode==='drive')){curPrompt={fn:pf.fn,first:true};txt=`<kbd>E</kbd>${esc(pf.text)}`;}
+  else if(player.mode!=='drive'&&!inside){const o=footOpts(pf);if(o.length===1&&o[0].first)curPrompt={fn:o[0].fn,first:true};else if(o.length)curPrompt={opts:o};
+    txt=o.length===1?`<kbd>E</kbd>${esc(o[0].text)}`:o.length?`<kbd>E</kbd>Choose: ${o.slice(0,3).map(q=>esc(q.text)).join(' · ')}`:null;}
   else if(inside){const ip=nearInterior();if(ip)txt=`<kbd>E</kbd>${esc(ip.name)}`;}
   else if(player.mode==='drive'){const near=pois.find(p=>Math.hypot(player.veh.pos.x-p.x,player.veh.pos.z-p.z)<(p.drive?7:6));if(near){curPrompt={poi:near};txt=near.drive?`<kbd>E</kbd>${esc(near.name)}${Math.abs(player.veh.v)>2?' · stop first':''}`:`<kbd>E</kbd>Get out to visit ${esc(near.name)}`;if(!near.drive)curPrompt=null;}}
   else{let best=null,bd=2.8;for(const p of pois){const d=Math.hypot(player.pos.x-p.x,player.pos.z-p.z);if(d<bd){bd=d;best=p;}}
@@ -1910,7 +1938,7 @@ $('#go').onclick=()=>{if(!P.name)return profileSheet(true,begin);begin();};
 let botScale=1;function setBotScale(k){k=clamp(k,.2,1);if(Math.abs(k-botScale)<.04)return;botScale=k;if(started)setPedCount(Math.round(CFG.peds*botScale));}
 const api={onFire:f=>fireHooks.push(f),setBotScale,get botScale(){return botScale;},openPoi:p=>openPoi(p),foodSheet:p=>foodSheet(p),colliders,cost,rawCost,enterVenue,leaveVenue:()=>leaveHome(),interScene:inter.scene,get insideVenue(){return inside&&inside.venue;},storeOwned,roadSpotNear,THREE,scene,camera,renderer,player,vehicles,peds,pois,SPEC,WORLD:W,REGIONS,FURN,HTYPE,inter,avatar,outfitParts,mapCanvas,MAPS,
   get CFG(){return CFG;},get P(){return P;},get clock(){return clockH;},get gameDay(){return gameDay;},get inside(){return inside;},get muted(){return muted;},setMuted,get vehSound(){return vehOn;},set vehSound(v){vehOn=!!v;},get testMode(){return TESTMODE;},setTestMode(on){save();store.set('ib.testmode',!!on);sessionStorage.setItem('ib.cloudLoaded','1');location.reload();},get god(){return godMode;},set god(v){godMode=!!v;},get audio(){return ac;},get started(){return started;},get weather(){return wx.cur;},get camMode(){return camMode;},
-  toast,big,openSheet,closeSheet,rowHtml,spend,earn,notify,collideTest(v){const q=v.clone();return collide(q,.5,true);},addPlatform,removePlatform,groundAt,jump,inr,price,esc,addWanted,damage,save,makeVeh,removeVeh,spawnOwned,ownedVeh,buyVehicle,ppos,edgePos,box,boxRot,addStatic,flushStatic,LMat,buildPerson,addSign,
+  toast,big,openSheet,closeSheet,rowHtml,spend,earn,notify,collideTest(v){const q=v.clone();return collide(q,.5,true);},colsAt(x,z,r,foot){const out=[];for(const c of colliders){if(Math.abs(c.x-x)<c.hw+r&&Math.abs(c.z-z)<c.hd+r&&(foot?c.foot:c.veh))out.push(c);}return out;},drivableAt:(x,z)=>drivable(x,z),addPlatform,removePlatform,groundAt,jump,inr,price,esc,addWanted,damage,save,makeVeh,removeVeh,spawnOwned,ownedVeh,buyVehicle,ppos,edgePos,box,boxRot,addStatic,flushStatic,LMat,buildPerson,addSign,
   addPoi(o){const p=makePoi(o);return p;},addApp,addMission,addPrompt,addFirstPrompt(f){firstPrompts.push(f);},poiHandlers,speedMods,on,emit,openWait,closeWait,startActivity,startQueue,startSleep,teleport,nearestRoadPoint,roadAt,drivable,isWater,isLand,zoneAt,stateAt,
   fareMultAt,activeFestivals,activeEvents,addChallan,istISO,istText,bayTime,gameMin,enterVehicle,exitVehicle,applyOutfit,homeById,buildInterior,nearestPoi,phoneSheet,profileSheet,hornSfx,areaName,
   onUpdate(f){hooks.update.push(f);},onStart(f){hooks.start.push(f);if(startedOnce)f();},onAfterRender(f){hooks.afterRender.push(f);},onKey(code,f){hooks.key[code]=f;},setMap(f){hooks.map=f;},setBayGame(f){hooks.bayGame=f;},setEscape(f){hooks.escape=f;},set photo(v){hooks.photo=v;},set livery(f){hooks.livery=f;},set netFollow(v){hooks.netFollow=v;},get netFollow(){return hooks.netFollow;},makeBusWith(L,x,z,h,state){vehLivery=L;try{return makeVeh('bus',x,z,h,state||'parked');}finally{vehLivery=null;}},set viewAt(f){hooks.viewAt=f;},get tourSpots(){return TOUR;},get photo(){return hooks.photo;},

@@ -106,20 +106,22 @@ function refreshBillboards(){for(const g of boardOf.values())freeBoard(g);boardO
 // Hide a board while the camera is right next to it, so its posts and frame never fill the screen.
 // Beta v1.01.21: a board counts as seen when you pass within 90 m of it facing it (once every 10 minutes): Admin → Dashboards → Ads
 const adSeen=new Map();
-function fadeBoards(){const c=camera.position;const now=performance.now();const fx=Math.sin(player.mode==='drive'&&player.veh?player.veh.h:player.h),fz=Math.cos(player.mode==='drive'&&player.veh?player.veh.h:player.h);for(const [id,g] of boardOf){const dx=g.position.x-c.x,dz=g.position.z-c.z;const d2=dx*dx+dz*dz;g.visible=d2>20*20;
+// v1.01.22: a board near the camera hides only if it stands between the camera and you (so pillar ads no longer vanish as you drive up)
+function blocksView(bx,bz,hw){const c=camera.position,p=ppos();const vx=p.x-c.x,vz=p.z-c.z,L2=vx*vx+vz*vz||1;const t=((bx-c.x)*vx+(bz-c.z)*vz)/L2;if(t<-.05||t>1.05)return false;const qx=c.x+vx*t-bx,qz=c.z+vz*t-bz;const r=hw+1.4;return qx*qx+qz*qz<r*r;}
+function fadeBoards(){const c=camera.position;const now=performance.now();const fx=Math.sin(player.mode==='drive'&&player.veh?player.veh.h:player.h),fz=Math.cos(player.mode==='drive'&&player.veh?player.veh.h:player.h);for(const [id,g] of boardOf){const dx=g.position.x-c.x,dz=g.position.z-c.z;const d2=dx*dx+dz*dz;g.visible=!(d2<5*5||(d2<20*20&&blocksView(g.position.x,g.position.z,g.userData.hw||3)));
   if(started&&d2<90*90&&dx*fx+dz*fz>0&&g.userData.adRef&&now-(adSeen.get(id)||-1e9)>600000){adSeen.set(id,now);emit('adView',g.userData.adRef);}}}
-function updBillboards(px,pz){if(!SLOTS)buildSlots();SLOTS.forEach((s,i)=>{const d=Math.hypot(s.x-px,s.z-pz),has=boardOf.has(s.id);if(d<700&&!has){const g=buildBoard(s,i);g.userData.adRef=s.ad||null;boardOf.set(s.id,g);}else if(d>950&&has){freeBoard(boardOf.get(s.id));boardOf.delete(s.id);}});}
+function updBillboards(px,pz){if(!SLOTS)buildSlots();SLOTS.forEach((s,i)=>{const d=Math.hypot(s.x-px,s.z-pz),has=boardOf.has(s.id);if(d<700&&!has){const g=buildBoard(s,i);g.userData.adRef=s.ad||null;{const bx=new THREE.Box3().setFromObject(g),sz=bx.getSize(new THREE.Vector3());g.userData.hw=Math.max(.8,Math.max(sz.x,sz.z)/2);}boardOf.set(s.id,g);}else if(d>950&&has){freeBoard(boardOf.get(s.id));boardOf.delete(s.id);}});}
 const adRay=new THREE.Raycaster();
 function pickBillboard(cx,cy){if(!billboardMeshes.length)return false;const r=renderer.domElement.getBoundingClientRect();adRay.setFromCamera({x:(cx-r.left)/r.width*2-1,y:-((cy-r.top)/r.height)*2+1},camera);adRay.far=220;
   const hit=adRay.intersectObjects(billboardMeshes,false)[0];if(!hit)return false;adSheet(hit.object.userData.ad,hit.object.userData.slot);return true;}
-function adSheet(ad,slot){emit('adClick',ad);const pp=ppos();const d=ad.target?Math.hypot(ad.target.x-pp.x,ad.target.z-pp.z):0;const dist=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
-  P.extra.adClicks=P.extra.adClicks||{};if(ad.collab){const k=ad.advertiser;P.extra.adClicks[k]=(P.extra.adClicks[k]||0)+1;}
+function adSheet(ad,slot){const pp=ppos();/* v1.01.22: a click counts only when the player takes Directions or visits the site */const d=ad.target?Math.hypot(ad.target.x-pp.x,ad.target.z-pp.z):0;const dist=d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
+  const clicked=()=>{emit('adClick',ad);P.extra.adClicks=P.extra.adClicks||{};if(ad.collab){const k=ad.advertiser;P.extra.adClicks[k]=(P.extra.adClicks[k]||0)+1;}};
   openSheet(ad.collab?esc(ad.advertiser):'India Bay',ad.collab?esc(ad.cat||'')||'India Bay':esc(ad.cat||'India Bay'),`<div class="adprev" style="background:${esc(ad.bg)};color:${esc(ad.fg)};border-color:${esc(ad.fg)}"><b>${esc(ad.title)}</b>${ad.line2?`<span>${esc(ad.line2)}</span>`:''}</div>
     ${ad.desc?`<p class="note" style="color:var(--ink);font-size:14.5px">${esc(ad.desc)}</p>`:''}${ad.target?`<p class="note">${esc(ad.target.name)} · ${dist} away</p>`:''}
     <div class="btnrow">${ad.target?'<button class="go" data-id="dir">Directions</button>':''}${ad.collab&&/^https:\/\//.test(ad.link)?'<button class="go" data-id="visit">Visit</button>':''}<button class="buy ghost" data-id="close">Close</button></div>
     ${ad.collab?'<p class="note">Sponsored · opens their website in a new tab.</p>':''}`,s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;if(id==='close')return closeSheet();
-      if(id==='dir'){closeSheet();if(api.TRAVEL&&api.TRAVEL.go)api.TRAVEL.go(ad.target.x,ad.target.z,ad.target.name);return;}
-      if(id==='visit'){window.open(ad.link,'_blank','noopener');closeSheet();}});}
+      if(id==='dir'){clicked();closeSheet();if(api.TRAVEL&&api.TRAVEL.go)api.TRAVEL.go(ad.target.x,ad.target.z,ad.target.name);return;}
+      if(id==='visit'){clicked();window.open(ad.link,'_blank','noopener');closeSheet();}});}
 
 /* ================= vehicles ================= */
 const G={wheel:new THREE.CylinderGeometry(.36,.36,.26,12).rotateZ(Math.PI/2),thin:new THREE.CylinderGeometry(.33,.33,.08,14).rotateZ(Math.PI/2),box:new THREE.BoxGeometry(1,1,1),sph:new THREE.SphereGeometry(1,10,8),cyl:new THREE.CylinderGeometry(1,1,1,8)};
@@ -231,7 +233,8 @@ function removeVeh(v){scene.remove(v.m);const i=vehicles.indexOf(v);if(i>=0)vehi
 function segDist(px,pz,v){const fx=Math.sin(v.h),fz=Math.cos(v.h),half=Math.max(0,v.spec.len/2-v.spec.wid/2);let t=(px-v.pos.x)*fx+(pz-v.pos.z)*fz;t=clamp(t,-half,half);const qx=v.pos.x+fx*t,qz=v.pos.z+fz*t,dx=px-qx,dz=pz-qz;return{d:Math.hypot(dx,dz),dx,dz};}
 
 /* lanes */
-function lanePos(l,out){const e=l.e;const bx=e.ax+e.dx*l.s,bz=e.az+e.dz*l.s;const fx=e.dx*l.dir,fz=e.dz*l.dir;out.x=bx+fz*e.lane;out.z=bz-fx*e.lane;out.h=Math.atan2(fx,fz);return out;}
+function laneOff(l){const e=l.e;return e.multi?(l.k?e.laneI:e.laneO):e.lane;}
+function lanePos(l,out){const e=l.e;const bx=e.ax+e.dx*l.s,bz=e.az+e.dz*l.s;const fx=e.dx*l.dir,fz=e.dz*l.dir;const off=l.off!=null&&l.oe===e?l.off:laneOff(l);out.x=bx+fz*off;out.z=bz-fx*off;out.h=Math.atan2(fx,fz);return out;}
 const _lp={x:0,z:0,h:0};
 function placeLane(v){lanePos(v.lane,_lp);v.pos.set(_lp.x,v.lane.e.fly?flyY(v.lane.e,v.lane.s):0,_lp.z);v.h=_lp.h;v.m.rotation.y=v.h;}
 function nextLane(l){const e=l.e;const r=e.road;const nk=e.k+(l.dir>0?1:-1);const ne=r.edges.find(q=>q.k===nk);if(ne){l.e=ne;l.s=l.dir>0?0:ne.len;return;}
@@ -245,7 +248,10 @@ function randomLaneNear(cx,cz,rmin,rmax){for(let k=0;k<25;k++){const a=Math.rand
 const TT=['taxi','taxi','taxi','car','car','car','sedan','bus','truck','auto','auto','auto','bike','bike','suv','cycle'];
 const TTOWN=['auto','auto','bike','bike','bike','car','truck','bus','suv','cycle','rickshaw','sedan'];
 function trafficTypeAt(x,z){const zz=zoneAt(x,z);if(!zz)return mpick(['truck','truck','bus','car','sedan','suv','bike','taxi']);if(zz.id==='mumbai')return mpick(TT);return mpick(TTOWN);}
-function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.vmax=Math.min(sp.max*.55,type==='bus'||type==='truck'?MR(8,11):MR(9,15))*(l.e.kind==='city'?1:1.6);
+// slow vehicles (buses, trucks, autos, two-wheelers, tractors) keep to the left lane; cars use the right lane to overtake
+function slowType(t){const sp=SPEC[t];return !sp||sp.two||sp.max<20||/bus|truck|auto|tractor|tempo|rickshaw|cart|lorry|tanker/.test(t);}
+function spawnTraffic(far){const pp=ppos();const l=randomLaneNear(pp.x,pp.z,far?90:20,330);if(!l)return null;if(l.e.deadEnd&&Math.random()<.85)return null;   // v1.01.22: little traffic near dead ends
+  lanePos(l,_lp);const type=trafficTypeAt(_lp.x,_lp.z);const sp=SPEC[type];l.slow=slowType(type);l.k=l.e.multi&&!l.slow&&Math.random()<.4?1:0;l.fast=!!l.k;l.vmax=l.k?Math.min(sp.max*.68,MR(15,20)):Math.min(sp.max*.55,type==='bus'||type==='truck'?MR(8,11):MR(9,15))*(l.e.kind==='city'?1:1.6);
   vehLivery=type==='bus'&&hooks.livery?hooks.livery(_lp.x,_lp.z):null;const v=makeVeh(type,0,0,0,'traffic');vehLivery=null;v.lane=l;v.v=l.vmax;placeLane(v);if(v.spec.two)addRider(v);return v;}
 const riderMat=['#d9483b','#2f7fc1','#e8a628','#3aa66b','#f4f1ea'].map(c=>LMat(c));
 function addRider(v){const r=buildPerson(mpick(pedCols));const U=r.userData;U.legs.forEach(l=>l.rotation.x=-1.25);U.arms.forEach(a=>a.rotation.x=-1.05);const seat=(v.spec.seat||[0,.95,-.2]);r.position.set(0,seat[1]-.82,seat[2]-.05);
