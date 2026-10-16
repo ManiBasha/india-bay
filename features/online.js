@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.23';
+window.__ibOnlineV = '1.01.24';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -312,7 +312,7 @@ window.BBFeatures.push(function (bb) {
     if (r.body) r.g.remove(r.body);
     r.kind = kind;
     if (d.m === 'd') {
-      r.body = bb.buildVeh(d.v); const sp = bb.SPEC[d.v] || {};
+      r.body = bb.buildVeh(d.v); if (d.pl && bb.setPlate) bb.setPlate(r.body, d.pl); const sp = bb.SPEC[d.v] || {};
       if (sp.two || sp.pedal) { const rider = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); rider.position.set(0, .35, -.15); const U = rider.userData; U.legs.forEach(l => l.rotation.x = -1.3); r.body.add(rider); }
       r.tagY = TALL[d.v] || 2.9;
     } else if (d.m === 'r') { r.body = new THREE.Group(); const sit = bb.buildPerson(mat(d.c || '#e8573e'), lookOpts(d)); const U = sit.userData; U.legs.forEach(l => l.rotation.x = -1.4); sit.position.y = -.5; r.body.add(sit); r.tagY = 2.1; }
@@ -327,10 +327,11 @@ window.BBFeatures.push(function (bb) {
     if (r.kind !== kind && kind !== 'i') rebuild(r, d, kind); else if (kind === 'i') r.kind = 'i';
     r.tx = d.x; r.tz = d.z; r.ty = d.y || 0; r.th = d.h; r.s = d.s || 0; r.seen = performance.now(); r.n = d.n; r.m = d.m; r.v = d.v || ''; r.rid = d.r || ''; r.rs = d.rs || 0; r.o = d.o || 0;
     if (Math.hypot(r.tx - r.x, r.tz - r.z) > 60) { r.x = r.tx; r.z = r.tz; r.h = r.th; }
+    if (d.pl && r.pl !== d.pl && bb.setPlate) { r.pl = d.pl; if (r.body) bb.setPlate(r.body, d.pl); if (r.park) bb.setPlate(r.park, d.pl); }
     // Their parked vehicle
     let pk = d.m !== 'd' && d.pv ? d.pv : '';
     if (r.parkTaken) { if (pk !== r.parkTaken) r.parkTaken = null; else pk = ''; }
-    if (r.pkType !== pk) { if (r.park) { bb.scene.remove(r.park); r.park = null; } if (pk) { r.park = bb.buildVeh(pk); bb.scene.add(r.park); } r.pkType = pk; }
+    if (r.pkType !== pk) { if (r.park) { bb.scene.remove(r.park); r.park = null; } if (pk) { r.park = bb.buildVeh(pk); if (d.pl && bb.setPlate) bb.setPlate(r.park, d.pl); bb.scene.add(r.park); } r.pkType = pk; }
     if (r.park) { r.park.position.set(d.px, d.py || 0, d.pz); r.park.rotation.y = d.ph; }
   }
   function drop(id) { const r = remotes.get(id); if (!r) return; bb.scene.remove(r.g); if (r.park) bb.scene.remove(r.park); freeSprite(r.tag); freeSprite(r.bub); remotes.delete(id); }
@@ -345,7 +346,7 @@ window.BBFeatures.push(function (bb) {
     const park = lv ? { pv: lv.type, px: +lv.pos.x.toFixed(1), pz: +lv.pos.z.toFixed(1), py: +(lv.pos.y || 0).toFixed(1), ph: +lv.h.toFixed(2) } : {};
     if (ride) return { zn: (bb.zoneAt(p.x, p.z, 40) || {}).id || '', t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: 0, h: +pl.h.toFixed(3), s: 0, m: 'r', v: '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear(), r: ride.id, rs: ride.s };
     const zq = bb.zoneAt(p.x, p.z, 40); const zn = zq ? zq.id : '';
-    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), zn, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear() };
+    return { ...park, ...(drive && riders.size ? { o: riders.size } : {}), zn, t: 'p', x: +p.x.toFixed(2), z: +p.z.toFixed(2), y: +(p.y || 0).toFixed(2), h: +(drive ? pl.veh.h : pl.h).toFixed(3), s: +((drive ? pl.veh.v : pl.v) || 0).toFixed(1), m: bb.inside ? 'i' : drive ? 'd' : 'f', v: drive ? pl.veh.type : '', c: bb.P.outfit.topCol || '', l: bb.lookCode ? bb.lookCode() : '', w: wear(), pl: (bb.P.extra && bb.P.extra.plate) || '' };
   }
   bb.onUpdate(dt => {
     const now = performance.now(), k = 1 - Math.exp(-8 * Math.min(dt, .2)), hide = bb.inside;

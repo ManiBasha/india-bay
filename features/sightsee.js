@@ -50,7 +50,7 @@ window.BBFeatures.push(function (bb) {
       const glass = new T.BoxGeometry(W2 * .62, 2.3, .08); put(glass, mGlass, bx + fx * (D2 / 2 + .02), 1.4, bz + fz * (D2 / 2 + .02), br, false);
       const trim = new T.BoxGeometry(W2 + .2, .35, D2 + .2); put(trim, mTrim, bx, H - .1, bz, br, false);
       const sg = new T.PlaneGeometry(W2 * .9, W2 * .9 / 4); put(sg, new T.MeshLambertMaterial({ map: signTex(A.name) }), bx + fx * (D2 / 2 + .06), H + .4, bz + fz * (D2 / 2 + .06), br);
-      for (const k of [-1, 1]) { const ox = fz * k * 3.6, oz = -fx * k * 3.6; put(new T.BoxGeometry(1.6, .45, .45), mBench, bx + fx * (D2 / 2 + 1.6) + ox, .23, bz + fz * (D2 / 2 + 1.6) + oz, br); put(new T.CylinderGeometry(.25, .22, .8, 10), mBin, bx + fx * (D2 / 2 + 1.2) + ox * 1.45, .4, bz + fz * (D2 / 2 + 1.2) + oz * 1.45, 0); }
+      for (const k of [-1, 1]) { const ox = fz * k * 3.6, oz = -fx * k * 3.6; put(new T.BoxGeometry(1.6, .45, .45), mBench, bx + fx * (D2 / 2 + 1.6) + ox, .23, bz + fz * (D2 / 2 + 1.6) + oz, br); if (bb.SEATS) for (const t of [-.4, .4]) bb.SEATS.add({ x: bx + fx * (D2 / 2 + 1.6) + ox + Math.cos(br) * t, z: bz + fz * (D2 / 2 + 1.6) + oz - Math.sin(br) * t, y: .45, h: br, name: 'Sit on the bench' }); put(new T.CylinderGeometry(.25, .22, .8, 10), mBin, bx + fx * (D2 / 2 + 1.2) + ox * 1.45, .4, bz + fz * (D2 / 2 + 1.2) + oz * 1.45, 0); }
       // walls are solid (an axis box that fits inside the turned building)
       bb.addCol(bx, bz, Math.min(W2, D2) / 2 * .95, Math.min(W2, D2) / 2 * .95);
       A.door = { x: bx + fx * (D2 / 2 + 1.4), z: bz + fz * (D2 / 2 + 1.4), rot: br };
@@ -61,7 +61,9 @@ window.BBFeatures.push(function (bb) {
     if (ATT.some(a => Math.hypot(a.x - l.x, a.z - l.z) < 150)) continue;
     const A = { id: 'att' + (id++), kind: k, name: nm, x: l.x, z: l.z, fact: FACTS[k] || '', fee: FEE[k] != null ? FEE[k] : 30 };
     let R = 18; for (const c of (bb.colsAt ? bb.colsAt(l.x, l.z, 30, true) : [])) R = Math.max(R, Math.min(70, Math.hypot(c.x - l.x, c.z - l.z) + Math.max(c.hw, c.hd))); A.R = R;
-    A.lot = lotSpot(l); if (A.lot) buildLot(A); ATT.push(A); }
+    A.lot = lotSpot(l); if (A.lot) buildLot(A); ATT.push(A);
+    // Beta v1.01.24: two benches facing the sight
+    if (bb.SEATS) { let n = 0; for (let a = 0; a < 6.283 && n < 2; a += .7) { const x = l.x + Math.cos(a) * (R + 9), z = l.z + Math.sin(a) * (R + 9); const h = Math.atan2(l.x - x, l.z - z); if (blockedAt(x, z) || bb.roadAt(x, z, 1.2) || blockedAt(x + Math.cos(h), z - Math.sin(h))) continue; bb.SEATS.bench(x, z, h, `Sit and look at ${A.name}`); n++; a += 1.2; } } }
   if (bb.flushStatic) bb.flushStatic();
   /* ---------- the visitor centre ---------- */
   const P = () => bb.P; const tk = () => (P().extra.attTickets = P().extra.attTickets || {});
@@ -89,18 +91,19 @@ window.BBFeatures.push(function (bb) {
     const cam = new T.Group(); const body = new T.Mesh(new T.BoxGeometry(.12, .08, .06), camM); cam.add(body); const lens = new T.Mesh(new T.CylinderGeometry(.025, .03, .05, 10), lensM); lens.rotation.x = Math.PI / 2; lens.position.z = .05; cam.add(lens);
     cam.position.set(0, -.62, .1); if (U.arms && U.arms[1]) U.arms[1].add(cam); U.cam = cam; return g; }
   let active = null; const people = [], parked = [];
-  function okSpot(x, z) { return !blockedAt(x, z) && !bb.roadAt(x, z, 1.2); }
+  function okSpot(x, z) { return !blockedAt(x, z) && !bb.roadAt(x, z, 1.2) && !(bb.wetNear && bb.wetNear(x, z, 5)); }
   function viewSpot(A) { for (let i = 0; i < 12; i++) { const a = Math.random() * 6.283, d = A.R + MR(3, 16), x = A.x + Math.cos(a) * d, z = A.z + Math.sin(a) * d; if (okSpot(x, z)) return { x, z }; }
     if (A.lot) return { x: A.lot.x + A.lot.nx * (A.lot.D / 2 + 2) + MR(-8, 8) * A.lot.ux, z: A.lot.z + A.lot.nz * (A.lot.D / 2 + 2) + MR(-8, 8) * A.lot.uz }; return null; }
   function spawn(A) { const n = Math.max(6, Math.min(16, Math.round(A.R / 3 + 6))); let made = 0, tries = 0;
     while (made < n && tries++ < 40) { const s = viewSpot(A); if (!s) continue; const grp = 1 + Math.floor(Math.random() * 3);
       for (let k = 0; k < grp && made < n; k++) { const x = s.x + MR(-1.5, 1.5), z = s.z + MR(-1.5, 1.5); if (!okSpot(x, z)) continue; const g = tourist(k > 0 && Math.random() < .3); bb.scene.add(g);
         people.push({ g, x, z, tx: x, tz: z, st: 'look', t: MR(1, 6), ph: Math.random() * 6, sp: MR(.9, 1.3), A, lead: k === 0 ? null : people[people.length - k] }); made++; } }
-    if (A.lot) { const s = A.lot, types = ['car', 'sedan', 'suv', 'taxi', 'bike', 'car', 'suv', 'auto']; const nCars = 3 + Math.floor(Math.random() * 4);
-      const bays = []; for (let i = 0; i < 10; i++) for (const row of [-1, 1]) bays.push([(-s.L / 2 + 1.5 + i * (s.L - 3) / 10 + (s.L - 3) / 20), row * s.D * .32]); bays.sort(() => Math.random() - .5);
-      for (let i = 0; i < Math.min(nCars, bays.length); i++) { const [a, b] = bays[i], x = s.x + s.ux * a + s.nx * b, z = s.z + s.uz * a + s.nz * b; const h = Math.atan2(s.nx, s.nz) * (b > 0 ? 1 : 1) + (b > 0 ? Math.PI : 0);
+    // Beta v1.01.24: a tour bus gets its own bay along the back of the lot at one end; cars park in the bays left over
+    if (A.lot) { const s = A.lot, types = ['car', 'sedan', 'suv', 'taxi', 'bike', 'car', 'suv', 'auto', 'mpv', 'scooter']; const nCars = 3 + Math.floor(Math.random() * 4); const bus = Math.random() < .55;
+      const bays = []; for (let i = 0; i < 10; i++) for (const row of [-1, 1]) { const a = -s.L / 2 + 1.5 + i * (s.L - 3) / 10 + (s.L - 3) / 20; if (bus && row === 1 && a < -s.L / 2 + 13) continue; bays.push([a, row * s.D * .32]); } bays.sort(() => Math.random() - .5);
+      for (let i = 0; i < Math.min(nCars, bays.length); i++) { const [a, b] = bays[i], x = s.x + s.ux * a + s.nx * b, z = s.z + s.uz * a + s.nz * b; const h = Math.atan2(s.nx, s.nz) + (b > 0 ? Math.PI : 0);
         try { const v = bb.makeVeh(pick(types), x, z, h, 'parked'); v.lot = true; parked.push(v); } catch (e) {} }
-      if (Math.random() < .5 && bb.SPEC.bus) { try { const v = bb.makeVeh('bus', s.x + s.nx * (s.D / 2 - 3), s.z + s.nz * (s.D / 2 - 3), Math.atan2(s.ux, s.uz), 'parked'); v.lot = true; parked.push(v); } catch (e) {} } } }
+      if (bus) { try { const a = -s.L / 2 + 6.6, b = s.D * .3; const v = bb.makeVeh('bus', s.x + s.ux * a + s.nx * b, s.z + s.uz * a + s.nz * b, Math.atan2(s.ux, s.uz), 'parked'); v.lot = true; parked.push(v); } catch (e) {} } } }
   function clear() { for (const p of people) bb.scene.remove(p.g); people.length = 0; for (const v of parked) if (v.state === 'parked' && v.lot && bb.vehicles.includes(v) && bb.player.veh !== v) bb.removeVeh(v); else delete v.lot; parked.length = 0; active = null; }
   let lastCheck = 0;
   bb.onUpdate((dt, t) => { if (!bb.started) return; const pp = bb.ppos(), nowMs = performance.now();

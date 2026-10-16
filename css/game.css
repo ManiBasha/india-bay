@@ -649,3 +649,6 @@ body.cine #evbar,body.film #evbar,body.photo #evbar{display:none}
 #photoBar.flash{animation:camflash .4s ease}@keyframes camflash{0%{box-shadow:0 0 0 0 rgba(255,255,255,.9)}100%{box-shadow:0 0 0 30px rgba(255,255,255,0)}}
 /* the in-game sound button sits with the others */
 #sndBtn{font-size:18px}
+/* Beta v1.01.24: 3D ride cabins need no painted window frame, and the minimap stays on during every ride */
+#cine.k-cabin .hole,#cine.k-cabin .cab{display:none}
+body.cine #rcol{display:flex!important;z-index:6}body.cine #rcol .btns,body.cine #miniZ{display:none!important}

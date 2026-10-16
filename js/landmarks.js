@@ -2,6 +2,28 @@
 // Block specials get (c, x, z, o) with x,z = block centre and o = {arg, zone}. They sit on a 0.3 m pavement.
 // Free-standing landmarks get world coordinates on ground level 0.
 // Return { open:true } for walkable blocks, and { poi:[...] } to add services.
+// Beta v1.01.24: a Kerala kettuvallam (houseboat) built from real parts, shared by the moored houseboats and the
+// houseboat cruise: a curved wooden hull that rises at both ends, a deck, woven bamboo walls with windows, an arched
+// thatched roof, an open front sit-out with cane chairs and a railing, bamboo poles and a little flag.
+// IB_KETTU(THREE) -> [[geometry, colour or 'weave' or 'thatch'], ...] in boat space (bow towards +z, length 20 m).
+window.IB_KETTU = function (T) { const out = [], add = (g, c) => out.push([g, c]);
+  const N = 22, L = 20; for (let k = 0; k < N; k++) { const u = k / (N - 1), z = -L / 2 + u * L, ends = Math.pow(Math.abs(u - .5) * 2, 3); const w = 4.3 * Math.sqrt(Math.max(.05, 1 - Math.pow(Math.abs(u - .5) * 2, 4))), y = .2 + ends * 1.4;
+    const seg = new T.BoxGeometry(w, 1.1, L / N + .05); seg.rotateX(-(u - .5) * ends * 1.4); seg.translate(0, y, z); add(seg, '#4a2e1c'); const rim = new T.BoxGeometry(w + .08, .12, L / N + .05); rim.rotateX(-(u - .5) * ends * 1.4); rim.translate(0, y + .58, z); add(rim, '#c9a46a'); }
+  const deck = new T.BoxGeometry(3.9, .1, 15); deck.translate(0, .82, -.6); add(deck, '#9a7046');
+  // the cabin: woven walls with windows, under an arched thatch roof
+  for (const s of [-1, 1]) { for (let z = -7.5; z < 4; z += 1.5) { const wp = new T.BoxGeometry(.08, 1.6, 1.1); wp.translate(s * 1.9, 1.65, z + .55); add(wp, 'weave'); const wn = new T.BoxGeometry(.09, .55, .6); wn.translate(s * 1.91, 1.75, z + .55); add(wn, '#2a2017'); }
+    for (let z = -7.6; z <= 6.2; z += 1.2) { const pole = new T.CylinderGeometry(.05, .05, 2.2, 6); pole.translate(s * 1.95, 1.9, z); add(pole, '#d9c08a'); } }
+  const roof = new T.CylinderGeometry(2.25, 2.25, 14.6, 14, 1, true, Math.PI, Math.PI); roof.rotateX(Math.PI / 2); roof.scale(1, .55, 1); roof.translate(0, 2.95, -.7); add(roof, 'thatch');
+  for (let z = -7.6; z <= 6.6; z += 1.2) { const rib = new T.TorusGeometry(2.25, .04, 4, 12, Math.PI); rib.scale(1, .55, 1); rib.translate(0, 2.95, z); add(rib, '#7a5a36'); }
+  const front = new T.BoxGeometry(3.8, .9, .06); front.translate(0, 1.3, 4.6); add(front, 'weave');
+  // the open sit-out at the bow: a railing and two cane chairs
+  for (const s of [-1, 1]) { const r = new T.BoxGeometry(.06, .06, 2.0); r.translate(s * 1.7, 1.35, 5.6); add(r, '#d9c08a'); for (const z of [4.8, 5.6, 6.4]) { const p = new T.BoxGeometry(.05, .5, .05); p.translate(s * 1.7, 1.1, z); add(p, '#d9c08a'); }
+    const seat = new T.BoxGeometry(.6, .1, .55); seat.translate(s * .7, 1.25, 5.6); add(seat, '#b8864a'); const back = new T.BoxGeometry(.6, .6, .08); back.rotateX(-.25); back.translate(s * .7, 1.55, 5.33); add(back, '#b8864a'); }
+  const flagp = new T.CylinderGeometry(.03, .03, 1.6, 5); flagp.translate(0, 4.2, -6.8); add(flagp, '#d9c08a'); const fl = new T.BoxGeometry(.03, .4, .7); fl.translate(0, 4.7, -6.45); add(fl, '#ff9933');
+  const pole2 = new T.CylinderGeometry(.04, .04, 5, 6); pole2.rotateX(.5); pole2.translate(1.4, 2.2, 7.6); add(pole2, '#c9a46a');
+  return out; };
+window.IB_WEAVE = function (T) { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#c9a46a'; x.fillRect(0, 0, 128, 128); x.strokeStyle = 'rgba(90,60,30,.55)'; x.lineWidth = 3;
+  for (let i = -128; i < 256; i += 12) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 128, 128); x.stroke(); x.beginPath(); x.moveTo(i + 128, 0); x.lineTo(i, 128); x.stroke(); } const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 2); return t; };
 window.LANDMARKS = (function () {
   const L = {};
   const Y = 0.3;
@@ -328,8 +350,9 @@ window.LANDMARKS = (function () {
     for (let i = 0; i < 4; i++) { const nz = z - 21 + i * 14; c.box(6, .6, 5, x + 2, .3, nz, M.wood); tbox(c, .5, 22, .5, x - 4, 7, nz - 1.4, 0, 0, .9, wd); tbox(c, .5, 22, .5, x - 4, 7, nz + 1.4, 0, 0, .9, wd);
       tbox(c, .4, 12, .4, x + 3, 5, nz, 0, 0, -.5, wd); const g = new c.THREE.PlaneGeometry(9, 9); g.rotateX(-Math.PI / 2); g.translate(x - 13, 1.4, nz); c.add(g, net, false, false); c.cable(x - 12.5, 15, nz, x - 17, 1.6, nz - 4); c.cable(x - 12.5, 15, nz, x - 17, 1.6, nz + 4); c.cable(x - 12.5, 15, nz, x - 9, 1.6, nz + 4); }
     for (let i = 0; i < 3; i++) c.palm(x + 10, z - 16 + i * 16); return { poi: [{ type: 'food', name: 'Fresh catch fry stall', x: x + 9, z: z + 26, rot: 0, extra: 'KL' }] }; };
-  function houseboat(c, x, z, ry) { const wd = mat(c, '#5a3a24'), th = mat(c, THATCH); tbox(c, 4.4, 1.2, 22, x, .6, z, 0, ry, 0, wd); for (const s of [-1, 1]) tbox(c, 3, 1, 4, x + Math.sin(ry) * s * 11.5, 1.1, z + Math.cos(ry) * s * 11.5, s * .25, ry, 0, wd);
-    const g = new c.THREE.CylinderGeometry(2.2, 2.2, 14, 10, 1, true, 0, Math.PI); g.rotateZ(Math.PI / 2); g.rotateY(Math.PI / 2); g.scale(1, .8, 1); g.rotateY(ry); g.translate(x, 1.2, z); c.add(g, th); }
+  let weaveM = null, thatchM = null;
+  function houseboat(c, x, z, ry) { const T = c.THREE; if (!weaveM) { weaveM = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T) }); thatchM = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T), color: '#a8844e', side: T.DoubleSide }); }
+    for (const [g, col] of window.IB_KETTU(T)) { g.rotateY(ry); g.translate(x, -.35, z); c.add(g, col === 'weave' ? weaveM : col === 'thatch' ? thatchM : mat(c, col)); } }
   L.houseboats = (c, x, z) => { for (let i = 0; i < 3; i++) houseboat(c, x - 12 + i * 12, z - 30 + i * 30, .3 + i * .5); c.far(); return {}; };
   L.athirappilly = (c, x, z) => { const M = c.M; // wide curtain of water over a forest cliff, the 'Niagara of India'
     cliff(c, x + 6, z, 92, 26, 30, '#5a5546'); falls(c, x + 6, z, 74, 26, 7); trees(c, x - 14, z, 18, 44, 1.2); c.col(x + 22, z, 15, 44); c.far(); return {}; };

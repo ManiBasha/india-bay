@@ -1,0 +1,127 @@
+// Walk-in buildings and seats (Beta v1.01.24).
+//  • Lodges, hospitals, police stations, banks, RTOs, job offices, shops and showrooms: walk in through the door,
+//    go to the reception or counter (press E) to book a room, see a doctor, bank, buy and so on. Sofas, chairs,
+//    plants, a rug and staff behind the desk.
+//  • Airports, railway stations, bus stands, metro and bullet train stations: a big hall with counters, a departure
+//    board and rows of benches. Book at the counter; the ride starts outside.
+//  • Car and bike showrooms show vehicles on stands; the mechanic has a workshop with a car on the lift.
+//  • Every other city building: walk up to it and press E to go in (an apartment lobby, an office or a little shop).
+//  • Sit down: on sofas, chairs and benches inside, and on benches outside at tea stalls, bus stops and famous
+//    places. While you sit, look round with the arrow keys / W A S D or drag, and you get a little rest.
+// bb.SEATS.add({x, z, y, h, name}) adds an outdoor seat (y = seat height, h = the way you face when sitting).
+window.BBFeatures.push(function (bb) {
+  const T = bb.THREE, esc = bb.esc, P = () => bb.P; const mats = {}; const M = c => mats[c] || (mats[c] = new T.MeshLambertMaterial({ color: c })); const glow = c => mats['g' + c] || (mats['g' + c] = new T.MeshBasicMaterial({ color: c }));
+  function kit(g, blk) { const box = (w, h, d, x, y, z, m, solid) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), typeof m === 'string' ? M(m) : m); o.position.set(x, y, z); g.add(o); if (solid) blk.push([x - w / 2, z - d / 2, x + w / 2, z + d / 2]); return o; };
+    const cyl = (r1, r2, h, x, y, z, m, seg) => { const o = new T.Mesh(new T.CylinderGeometry(r1, r2, h, seg || 12), typeof m === 'string' ? M(m) : m); o.position.set(x, y, z); g.add(o); return o; };
+    const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return new T.CanvasTexture(c); };
+    const sign = (text, w, h, x, y, z, ry, bg, fg) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: tex(512, Math.round(512 * h / w), (c, W2, H2) => { c.fillStyle = bg; c.fillRect(0, 0, W2, H2); c.fillStyle = fg; let f = Math.round(H2 * .5); c.font = `800 ${f}px "Baloo 2",sans-serif`; while (c.measureText(text).width > W2 - 30 && f > 12) { f -= 2; c.font = `800 ${f}px "Baloo 2",sans-serif`; } c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, W2 / 2, H2 / 2 + 2); }) }));
+      m.position.set(x, y, z); m.rotation.y = ry || 0; g.add(m); return m; };
+    const person = (col, x, z, ry, sitY) => { const p = bb.buildPerson(M(col), { female: Math.random() < .45 }); p.position.set(x, sitY != null ? sitY - .62 : 0, z); p.rotation.y = ry || 0; if (sitY != null && p.userData.legs) p.userData.legs.forEach(l => l.rotation.x = -1.45); g.add(p); return p; };
+    const plant = (x, z, s = 1) => { cyl(.28 * s, .22 * s, .5 * s, x, .25 * s, z, '#8a5a3a'); const b = new T.Mesh(new T.SphereGeometry(.5 * s, 9, 7), M('#3e8c3a')); b.position.set(x, .95 * s, z); b.scale.set(1, 1.3, 1); g.add(b); };
+    // walls that face into the room: from outside (where the camera may be) they are see-through
+    const walls = (w, d, H, col, ceil) => { const m = typeof col === 'string' ? M(col) : col; const P2 = (pw, ph, x, y, z, ry) => { const o = new T.Mesh(new T.PlaneGeometry(pw, ph), m); o.position.set(x, y, z); o.rotation.y = ry; g.add(o); };
+      P2(w, H, 0, H / 2, -d / 2, 0); P2(w, H, 0, H / 2, d / 2, Math.PI); P2(d, H, -w / 2, H / 2, 0, Math.PI / 2); P2(d, H, w / 2, H / 2, 0, -Math.PI / 2);
+      if (ceil) { const c = new T.Mesh(new T.PlaneGeometry(w, d), M(ceil)); c.rotation.x = Math.PI / 2; c.position.y = H; g.add(c); } };
+    return { box, cyl, sign, person, plant, tex, walls }; }
+  // furniture that you can sit on returns its seat spots: {x, z, y, h}
+  function sofa(K, x, z, ry, n, col) { const L = n * .62; const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = ry; const k = kit(g, []); k.box(L, .42, .8, 0, .21, 0, col); k.box(L, .55, .16, 0, .7, -.34, col); for (const s of [-1, 1]) k.box(.16, .62, .8, s * (L / 2 + .08), .31, 0, col);
+    for (let i = 0; i < n; i++) k.box(.56, .1, .62, -L / 2 + .31 + i * .62, .47, .06, M(shade(col)));
+    K.g.add(g); const ch = Math.cos(ry), sh = Math.sin(ry); const hw = (L / 2 + .2), hd = .45; const ax = Math.abs(ch) > .5; K.blk.push(ax ? [x - hw, z - hd, x + hw, z + hd] : [x - hd, z - hw, x + hd, z + hw]);
+    const out = []; for (let i = 0; i < n; i++) { const lx = -L / 2 + .31 + i * .62, lz = .05; out.push({ x: x + lx * ch + lz * sh, z: z - lx * sh + lz * ch, y: .5, h: ry, name: n > 1 ? 'Sit on the sofa' : 'Sit in the armchair' }); } return out; }
+  const shade = c => { const C = new T.Color(c); C.multiplyScalar(1.12); return '#' + C.getHexString(); };
+  function benchRow(K, x, z, ry, len, col) { const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = ry; const k = kit(g, []); k.box(len, .08, .45, 0, .45, 0, col); k.box(len, .45, .06, 0, .75, -.2, col); for (const s of [-1, 1]) k.box(.06, .45, .4, s * (len / 2 - .1), .22, 0, '#3a3b40'); K.g.add(g);
+    const ch = Math.cos(ry), sh = Math.sin(ry); const ax = Math.abs(ch) > .5; K.blk.push(ax ? [x - len / 2, z - .3, x + len / 2, z + .3] : [x - .3, z - len / 2, x + .3, z + len / 2]);
+    const out = []; for (let lx = -len / 2 + .35; lx < len / 2 - .2; lx += .7) out.push({ x: x + lx * ch + .05 * sh, z: z - lx * sh + .05 * ch, y: .5, h: ry, name: 'Sit on the bench' }); return out; }
+  /* ---------- the rooms ---------- */
+  const STAFF = { lodge: '#7a2f1d', hospital: '#f4f4f2', police: '#c9b27a', bank: '#2b3a5a', rto: '#e9e4d6', jobs: '#2f7fc1', realty: '#1c1c20', clothes: '#c2185b', mobile: '#3b2f8f', furniture: '#8d5a2b', guns: '#3d4a3a', cars: '#1c1c20', bikes: '#c8102e', mechanic: '#24467a' };
+  const DESK = { lodge: 'Reception · book a room', hospital: 'Reception · see a doctor', police: 'Front desk', bank: 'Bank counter', rto: 'RTO counter · licences and papers', jobs: 'Job counter', realty: 'Sales desk · homes for sale', clothes: 'Shop counter', mobile: 'Shop counter', furniture: 'Showroom desk', guns: 'Shop counter', cars: 'Showroom desk · buy a vehicle', bikes: 'Showroom desk · buy a two-wheeler', mechanic: 'Workshop desk · repairs and mods', airport: 'Check-in counter · flights', station: 'Ticket counter · trains', bus: 'Ticket counter · buses', metro: 'Ticket counter · metro', bullet: 'Ticket counter · bullet train', local: 'Ticket window · local trains' };
+  const LOOK = { lodge: ['#c9a27a', '#efe2c6', '#6b2a2a'], hospital: ['#dfe7ea', '#f6f8f8', '#2f6f8a'], police: ['#b9b2a2', '#e8e2cf', '#3a4a6a'], bank: ['#cfc6b4', '#f1ece2', '#2b3a5a'], rto: ['#c9c2b2', '#ece6d6', '#5a5048'], jobs: ['#d6d2c8', '#f2efe8', '#2f7fc1'],
+    realty: ['#3b3b40', '#f1ece4', '#c9a227'], clothes: ['#e8e2d6', '#fbf4f6', '#c2185b'], mobile: ['#e6e6ec', '#f6f6fa', '#3b2f8f'], furniture: ['#b88a5a', '#f3ebe0', '#8d5a2b'], guns: ['#7a7468', '#d9d2c2', '#3d4a3a'], cars: ['#e9e9ec', '#f7f7f7', '#1c1c20'], bikes: ['#e9e9ec', '#f7f7f7', '#c8102e'], mechanic: ['#6b6b6b', '#c9c4ba', '#24467a'] };
+  function lobby(poi, kind) { const w = kind === 'cars' || kind === 'bikes' ? 22 : 16, d = kind === 'cars' || kind === 'bikes' ? 16 : 14, H = 4.2; const L = LOOK[kind] || LOOK.jobs;
+    return room(poi, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, plant } = K;
+      box(w, .02, d, 0, .01, 0, L[0]); K.walls(w, d, H, L[1], '#f6f3ee');
+      for (const x of [-w / 4, w / 4]) box(1.4, .04, .5, x, H - .05, 0, glow('#fff6e0')); box(w * .5, .02, 2.2, 0, .03, d / 4, L[2]);
+      // the desk with the staff behind it, and the place's name on the wall
+      box(4.2, 1.05, .8, 0, .52, -d / 2 + 2.3, L[2], true); box(4.4, .06, .95, 0, 1.08, -d / 2 + 2.3, '#e9e4d6'); person(STAFF[kind] || '#2f7fc1', 0, -d / 2 + 1.4, 0); if (Math.random() < .6) person(STAFF[kind] || '#2f7fc1', 1.4, -d / 2 + 1.4, 0);
+      sign(poi.name, 6, .9, 0, H - .9, -d / 2 + .17, 0, L[2], '#ffffff'); pts.push({ k: 'desk', name: DESK[kind] || 'Counter', x: 0, z: -d / 2 + 3.2 });
+      // waiting area: a sofa, armchairs, a low table, plants and a picture
+      seats.push(...sofa(K, -w / 2 + 2.2, 1.0, Math.PI / 2, 3, '#4a3b5a')); seats.push(...sofa(K, -w / 2 + 4.8, 3.4, Math.PI, 1, '#4a3b5a')); seats.push(...sofa(K, -w / 2 + 4.8, -1.4, 0, 1, '#4a3b5a'));
+      box(1.0, .4, 1.6, -w / 2 + 4.0, .2, 1.0, '#8a5a3a', true); plant(w / 2 - 1, -d / 2 + 1); plant(-w / 2 + 1, -d / 2 + 1); plant(w / 2 - 1, d / 2 - 1.2, .8); box(1.6, 1.1, .05, w / 2 - .17, 2.1, -1, '#3e6e8a').rotation.y = -Math.PI / 2;
+      if (kind === 'cars' || kind === 'bikes') { const L2 = kind === 'cars' ? ['sedan', 'suv', 'mpv'] : ['bike', 'sportsbike', 'scooter']; L2.forEach((t, i) => { try { const v = bb.buildVeh(t); v.position.set(-3 + i * 4.2, .3, 2.8); v.rotation.y = .6; K.g.add(v); box(kind === 'cars' ? 3.2 : 1.8, .3, kind === 'cars' ? 5 : 2.6, -3 + i * 4.2, .15, 2.8, '#d9d9de', true); } catch (e) {} }); }
+      else if (kind === 'lodge') { box(.8, 1.8, .5, w / 2 - 2.5, .9, -d / 2 + .5, '#8a5a3a'); sign('ROOMS 1st FLOOR ↑', 2.6, .4, -w / 2 + 3, 2.6, -d / 2 + .17, 0, '#2b2b30', '#ffd36a'); seats.push(...sofa(K, w / 2 - 2.2, 2.2, -Math.PI / 2, 2, '#6b2a2a')); }
+      else if (kind === 'hospital') { seats.push(...benchRow(K, w / 2 - 3, 2.6, Math.PI, 4, '#2f6f8a')); seats.push(...benchRow(K, w / 2 - 3, .6, Math.PI, 4, '#2f6f8a')); sign('OPD · EMERGENCY →', 3.2, .45, w / 2 - 3, 2.8, -d / 2 + .17, 0, '#c8202a', '#ffffff'); }
+      else if (kind === 'police') { for (let i = 0; i < 9; i++) box(.05, 2.4, .05, w / 2 - 3.5 + i * .4, 1.2, -d / 2 + 2.6, '#5a5d62'); seats.push(...benchRow(K, w / 2 - 3, 2.2, Math.PI, 3, '#5a4a3a')); }
+      else if (kind === 'bank') { for (let i = -1; i <= 1; i++) { box(1.6, 1.05, .6, w / 2 - 3.5 + i * 0, .52, -d / 2 + 2.3 + i * 0, L[2]); } seats.push(...benchRow(K, w / 2 - 3, 2.6, Math.PI, 3.6, '#2b3a5a')); }
+      else if (kind === 'mechanic') { box(3.2, .2, 5, 3, 1.6, 2.2, '#c9a227'); for (const s of [-1, 1]) box(.2, 1.6, .2, 3 + s * 1.5, .8, 2.2, '#c9a227'); try { const v = bb.buildVeh('car'); v.position.set(3, 1.7, 2.2); K.g.add(v); } catch (e) {} box(4, 1.8, .2, -2, 1.5, d / 2 - .3, '#8a3a2a'); }
+      else seats.push(...benchRow(K, w / 2 - 3, 2.6, Math.PI, 3, '#5a5d62')); }); }
+  function hall(poi, kind) { const w = 34, d = 22, H = 8; const air = kind === 'airport', col = air ? '#2f6f8a' : kind === 'metro' ? '#7a3d9a' : kind === 'bullet' ? '#2a5aa8' : kind === 'bus' ? '#b8202a' : '#1f5f3a';
+    return room(poi, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, cyl, tex } = K;
+      box(w, .02, d, 0, .01, 0, air ? '#d9d6cf' : '#bdb4a4'); K.walls(w, d, H, '#efe9df', '#f6f3ee'); box(6, 3.2, .05, 0, 1.6, d / 2 - .05, new T.MeshPhongMaterial({ color: 0x9fc6dd, transparent: true, opacity: .35, side: T.BackSide })); for (let x = -12; x <= 12; x += 6) { cyl(.35, .35, H, x, H / 2, -2, '#d9d4cc'); box(2, .04, .6, x, H - .05, 3, glow('#fffbe8')); }
+      // the counters along the back wall, with staff
+      for (let i = 0; i < 5; i++) { const x = -10 + i * 5; box(3.6, 1.1, .8, x, .55, -d / 2 + 2.2, col, true); box(3.8, .06, .95, x, 1.12, -d / 2 + 2.2, '#e9e4d6'); person(air ? '#2f6f8a' : '#e9e4d6', x, -d / 2 + 1.4, 0); sign(String(i + 1), .6, .5, x, 2.2, -d / 2 + .17, 0, col, '#fff'); }
+      pts.push({ k: 'desk', name: DESK[kind] || 'Ticket counter', x: 0, z: -d / 2 + 3.2 }); sign(poi.name, 12, 1.3, 0, H - 1.6, -d / 2 + .17, 0, col, '#ffffff');
+      // the departure board
+      const dests = ['On time', 'Boarding', 'Delayed 10 min', 'On time', 'Gate open'].map((s, i) => [`${String(6 + i * 3).padStart(2, '0')}:${i * 15 % 60 || '00'}`, s]);
+      const bt = tex(512, 256, (c, W2, H2) => { c.fillStyle = '#0b0f14'; c.fillRect(0, 0, W2, H2); c.fillStyle = '#ffb020'; c.font = '700 26px monospace'; c.fillText(air ? 'DEPARTURES' : 'DEPARTURES · PLATFORMS', 16, 34); c.font = '600 22px monospace'; dests.forEach((r, i) => { c.fillStyle = '#ffd36a'; c.fillText(r[0], 16, 74 + i * 36); c.fillStyle = i === 1 ? '#7bff9a' : '#e9e4d6'; c.fillText(air ? ['Delhi', 'Bengaluru', 'Goa', 'Kochi', 'Jaipur'][i] : ['Express', 'Passenger', 'Superfast', 'Intercity', 'Fast'][i], 120, 74 + i * 36); c.fillStyle = '#9fd3e8'; c.fillText(r[1], 330, 74 + i * 36); }); });
+      const board = new T.Mesh(new T.PlaneGeometry(6, 3), new T.MeshBasicMaterial({ map: bt })); board.position.set(w / 2 - .17, 4.6, -2); board.rotation.y = -Math.PI / 2; K.g.add(board);
+      // rows of seats facing the counters
+      for (let r = 0; r < 3; r++) for (const s of [-1, 1]) seats.push(...benchRow(K, s * 7, 2 + r * 2.4, Math.PI, 6, air ? '#26406e' : '#5a5d62'));
+      for (let i = 0; i < 10; i++) { const st = seats[Math.floor(Math.random() * seats.length)]; if (st && !st.taken) { st.taken = true; person(['#d9483b', '#2f7fc1', '#f4f1ea', '#1f8a4c', '#ffc93c'][i % 5], st.x, st.z, st.h, st.y); } }
+      for (let i = 0; i < 6; i++) { const p = person(['#e8573e', '#2f7fc1', '#f2c14e'][i % 3], -12 + Math.random() * 24, -4 + Math.random() * 5, Math.random() * 6); } }); }
+  // other city buildings
+  function generic(b, door) { const h = b.h, kind = h > 22 ? 'flats' : h > 11 ? 'office' : 'shop'; const w = kind === 'shop' ? 10 : 14, d = kind === 'shop' ? 9 : 12, H = kind === 'shop' ? 3.6 : 4;
+    const name = kind === 'flats' ? 'Apartment lobby' : kind === 'office' ? 'Office building' : 'Kirana store';
+    return room(door, kind, w, d, H, (K, seats, pts) => { const { box, sign, person, plant } = K; const wall = kind === 'shop' ? '#efe2c6' : '#e9e6e0';
+      box(w, .02, d, 0, .01, 0, kind === 'shop' ? '#b9a27a' : '#cfc9bc'); K.walls(w, d, H, wall, '#f6f3ee'); box(1.4, .04, .5, 0, H - .05, 0, glow('#fff6e0'));
+      if (kind === 'shop') { for (const s of [-1, 1]) for (let r = 0; r < 4; r++) { box(.5, .05, 6, s * (w / 2 - .5), .5 + r * .6, -.5, '#8a5a3a', r === 0); for (let i = 0; i < 9; i++) box(.3, .35, .4, s * (w / 2 - .5), .72 + r * .6, -3.2 + i * .65, ['#e8573e', '#f2c14e', '#2f7fc1', '#3aa66b', '#ff9f1c'][(i + r) % 5]); }
+        box(3, 1.0, .7, 0, .5, -d / 2 + 1.6, '#8a5a3a', true); person('#f4f1ea', 0, -d / 2 + .9, 0); pts.push({ k: 'buy', name: 'Buy a snack and a cold drink · ₹30', x: 0, z: -d / 2 + 2.6 }); seats.push(...benchRow(K, w / 2 - 2.5, d / 2 - 1.2, Math.PI, 1.8, '#5a4a3a')); }
+      else { box(3, 1.05, .8, 0, .52, -d / 2 + 2.2, kind === 'flats' ? '#5a4a3a' : '#2b3a5a', true); person(kind === 'flats' ? '#3a4a6a' : '#2f7fc1', 0, -d / 2 + 1.4, 0); sign(kind === 'flats' ? 'SECURITY' : 'RECEPTION', 2.4, .45, 0, 2.6, -d / 2 + .17, 0, '#2b2b30', '#ffd36a');
+        pts.push({ k: 'chat', name: kind === 'flats' ? 'Talk to the security guard' : 'Ask at reception', x: 0, z: -d / 2 + 3.1 });
+        for (const s of [-1, 1]) { box(1.2, 2.4, .1, s * 3, 1.2, -d / 2 + .2, '#b9bcc1'); box(.05, 2.3, .11, s * 3, 1.2, -d / 2 + .2, '#5a5d62'); } sign('LIFT', 1, .3, 0, 2.95, -d / 2 + .17, 0, '#2b2b30', '#ffffff');
+        seats.push(...sofa(K, -w / 2 + 1.6, 1, Math.PI / 2, 3, '#3d4a5a')); seats.push(...sofa(K, w / 2 - 1.6, 1, -Math.PI / 2, 2, '#3d4a5a')); plant(-w / 2 + 1, -d / 2 + 1); plant(w / 2 - 1, -d / 2 + 1);
+        if (kind === 'flats') for (let i = 0; i < 12; i++) box(.3, .25, .05, -2 + (i % 6) * .35, 1.2 + Math.floor(i / 6) * .3, d / 2 - .2, '#c9a227'); } }, name); }
+  // a room = an enterVenue description; seats are interior points too
+  function room(poi, kind, w, d, H, build, title) { const blk = [], seats = [], pts = [];
+    return { poi, name: title || poi.name, w, d, bg: '#dcd6cc', exitName: `Exit · back outside`, exit: { x: 0, z: d / 2 - 1.1 }, start: { x: 0, z: d / 2 - 3.2, h: Math.PI }, blk, _ib: true, _kind: kind,
+      build: g => { const K = Object.assign(kit(g, blk), { g, blk }); build(K, seats, pts); const L = new T.PointLight(0xfff4e0, 1.1, 60); L.position.set(0, H - .5, 0); g.add(L); const L2 = new T.HemisphereLight(0xffffff, 0x887766, .55); g.add(L2);
+        seats.forEach((s, i) => { if (!s.taken) pts.push({ k: 'seat' + i, name: s.name, x: s.x + Math.sin(s.h) * .55, z: s.z + Math.cos(s.h) * .55 }); }); return pts; },
+      onAction: k => { if (k === 'desk') { poi._desk = true; try { return bb.openPoi(poi); } finally { poi._desk = false; } }
+        if (k === 'buy') { if (!bb.spend(30, true)) return; P().hunger = Math.min(100, P().hunger + 15); bb.emit('eat'); return bb.toast('🥤 A cold drink and chips · hunger +15', '#3ddc97'); }
+        if (k === 'chat') return bb.toast((L => L[Math.floor(Math.random() * L.length)])(['"Namaste! Visitors sign the register, please."', '"The lift is slow today, take the stairs."', '"Looking for someone? Sit, I will call them."', '"Office hours are 10 to 6."']), '#d6c8e4');
+        if (k.startsWith('seat')) { const s = seats[+k.slice(4)]; if (s) sit(s, true); } } }; }
+  /* ---------- walking in ---------- */
+  const HALLS = new Set(['airport', 'station', 'bus', 'metro', 'bullet', 'local']), LOBBIES = new Set(['lodge', 'hospital', 'police', 'bank', 'rto', 'jobs', 'realty', 'clothes', 'mobile', 'furniture', 'guns', 'cars', 'bikes', 'mechanic']);
+  bb.walkIn = poi => { const t = poi.type; if (!HALLS.has(t) && !LOBBIES.has(t)) return false; if (poi.drive && bb.player.mode === 'drive') return false; poi._orig = poi._orig || null;
+    bb.enterVenue(HALLS.has(t) ? hall(poi, t) : lobby(poi, t)); bb.toast(`Inside ${esc(poi.name)} · walk to the ${HALLS.has(t) ? 'counter' : 'desk'} and press E · sit on a sofa or bench`, '#ffc93c'); return true; };
+  // a ride or a trip booked at the counter starts outside the building
+  const play0 = bb.CINE && bb.CINE.play; if (play0) bb.CINE.play = o => { if (!o.keepInside && bb.inside && bb.insideVenue && bb.insideVenue._ib) bb.leaveVenue(); return play0(o); };
+  // other buildings: a prompt when you stand by one, away from the shops and offices that have their own door
+  const HB = new Map(), CS = 60; for (const b of bb.BLDS || []) { const k = Math.floor(b.x / CS) + ',' + Math.floor(b.z / CS); let a = HB.get(k); if (!a) HB.set(k, a = []); a.push(b); }
+  function nearBld(x, z) { let best = null, bd = 1.6; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = HB.get((Math.floor(x / CS) + i) + ',' + (Math.floor(z / CS) + j)); if (!a) continue;
+      for (const b of a) { const dx = Math.max(Math.abs(x - b.x) - b.w / 2, 0), dz = Math.max(Math.abs(z - b.z) - b.d / 2, 0); const d = Math.hypot(dx, dz); if (d < bd) { bd = d; best = b; } } } return best; }
+  bb.addPrompt(() => { if (bb.inside || bb.player.mode !== 'foot') return null; const p = bb.player.pos; const b = nearBld(p.x, p.z); if (!b) return null; if (bb.pois.some(q => Math.abs(q.x - p.x) < 7 && Math.abs(q.z - p.z) < 7)) return null;
+    const kind = b.h > 22 ? 'Go into the apartment block' : b.h > 11 ? 'Go into the office building' : 'Go into the shop'; return { text: kind, fn: () => { const ox = p.x - b.x, oz = p.z - b.z; const ax = Math.abs(ox) / b.w > Math.abs(oz) / b.d; const rot = ax ? (ox > 0 ? Math.PI / 2 : -Math.PI / 2) : (oz > 0 ? 0 : Math.PI);
+      const door = { x: p.x, z: p.z, rot, name: kind.replace('Go into the ', '').replace(/^./, c => c.toUpperCase()), type: 'bld' }; bb.enterVenue(generic(b, door)); } }; });
+  /* ---------- sitting ---------- */
+  const SEATS = []; const SH = new Map();
+  const addSeat = s => { SEATS.push(s); const k = Math.floor(s.x / 30) + ',' + Math.floor(s.z / 30); let a = SH.get(k); if (!a) SH.set(k, a = []); a.push(s); };
+  function seatNear(x, z) { let b = null, bd = 1.25; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = SH.get((Math.floor(x / 30) + i) + ',' + (Math.floor(z / 30) + j)); if (!a) continue; for (const s of a) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; b = s; } } } return b; }
+  bb.addPrompt(() => { if (bb.inside || bb.player.mode !== 'foot') return null; const p = bb.player.pos; const s = seatNear(p.x, p.z); return s ? { text: s.name || 'Sit on the bench', fn: () => sit(s, false) } : null; });
+  function sit(s, indoor) { if (!bb.CINE) return; const A = bb.avatar, U = A.userData; const S = { yaw: 0 }; const base = indoor ? 0 : .3; let rest = 0;
+    bb.CINE.play({ keepInside: true, kind: 'none', hud: true, lookToggle: false, showAvatar: true, label: indoor ? 'Inside' : 'Taking a break', title: 'Sitting', sub: 'Relax · ◀ ▶ or drag to look round · Stand up when you are ready', skipLabel: 'Stand up',
+      cam: (f, dt, st, keys) => { if (keys) { if (keys.ArrowLeft || keys.KeyA) S.yaw += dt * 1.3; if (keys.ArrowRight || keys.KeyD) S.yaw -= dt * 1.3; }
+        A.position.set(s.x, base + s.y - .62, s.z); A.rotation.set(0, s.h, 0); if (U.legs) U.legs.forEach(l => l.rotation.x = -1.45); if (U.arms) U.arms.forEach(a => a.rotation.x = -.35);
+        rest += dt; if (rest > 3) { rest = 0; P().energy = Math.min(100, P().energy + .6); }
+        const a = s.h + Math.PI + .5 + S.yaw, r = indoor ? 2.4 : 3.6; const cx = s.x + Math.sin(a) * r, cz = s.z + Math.cos(a) * r; return { x: cx, y: base + (indoor ? 1.7 : 2.0), z: cz, lx: s.x, ly: base + s.y + .4, lz: s.z, lookK: 6, px: s.x, pz: s.z }; },
+      onStop: () => { if (U.legs) U.legs.forEach(l => l.rotation.x = 0); if (U.arms) U.arms.forEach(a => a.rotation.x = 0); const p = bb.player.pos; p.set(s.x + Math.sin(s.h) * .8, 0, s.z + Math.cos(s.h) * .8); bb.player.h = s.h; } }); }
+  // outdoor benches: at tea and food stalls and bus stops (where there is room)
+  const bm = bb.LMat('#6b4a2e'), lm = bb.LMat('#3a3b40'); const V = new T.Vector3();
+  function bench(x, z, h, name) { const parts = [[1.7, .07, .42, 0, .45, 0, bm], [1.7, .38, .05, 0, .72, -.2, bm], [.06, .45, .36, -.75, .22, 0, lm], [.06, .45, .36, .75, .22, 0, lm]];
+    for (const [w, hh, d, lx, y, lz, m] of parts) { const g = new T.BoxGeometry(w, hh, d); g.rotateY(h); g.translate(x + lx * Math.cos(h) + lz * Math.sin(h), y, z - lx * Math.sin(h) + lz * Math.cos(h)); bb.addStatic(g, m); }
+    for (const lx of [-.4, .4]) addSeat({ x: x + lx * Math.cos(h) + .05 * Math.sin(h), z: z - lx * Math.sin(h) + .05 * Math.cos(h), y: .5, h, name: name || 'Sit on the bench' }); }
+  const clear = (x, z) => { if (bb.isWater(x, z) || bb.roadAt(x, z, .6)) return false; V.set(x, 0, z); return !bb.collideTest(V) && !bb.pois.some(p => Math.abs(p.x - x) < 1.6 && Math.abs(p.z - z) < 1.6); };
+  let nb = 0; for (const p of bb.pois) { if (p.type !== 'food' && p.type !== 'bus') continue; const r = p.rot || 0; for (const side of [1, -1]) { const x = p.x + Math.cos(r) * 3.2 * side, z = p.z - Math.sin(r) * 3.2 * side; if (clear(x, z) && clear(x + Math.cos(r) * .8, z - Math.sin(r) * .8)) { bench(x, z, r, p.type === 'bus' ? 'Sit at the bus stop' : 'Sit on the bench by the stall'); nb++; break; } } }
+  if (bb.flushStatic) bb.flushStatic();
+  bb.SEATS = { add: s => addSeat(s), bench, list: SEATS, sit, get count() { return nb; } };
+  bb.INTERIORS = { lobby, hall, generic };
+});

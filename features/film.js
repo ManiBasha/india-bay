@@ -5,13 +5,28 @@ window.BBFeatures.push(function (bb) {
   // every player (Beta v1.01.11) unless the admin switches it off; admins and testers always
   const allowed = () => !!(bb.CFG.filmOn !== false || bb.adminOK || bb.testMode || (bb.ONLINE && (bb.ONLINE.isAdmin || bb.ONLINE.isTester)));
   const MODES = [['tour', '🎬 Landmark tour', 'Glides round the famous places, like the start screen'], ['orbit', '🔄 Orbit me', 'Circles slowly around you or your vehicle'],
-    ['drone', '🚁 Drone follow', 'High and behind, follows as you drive or walk'], ['fly', '✈ Flyby', 'Low and fast past you, then swings round'], ['street', '🎥 Street level', 'Fixed camera by the road as you pass']];
+    ['drone', '🚁 Drone follow', 'High and behind, follows as you drive or walk'], ['fly', '✈ Flyby', 'Low and fast past you, then swings round'], ['street', '🎥 Street level', 'Fixed camera by the road as you pass'], ['pilot', '🕹 Fly the drone', 'You fly it: W A S D or arrows to move, Q/E down and up, drag to turn (needs a drone from a mobile shop)']];
   const st = { on: false, mode: 'drone', bars: true, mark: true, cap: true, fmt: '16:9', t: 0, tourI: 0, fix: null };
   let bar = null, rec = null, comp = null, cctx = null;
   const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   function caption() { if (st.mode === 'tour') { const T = bb.tourSpots[st.tourI]; return T ? T.name : ''; } const p = bb.ppos(); const z = bb.zoneAt(p.x, p.z, 60); return z ? z.name : ''; }
+  // Beta v1.01.24: fly your own camera drone. You stand still holding the controller; the drone flies up to
+  // 400 m from you and 150 m up, with a soft hover sway like a real one.
+  const K = {}; const D = { x: 0, y: 0, z: 0, yaw: 0, pitch: -.25, init: false };
+  addEventListener('keydown', e => { if (!st.on || st.mode !== 'pilot' || (e.target.closest && e.target.closest('input,textarea'))) return; K[e.code] = true; }, true);
+  addEventListener('keyup', e => { K[e.code] = false; }, true);
+  let dg = null; addEventListener('pointerdown', e => { if (st.on && st.mode === 'pilot' && !(e.target.closest && e.target.closest('button,#filmBar'))) dg = { x: e.clientX, y: e.clientY }; }, true);
+  addEventListener('pointermove', e => { if (!dg) return; D.yaw -= (e.clientX - dg.x) * .005; D.pitch = Math.max(-1.3, Math.min(.5, D.pitch - (e.clientY - dg.y) * .004)); dg.x = e.clientX; dg.y = e.clientY; }, true); addEventListener('pointerup', () => { dg = null; }, true);
+  function pilot(dt, C, p) { if (!D.init) { D.init = true; D.x = p.x; D.z = p.z; D.y = 4; D.yaw = bb.player.h; } const pad = st.pad || {}; const k = (c, m) => K[c] || pad[m];
+    const sp = 14 * dt, fx = Math.sin(D.yaw), fz = Math.cos(D.yaw); let mx = 0, mz = 0; if (k('KeyW', 'f') || K.ArrowUp) { mx += fx; mz += fz; } if (k('KeyS', 'b') || K.ArrowDown) { mx -= fx; mz -= fz; }
+    if (k('KeyA', 'l')) { mx += fz; mz -= fx; } if (k('KeyD', 'r')) { mx -= fz; mz += fx; } if (K.ArrowLeft) D.yaw += dt * 1.2; if (K.ArrowRight) D.yaw -= dt * 1.2;
+    D.x += mx * sp; D.z += mz * sp; if (k('KeyE', 'u') || K.Space) D.y += 6 * dt; if (k('KeyQ', 'd') || K.ShiftLeft) D.y -= 6 * dt; D.y = Math.max(1.2, Math.min(150, D.y));
+    const dx = D.x - p.x, dz = D.z - p.z, dd = Math.hypot(dx, dz); if (dd > 400) { D.x = p.x + dx / dd * 400; D.z = p.z + dz / dd * 400; if (!st.warn) { st.warn = true; bb.toast('🚁 Signal limit · the drone stays within 400 m of you', '#ff9f1c'); setTimeout(() => st.warn = false, 4000); } }
+    const sw = Math.sin(st.t * 1.7) * .05; C.position.set(D.x + sw, D.y + Math.sin(st.t * 2.3) * .04, D.z); C.lookAt(D.x + Math.sin(D.yaw) * Math.cos(D.pitch) * 10, D.y + Math.sin(D.pitch) * 10, D.z + Math.cos(D.yaw) * Math.cos(D.pitch) * 10);
+    const hud = document.getElementById('dhud'); if (hud) hud.textContent = `🚁 ALT ${Math.round(D.y * 2.4)} m · ${Math.round(dd * 2.4)} m from you`; }
   function cam(dt) {
-    st.t += dt; const C = bb.camera, p = bb.ppos(), v = bb.player.veh, h = v ? v.h : bb.player.h;
+    st.t += dt; const C = bb.camera, p = bb.ppos(), v = bb.player.veh, h = v ? v.h : bb.player.h; cam.live = st.mode !== 'pilot';
+    if (st.mode === 'pilot') return pilot(dt, C, p);
     if (st.mode === 'tour') { const L = bb.tourSpots; if (!L.length) return; const T = L[st.tourI % L.length]; if (st.t > 12) { st.t = 0; st.tourI = (st.tourI + 1) % L.length; }
       const a = st.t * .09 + st.tourI * 1.7, r = T.r * (1.05 - ease(Math.min(1, st.t / 12)) * .25); C.position.set(T.cx + Math.cos(a) * r, T.h + Math.sin(st.t * .3) * 5, T.cz + Math.sin(a) * r); C.lookAt(T.cx, T.ly, T.cz); return; }
     if (st.mode === 'orbit') { const a = st.t * .25, d = v ? 13 : 7; C.position.set(p.x + Math.sin(a) * d, (v ? 4.5 : 2.6) + Math.sin(st.t * .4), p.z + Math.cos(a) * d); C.lookAt(p.x, 1.2, p.z); return; }
@@ -32,9 +47,10 @@ window.BBFeatures.push(function (bb) {
   function ui() { if (bar) bar.remove(); bar = document.createElement('div'); bar.id = 'filmBar'; document.body.classList.toggle('filmbars', st.bars);
     bar.innerHTML = `<div class="frow">${MODES.map(m => `<button class="chip${m[0] === st.mode ? ' on' : ''}" data-m="${m[0]}" title="${m[2]}">${m[1]}</button>`).join('')}</div>
       <div class="frow"><button class="chip${st.fmt === '16:9' ? ' on' : ''}" data-f="16:9">▭ 16:9 YouTube</button><button class="chip${st.fmt === '9:16' ? ' on' : ''}" data-f="9:16">▯ 9:16 Reels</button><button class="chip${st.bars ? ' on' : ''}" data-o="bars">Cinema bars</button><button class="chip${st.cap ? ' on' : ''}" data-o="cap">Place name</button><button class="chip${st.mark ? ' on' : ''}" data-o="mark">Watermark</button></div>
+      ${st.mode === 'pilot' ? '<div class="frow" id="dpad"><span id="dhud">🚁</span><button class="chip" data-p="f">▲</button><button class="chip" data-p="b">▼</button><button class="chip" data-p="l">◀</button><button class="chip" data-p="r">▶</button><button class="chip" data-p="u">⤒ up</button><button class="chip" data-p="d">⤓ down</button></div>' : ''}
       <div class="frow">${rec ? `<button class="go" data-a="stop">■ Stop and save · ${Math.floor((Date.now() - rec.t0) / 1000)} s</button>` : '<button class="go" data-a="rec">● Record</button>'}<button class="buy ghost" data-a="hide">Hide panel (H)</button><button class="buy ghost" data-a="exit">Exit film mode</button></div>`;
-    document.body.appendChild(bar);
-    bar.onclick = e => { const b = e.target.closest('button'); if (!b) return; const d = b.dataset; if (d.m) { st.mode = d.m; st.t = 0; st.fix = null; } if (d.f && !rec) st.fmt = d.f; if (d.o) st[d.o] = !st[d.o]; if (d.a === 'rec') startRec(); if (d.a === 'stop') stopRec(); if (d.a === 'exit') return stop(); if (d.a === 'hide') { bar.hidden = true; bb.toast('Film panel hidden · press H to show it', '#d6c8e4'); return; } ui(); }; }
+    document.body.appendChild(bar); st.pad = {}; bar.querySelectorAll('[data-p]').forEach(b2 => { const m = b2.dataset.p; const on = e => { e.preventDefault(); st.pad[m] = true; }; const off = () => { st.pad[m] = false; }; b2.addEventListener('pointerdown', on); b2.addEventListener('pointerup', off); b2.addEventListener('pointerleave', off); b2.addEventListener('pointercancel', off); });
+    bar.onclick = e => { const b = e.target.closest('button'); if (!b) return; const d = b.dataset; if (d.p) return; if (d.m === 'pilot' && !(bb.P.extra && bb.P.extra.drone) && !bb.testMode) return bb.toast('🚁 Buy a camera drone at any mobile shop first', '#ff9f1c'); if (d.m) { st.mode = d.m; st.t = 0; st.fix = null; D.init = false; } if (d.f && !rec) st.fmt = d.f; if (d.o) st[d.o] = !st[d.o]; if (d.a === 'rec') startRec(); if (d.a === 'stop') stopRec(); if (d.a === 'exit') return stop(); if (d.a === 'hide') { bar.hidden = true; bb.toast('Film panel hidden · press H to show it', '#d6c8e4'); return; } ui(); }; }
   function startRec() { const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
     comp = document.createElement('canvas'); [comp.width, comp.height] = st.fmt === '16:9' ? [1920, 1080] : [1080, 1920]; cctx = comp.getContext('2d'); if (!comp.captureStream || !window.MediaRecorder) return bb.toast('This browser cannot record video · try Chrome or Edge', '#ff9f1c');
     let mr; try { mr = new MediaRecorder(comp.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 12e6 } : {}); } catch (e) { return bb.toast('Recording failed to start', '#ff9f1c'); }

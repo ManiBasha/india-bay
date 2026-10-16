@@ -120,8 +120,8 @@ window.BBFeatures.push(function (bb) {
   // a chundan vallam: a long black hull that sweeps up into the tall stern (amaram) with brass at the tip, a row of
   // oarsmen in white mundus and team colours, a singer and drummer at the middle under silk parasols (muthukuda)
   function snakeBoat(col) { const b = new T.Group(); const black = bb.LMat('#1d1712'), brass = bb.LMat('#d9a93a'), white = bb.LMat('#f4f1ea');
-    for (let k = 0; k < 18; k++) { const u = k / 17, z = -15 + u * 30; const h = .5 + Math.pow(Math.max(0, u - .72) / .28, 2) * 5.5 + Math.pow(Math.max(0, .12 - u) / .12, 2) * .9; const w = 1.25 * Math.sin(Math.min(1, (u * .95 + .05)) * Math.PI) * .9 + .25;
-      const seg = new T.Mesh(new T.BoxGeometry(w, .45, 1.8), black); seg.position.set(0, h - .2, z); seg.rotation.x = u > .72 ? -(u - .72) * 2.4 : 0; b.add(seg); }
+    for (let k = 0; k < 40; k++) { const u = k / 39, z = -15 + u * 30; const h = .5 + Math.pow(Math.max(0, u - .72) / .28, 2) * 5.5 + Math.pow(Math.max(0, .12 - u) / .12, 2) * .9; const w = 1.25 * Math.sin(Math.min(1, (u * .95 + .05)) * Math.PI) * .9 + .25;
+      const seg = new T.Mesh(new T.BoxGeometry(w, .45, .82), black); seg.position.set(0, h - .2, z); seg.rotation.x = u > .72 ? -(u - .72) * 2.4 : 0; b.add(seg); if (u < .74) { const ws = new T.Mesh(new T.BoxGeometry(w + .04, .05, .82), white); ws.position.set(0, h + .02, z); b.add(ws); } }
     const tip = new T.Mesh(new T.ConeGeometry(.22, 1.4, 8), brass); tip.position.set(0, 6.6, 15.4); tip.rotation.x = .9; b.add(tip); const flag = new T.Mesh(new T.BoxGeometry(.04, .7, 1.2), bb.LMat(col)); flag.position.set(0, 7.3, 15.4); b.add(flag);
     const band = new T.Mesh(new T.BoxGeometry(1.3, .12, 28), brass); band.position.set(0, .48, 0); b.add(band);
     for (let k = 0; k < 14; k++) { const r = bb.buildPerson(bb.LMat(k % 2 ? col : '#f4f1ea'), { female: false }); r.position.set(k % 2 ? .38 : -.38, .1, -12 + k * 1.7); r.scale.setScalar(.72); r.userData.legs.forEach(l => l.rotation.x = -1.3); b.add(r);

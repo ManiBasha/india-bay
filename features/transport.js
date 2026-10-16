@@ -11,11 +11,11 @@ window.BBFeatures.push(function (bb) {
   const P = () => bb.P, esc = bb.esc, W = bb.WORLD;
   const LIFE = 6 * 3600 * 1000;    // a ticket is good for 6 real hours after it is confirmed
   const APPS = {
-    baybus: { icon: '🚌', label: 'BayBus', title: 'BayBus', sub: 'State buses, AC sleepers, city buses and tours', types: ['bus'], modes: ['bus', 'busac', 'citybus', 'tour'], place: 'ticket' },
+    baybus: { icon: '🚌', label: 'BayBus', title: 'BayBus', sub: 'Intercity and interstate buses, AC sleepers, city buses and tours', types: ['bus'], modes: ['bus', 'interstate', 'busac', 'citybus', 'tour'], place: 'ticket' },
     baytrain: { icon: '🚆', label: 'BayTrains', title: 'BayTrains', sub: 'Trains, the Mumbai local and the bullet train', types: ['station', 'local', 'bullet'], place: 'ticket' },
     baymetro: { icon: '🚇', label: 'BayMetro', title: 'BayMetro', sub: 'Metro lines in Mumbai, Pune, Ahmedabad, Jaipur, Bengaluru and Kochi', types: ['metro'], place: 'ticket' },
     bayflight: { icon: '✈', label: 'BayFlights', title: 'BayFlights', sub: 'Flights between every airport', types: ['airport'], place: 'checkin' } };
-  const MODES_OF = { station: ['sleeper', 'ac'], local: ['local'], bullet: ['bullet'], metro: ['metro'], airport: ['flight'], bus: ['bus', 'busac', 'citybus', 'tour'] };
+  const MODES_OF = { station: ['sleeper', 'ac'], local: ['local'], bullet: ['bullet'], metro: ['metro'], airport: ['flight'], bus: ['bus', 'interstate', 'busac', 'citybus', 'tour'] };
   const KIND = { station: 'Railway station', local: 'Mumbai local station', bullet: 'Bullet train station', metro: 'Metro station', airport: 'Airport', bus: 'Bus stand' };
   const keyOf = p => p.type + ':' + (p.extra != null ? p.extra : p.name);
   const list = () => { const x = P().extra; if (!Array.isArray(x.tickets)) x.tickets = []; return x.tickets; };

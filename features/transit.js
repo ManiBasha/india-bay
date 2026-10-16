@@ -17,13 +17,17 @@ window.BBFeatures.push(function (bb) {
     kochi: { name: 'KSRTC', full: 'KSRTC city · Kochi', body: '#1f6fb5', band: '#f4f1ea', seat: '#2b3a5a', note: 'Blue KSRTC city circulars' }, jaipur: { name: 'JCTSL', full: 'JCTSL Jaipur', body: '#ff8f1f', band: '#fff4e2', seat: '#5a3b2b', note: 'Orange Jaipur city buses' } };
   const zoneOf = at => at && at.zone ? at.zone : at ? bb.zoneAt(at.x, at.z, 250) : null;
   const opFor = (at, city) => { const z = zoneOf(at); if (city && z && CITY[z.id]) return CITY[z.id]; return (z && OPS[z.st]) || OPS.MH; };
-  const liveryAt = (x, z) => { const zz = bb.zoneAt(x, z, 0); const o = zz && CITY[zz.id] ? CITY[zz.id] : opFor({ x, z }); return { body: o.body, band: o.band, text: o.name, dd: !!o.dd }; };
-  bb.livery = (x, z) => { const zz = bb.zoneAt(x, z, 0); const o = zz && CITY[zz.id] ? CITY[zz.id] : opFor({ x, z }); return { body: o.body, band: o.band, text: o.name, dd: !!o.dd }; };
+  // Beta v1.01.24: the livery also names its style, so the bus is drawn like the real one (see buildBus in the core).
+  // On the highways about one bus in five is the white AC intercity coach; in Mumbai some double-deckers are open-top tour buses.
+  const hash = (x, z) => { const v = Math.sin(Math.floor(x / 37) * 12.9898 + Math.floor(z / 37) * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const liveryAt = (x, z) => { const zz = bb.zoneAt(x, z, 0); const city = zz && CITY[zz.id]; const o = city ? CITY[zz.id] : opFor({ x, z }); const st = (zz && zz.st) || (bb.zoneAt(x, z, 400) || {}).st || 'MH';
+    const L = { body: o.body, band: o.band, text: o.name, dd: !!o.dd, key: city ? 'city' : (OPS[st] ? st : 'MH') }; if (!city && !zz && hash(x, z) < .22) L.style = 'volvo'; if (city && o.dd && hash(z, x) < .3) L.open = true; return L; };
+  bb.livery = liveryAt;
   const label = (mode, at) => { const z = zoneOf(at);
-    if (mode === 'bus') return opFor(at).full + ' · Express'; if (mode === 'busac') return opFor(at).name + ' · AC sleeper';
+    if (mode === 'bus') return opFor(at).full + ' · Express'; if (mode === 'busac') return opFor(at).name + ' · AC sleeper'; if (mode === 'interstate') return opFor(at).name + ' · Interstate AC coach';
     if (mode === 'citybus') return opFor(at, true).name + ' city bus'; if (mode === 'tour') return (z ? z.name + ' ' : '') + 'city tour · open-top';
     return bb.TRAVEL && bb.TRAVEL.MODE[mode] || mode; };
-  const modeNote = (mode, poi) => { const o = opFor(poi, mode === 'citybus'); const n = mode === 'bus' ? o.note : mode === 'busac' ? 'Overnight AC sleeper with berths and curtains · long trips' : mode === 'citybus' ? `${o.note} · hop on to any place in ${poi.zone ? esc(poi.zone.name) : 'town'}` : mode === 'tour' ? 'A guided loop past the famous places, then back here' : '';
+  const modeNote = (mode, poi) => { const o = opFor(poi, mode === 'citybus'); const n = mode === 'bus' ? o.note : mode === 'busac' ? 'Overnight AC sleeper with berths and curtains · long trips' : mode === 'interstate' ? 'White AC coach to the big cities of the other states · reclining seats' : mode === 'citybus' ? `${o.note} · hop on to any place in ${poi.zone ? esc(poi.zone.name) : 'town'}` : mode === 'tour' ? 'A guided loop past the famous places, then back here' : '';
     return n ? `<p class="note">${n}</p>` : ''; };
   /* ---------- destinations for city buses and tours ---------- */
   const inZone = (z, x, q, m = 40) => x > z.x0 - m && x < z.x0 + z.nx * 80 + m && q > z.z0 - m && q < z.z0 + z.nz * 80 + m;
@@ -62,13 +66,17 @@ window.BBFeatures.push(function (bb) {
     for (const [x, z] of sit) { const p = bb.buildPerson(M(people[Math.floor(Math.random() * people.length)]), { female: Math.random() < .45 }); p.position.set(x, F - .62, z + .02); p.scale.setScalar(.96); g.add(p); }
     if (kind === 'citybus') for (let i = 0; i < 3; i++) { const p = bb.buildPerson(M(people[i]), { female: i === 1 }); p.position.set((Math.random() - .5) * .3, F, -2 + i * 1.6); p.rotation.y = Math.random() * 6; g.add(p); }
     return { g, F }; }
-  function wrap(rideObj, mode, pp, R) { const op = opFor(pp, mode === 'citybus' || mode === 'tour'); const { g, F } = interior(op, mode); bb.scene.add(g); let hd = null; const base = rideObj.cam; const stop0 = rideObj.onStop;
+  function wrap(rideObj, mode, pp, R) { const op = opFor(pp, mode === 'citybus' || mode === 'tour'); const { g, F } = interior(op, mode);
+    // Beta v1.01.24: the open-top tour bus has both decks; look round and change seat (features/cabins.js)
+    let seats; if (mode === 'tour') { const lo = interior(op, 'citybus'); g.add(lo.g); seats = [{ name: 'Top deck, front row', eye: [.45, F + 1.15, 4.0], yaw: 0, pitch: -.05 }, { name: 'Top deck, by the rail', eye: [-1.0, F + 1.15, -1.5], yaw: -Math.PI / 2 * .8 }, { name: 'Lower deck window', eye: [-.95, lo.F + 1.22, .72], yaw: -Math.PI / 2 * .85 }]; }
+    else seats = [{ name: 'Window seat', eye: [-.95, F + 1.22, .72], yaw: -Math.PI / 2 * .85 }, { name: 'Aisle seat', eye: [-.45, F + 1.22, .72], yaw: 0 }, { name: 'Front seat, left side', eye: [.45, F + 1.25, 3.7], yaw: 0, pitch: -.04 }].concat(mode === 'citybus' ? [{ name: 'Standing by the door', eye: [.6, F + 1.65, 4.5], yaw: Math.PI / 2 * .7 }] : []);
+    if (bb.CABIN) return bb.CABIN.look(rideObj, g, seats, c => { const h = Math.atan2(c.lx - c.x, c.lz - c.z); return { x: c.x, y: c.y - (R.y || 3.1), z: c.z, h, bob: .012 }; });
+    bb.scene.add(g); let hd = null; const base = rideObj.cam; const stop0 = rideObj.onStop;
     rideObj.kind = 'bus3d'; rideObj.lookToggle = true;
     rideObj.cam = (f, dt, st, keys) => { const want = st.look; st.look = 'fwd'; const c = base(f, dt, st, keys); st.look = want; if (!c) return c;
       const h = Math.atan2(c.lx - c.x, c.lz - c.z); if (hd == null) hd = h; else { let d = h - hd; d = Math.atan2(Math.sin(d), Math.cos(d)); hd += d * Math.min(1, dt * 2.5); }
-      const gy = c.y - (R.y || 3.1); const t = performance.now() / 1000; g.position.set(c.x, gy + Math.sin(t * 7) * .012, c.z); g.rotation.set(0, hd, Math.sin(t * 1.3) * .01);
+      const gy = c.y - (R.y || 3.1); g.position.set(c.x, gy, c.z); g.rotation.set(0, hd, 0);
       const ch = Math.cos(hd), sh = Math.sin(hd); const W2 = (lx, ly, lz) => ({ x: c.x + lx * ch + lz * sh, y: gy + ly, z: c.z - lx * sh + lz * ch });
-      // seat by the right-hand window, looking out of it, or down the aisle to the front
       const eye = want === 'side' ? W2(-.9, F + 1.22, .72) : W2(.15, F + 1.3, -3.4); const look = want === 'side' ? W2(-7, F + .95, 2.2) : W2(.1, F + 1.05, 8);
       return Object.assign({}, c, { x: eye.x, y: eye.y, z: eye.z, lx: look.x, ly: look.y, lz: look.z, hard: true, lookK: 14, px: c.x, pz: c.z }); };
     rideObj.onStop = () => { bb.scene.remove(g); if (stop0) try { stop0(); } catch (e) {} };

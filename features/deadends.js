@@ -18,7 +18,8 @@ window.BBFeatures.push(function (bb) {
   function blockedCut(px, pz, ox, oz, e, r) { const off = e.multi ? e.laneO : e.lane; let k = 0;
     for (; k <= 80; k += 2) { const x = px - ox * k, z = pz - oz * k; if (!blocked(x, z, r) && !blocked(x + oz * off, z - ox * off, r) && !blocked(x - oz * off, z + ox * off, r)) break; } return k > 80 ? 0 : k; }
   let stops = 0;
-  function stopAt(e, atB, cut, r) { stops++; const keep = 4; if (atB) { if (e.len - cut - keep > 6) e.stopB = e.len - cut - keep; else { e.blocked = true; const nb = r.edges.find(q => q.k === e.k - 1); if (nb) nb.stopB = Math.max(4, nb.len - (cut + keep - e.len)); } }
+  const closed = [];
+  function stopAt(e, atB, cut, r) { stops++; { const t = atB ? Math.max(0, e.len - cut - 4) : Math.min(e.len, cut + 4); closed.push({ x: e.ax + e.dx * t, z: e.az + e.dz * t, name: r.name }); } const keep = 4; if (atB) { if (e.len - cut - keep > 6) e.stopB = e.len - cut - keep; else { e.blocked = true; const nb = r.edges.find(q => q.k === e.k - 1); if (nb) nb.stopB = Math.max(4, nb.len - (cut + keep - e.len)); } }
     else { if (cut + keep < e.len - 6) e.stopA = cut + keep; else { e.blocked = true; const nb = r.edges.find(q => q.k === e.k + 1); if (nb) nb.stopA = Math.min(nb.len - 4, cut + keep - e.len); } } }
   const ends = [];
   for (const r of bb.ROADS) { if (r.fly || !r.edges.length || r.kind === 'service') continue;
@@ -50,4 +51,8 @@ window.BBFeatures.push(function (bb) {
     for (const s of [-.3, .3]) { const cx = d.x - d.ox * 2 + sx * s * span, cz = d.z - d.oz * 2 + sz * s * span; put(new T.ConeGeometry(.22, .7, 10), mCone, cx, .35, cz, 0); put(new T.CylinderGeometry(.12, .15, .1, 10), mBand, cx, .42, cz, 0); } }
   if (bb.flushStatic) bb.flushStatic();
   bb.DEADENDS = ends; bb.ROADSTOPS = stops;
+  // Beta v1.01.24: closed roads show on the minimap and the Map, and directions never send you through them
+  for (const d of ends) closed.push({ x: d.x, z: d.z, name: 'Road ends · police barrier' });
+  if (bb.addMapMarks) bb.addMapMarks(() => closed.map(c => ({ x: c.x, z: c.z, col: '#ff3b3b', txt: '⛔', name: 'Road closed', sub: c.name })));
+  bb.CLOSED = closed;
 });

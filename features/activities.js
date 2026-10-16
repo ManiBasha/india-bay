@@ -49,7 +49,8 @@ window.BBFeatures.push(function (bb) {
     if (kind === 'kayak') { B(.8, .35, 3.8, 0, .1, 0, '#ffb000'); rider(g, 0, .25, 0, true); }
     if (kind === 'raft') { B(2.4, .55, 4.6, 0, .15, 0, '#e8473a'); for (let i = 0; i < 6; i++) rider(g, (i % 2 ? .7 : -.7), .35, -1.5 + Math.floor(i / 2) * 1.5, true); }
     if (kind === 'coracle') { const c = new T.Mesh(new T.CylinderGeometry(1.4, 1.1, .6, 18, 1, true), new T.MeshLambertMaterial({ color: '#7a5a3a', side: T.DoubleSide })); c.position.y = .2; g.add(c); rider(g, .4, .1, 0, true); rider(g, -.5, .3, .2, false); }
-    if (kind === 'houseboat') { B(4.4, 1.2, 16, 0, .3, 0, '#6b4a32'); const roof = new T.Mesh(new T.CylinderGeometry(2.4, 2.4, 10, 12, 1, true, -Math.PI / 2, Math.PI), new T.MeshLambertMaterial({ color: '#c9a46a', side: T.DoubleSide })); roof.rotation.x = Math.PI / 2; roof.position.set(0, 1.5, -1); g.add(roof); rider(g, 1.2, .9, 6, false); }
+    if (kind === 'houseboat' && window.IB_KETTU) { const wm = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T) }), tm = new T.MeshLambertMaterial({ map: window.IB_WEAVE(T), color: '#a8844e', side: T.DoubleSide });
+      for (const [geo, col] of window.IB_KETTU(T)) { const m = new T.Mesh(geo, col === 'weave' ? wm : col === 'thatch' ? tm : mat(col)); m.position.y = -.5; g.add(m); } rider(g, .7, .6, 5.6, false); rider(g, -1.2, .5, 7.2, false); }
     if (kind === 'boat') { B(2.6, 1, 7, 0, .3, 0, '#f4f1ea'); B(1.8, 1.2, 2, 0, 1.3, -.5, '#2d6cdf'); rider(g, .6, .8, 2.2, false); }
     if (kind === 'jetski') { B(1, .6, 2.8, 0, .2, 0, '#ffd23a'); B(.5, .4, .8, 0, .7, .4, '#2b2b30'); rider(g, 0, .5, -.2, true); }
     if (kind === 'board') { B(.65, .12, 2.6, 0, .05, 0, '#ff6fa8'); const r = rider(g, 0, .1, 0, false); r.rotation.y = Math.PI / 2; }

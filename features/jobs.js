@@ -132,6 +132,10 @@ window.BBFeatures.push(function (bb) {
   function rentCycle() { if (!bb.spend(bb.cost('svc.cyclerent', 50))) return; const pp = bb.ppos(); const r = bb.nearestRoadPoint(pp.x, pp.z, 200); if (!r) return; const e = r.e; const v = bb.makeVeh('cycle', r.x + e.dz * (e.w / 2 + 1), r.z - e.dx * (e.w / 2 + 1), Math.atan2(e.dx, e.dz), 'parked', { company: true }); bb.toast(`Rented a cycle for ${bb.inr(bb.cost('svc.cyclerent', 50))} · it is next to you`, '#3ddc97'); }
   bb.poiHandlers.jobs = () => jobsSheet();
   bb.addApp({ id: 'jobs', label: 'Jobs', icon: '💼', group: 'menu', fn: jobsSheet });
+  // Beta v1.01.24: running low on money? A nudge towards quick jobs (once every few game hours at most)
+  let lowAt = 0; setInterval(() => { if (!bb.started || J || bb.inside || (bb.CINE && bb.CINE.on)) return; const p = P(); if (p.cash + p.bank >= 300 || Date.now() - lowAt < 6 * 60 * 1000) return; lowAt = Date.now();
+    const z = bb.zoneAt(bb.ppos().x, bb.ppos().z, 200); const tip = z && z.id === 'mumbai' ? 'Dabba delivery, BayTaxi or an auto' : 'Swiggy on a rented cycle (no licence), a taxi or an auto';
+    if (bb.notify) bb.notify('💼', 'Low on money?', `Tap for quick jobs · ${tip}`, () => jobsSheet(), 'lowmoney'); else bb.toast(`💼 Low on money? Phone → Jobs · ${tip}`, '#ffc93c'); }, 20000);
 
   /* RTO: licences */
   const LIC = { two: { name: 'Two-wheeler licence (MCWG)', fee: 1500 }, three: { name: 'Auto rickshaw licence (3-wheeler)', fee: 1000 }, lmv: { name: 'Car licence (LMV)', fee: 2500 }, heavy: { name: 'Heavy vehicle licence', fee: 6000, need: 'lmv' } };

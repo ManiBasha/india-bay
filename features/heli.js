@@ -63,18 +63,30 @@ window.BBFeatures.push(function (bb) {
       if (id[0] === 't') { const o = list[+id.slice(1)]; if (!bb.spend(fare(o.d), true)) return; bb.closeSheet(); return taxi(pad, o.q); } }); };
 
   /* ---------- rides with a pilot ---------- */
-  function joyride(pad) { const z = pad.zone; const cx = z ? z.x0 + z.nx * 40 : pad.x, cz = z ? z.z0 + z.nz * 40 : pad.z; const g = buildHeli('#f4f1ea'); bb.scene.add(g); const R = Math.max(220, (z ? Math.max(z.nx, z.nz) * 40 : 200) + 80);
+  /* Beta v1.01.24: the helicopter flies in and lands on the H first; you walk up and board, then the ride starts.
+     During the ride you sit inside the cabin (features/cabins.js) and can look round and change seat. */
+  function arrive(pad, col, then) { const g = buildHeli(col); bb.scene.add(g); const sx = pad.x - 260, sz = pad.z - 160, sy = 95; const pp = bb.ppos(); const vx = pad.x + 16, vz = pad.z + 18;
+    bb.CINE.play({ kind: 'none', label: 'Helipad', title: 'Your helicopter is coming in', sub: 'Stay clear of the H until the rotors slow', dur: 11, lookToggle: false, skipLabel: 'Board now ⏭', cancel: 'Cancel',
+      cam: (f, dt) => { const e = f < .8 ? 1 - Math.pow(1 - f / .8, 2.2) : 1; const x = sx + (pad.x - sx) * e, z = sz + (pad.z - sz) * e, y = f < .8 ? sy * (1 - e) + .2 : .2; g.position.set(x, y, z); g.rotation.set(f < .8 ? .12 * (1 - e) : 0, Math.atan2(pad.x - sx, pad.z - sz), 0, 'YXZ'); spin(g, dt, f < .85 ? 1 : .6);
+        return { x: vx, y: 1.7, z: vz, lx: x, ly: y + 2, lz: z, lookK: 4, px: vx, pz: vz }; },
+      onDone: () => { g.position.set(pad.x, .2, pad.z); bb.toast('🚁 Boarding · buckle up', '#3ddc97'); then(g); }, onCancel: () => { bb.scene.remove(g); bb.teleport(pad.x, pad.z + 12, 0); } }); }
+  function cabinOf(r, g) { if (!bb.CABIN) return r; const C = bb.CABIN.build('heli'); const keep = new Set([g.userData.rotor, g.userData.tail]); const start0 = r.onStart, stop0 = r.onStop;
+    r.onStart = (el, st) => { for (const c of g.children) if (!keep.has(c)) c.visible = false; if (start0) start0(el, st); }; r.onStop = () => { for (const c of g.children) c.visible = true; if (stop0) stop0(); };
+    return bb.CABIN.look(r, C.g, C.seats, () => ({ x: g.position.x, y: g.position.y + 1.05, z: g.position.z, h: g.rotation.y, roll: g.rotation.z * .6, bob: .004 })); }
+  function joyride(pad) { arrive(pad, '#f4f1ea', g => joyride0(pad, g)); }
+  function taxi(from, to) { arrive(from, '#2d6cdf', g => taxi0(from, to, g)); }
+  function joyride0(pad, g) { const z = pad.zone; const cx = z ? z.x0 + z.nx * 40 : pad.x, cz = z ? z.z0 + z.nz * 40 : pad.z; const R = Math.max(220, (z ? Math.max(z.nx, z.nz) * 40 : 200) + 80);
     const marks = (W.places || []).filter(p => Math.hypot(p[1] - cx, p[2] - cz) < R + 200).map(p => p[0]);
-    bb.CINE.play({ kind: 'heli', label: 'Helicopter joyride', title: `Over ${z ? z.name : pad.name}`, dur: 32, look: 'side', cancel: 'Land now', skipLabel: 'Skip ⏭', sub: 'Lift-off! The city drops away', lines: ['Lift-off! The city drops away'].concat(marks.slice(0, 4).map(n => `Below you: ${n}`), ['Banking round for one more look', 'Coming in to land']),
+    bb.CINE.play(cabinOf({ kind: 'heli', label: 'Helicopter joyride', title: `Over ${z ? z.name : pad.name}`, dur: 32, look: 'side', cancel: 'Land now', skipLabel: 'Skip ⏭', sub: 'Lift-off! The city drops away', lines: ['Lift-off! The city drops away'].concat(marks.slice(0, 4).map(n => `Below you: ${n}`), ['Banking round for one more look', 'Coming in to land']),
       cam: (f, dt, st) => { const up = Math.min(1, f * 6, (1 - f) * 6); const a = f * Math.PI * 2; const r = R * Math.min(1, f * 4, (1 - f) * 4 + .1); const x = f < .12 || f > .9 ? pad.x + (cx + Math.cos(a) * r - pad.x) * Math.min(1, up * 1.4) : cx + Math.cos(a) * r, zz = f < .12 || f > .9 ? pad.z + (cz + Math.sin(a) * r - pad.z) * Math.min(1, up * 1.4) : cz + Math.sin(a) * r;
         const y = 2 + up * 120; const hd = Math.atan2(-Math.sin(a), Math.cos(a)); g.position.set(x, y - 2, zz); g.rotation.set(.1, hd, -.2 * up, 'YXZ'); spin(g, dt);
         if (st.look === 'side') return { x: x, y: y + .3, z: zz, lx: cx, ly: 0, lz: cz, lookK: 2 }; return { x: x - Math.sin(hd) * 18, y: y + 7, z: zz - Math.cos(hd) * 18, lx: x, ly: y, lz: zz }; },
-      onStop: () => bb.scene.remove(g), onDone: () => { bb.teleport(pad.x, pad.z + 12, 0); bb.toast('What a view! Back on the helipad', '#3ddc97'); hx().flights++; bb.setDirty(); bb.emit('heli', { kind: 'joy' }); }, onCancel: () => bb.teleport(pad.x, pad.z + 12, 0) }); }
-  function taxi(from, to) { const g = buildHeli('#2d6cdf'); bb.scene.add(g); const d = Math.hypot(to.x - from.x, to.z - from.z); const secs = Math.max(16, Math.min(50, Math.round(d / 90))); const km = Math.round(d * 2.4 / 1000);
+      onStop: () => bb.scene.remove(g), onDone: () => { bb.teleport(pad.x, pad.z + 12, 0); bb.toast('What a view! Back on the helipad', '#3ddc97'); hx().flights++; bb.setDirty(); bb.emit('heli', { kind: 'joy' }); }, onCancel: () => bb.teleport(pad.x, pad.z + 12, 0) }, g)); }
+  function taxi0(from, to, g) { const d = Math.hypot(to.x - from.x, to.z - from.z); const secs = Math.max(16, Math.min(50, Math.round(d / 90))); const km = Math.round(d * 2.4 / 1000);
     const r = bb.CINE.ride({ kind: 'heli', pts: [[from.x, from.z], [to.x, to.z]], dur: secs, speed: 45, y: (fr, s, len) => 2 + Math.min(150, Math.min(s, len - s) * .9), lookDown: .25 }, { label: 'Heli taxi', title: `${from.name} → ${to.name}`, sub: 'Lift-off', lines: ['Lift-off', 'Cruising over the countryside', 'The pilot points out a river', 'Descending to the helipad'], look: 'fwd', cancel: 'Turn back', skipLabel: 'Skip to arrival ⏭',
       timeText: f => `${km} km · ${Math.max(0, Math.ceil(secs * (1 - f)))} s · Bay ${bb.bayTime()}`, onStop: () => bb.scene.remove(g), onDone: () => { bb.teleport(to.x, to.z + 12, 0); bb.toast(`Landed at ${to.name}`, '#3ddc97'); bb.emit('travel', { mode: 'heli', to: to.name }); hx().flights++; bb.save(); }, onCancel: () => bb.teleport(from.x, from.z + 12, 0) });
     const cam0 = r.cam; r.cam = (f, dt, st) => { const c = cam0(f, dt, st); const hd = Math.atan2(to.x - from.x, to.z - from.z); g.position.set(c.x, c.y - 2.2, c.z); g.rotation.set(.08, hd, 0, 'YXZ'); spin(g, dt); return st.look === 'fwd' ? Object.assign(c, { x: c.x + Math.sin(hd) * 1.6, z: c.z + Math.cos(hd) * 1.6, y: c.y + .2 }) : c; };
-    bb.CINE.play(r); }
+    bb.CINE.play(cabinOf(r, g)); }
 
   /* ---------- flying it yourself ---------- */
   let parked = null; // your own helicopter, parked where you landed
@@ -92,8 +104,12 @@ window.BBFeatures.push(function (bb) {
         const water = bb.isWater(S.x, S.z) && !bb.roadAt(S.x, S.z); if (water && S.y < 3 && !S.landed) { S.y = 3; S.vy = Math.max(0, S.vy); } if (!water && S.y <= .25 && !S.landed && Math.abs(S.v) < 6) { S.landed = true; bb.toast('Landed · tap Get out, or climb to take off again', '#3ddc97'); }
         g.position.set(S.x, S.y, S.z); g.rotation.set(S.v / 32 * .18, S.h, S.bank, 'YXZ'); spin(g, dt, S.landed ? .25 : 1);
         const hud = document.getElementById('fhud'); if (hud) hud.innerHTML = `ALT ${Math.round(S.y * 2.4)} m · ${Math.round(Math.abs(S.v) * 2.4 * 3.6)} km/h${S.landed ? ' · landed' : water && S.y < 4 ? ' · over water' : ''}`;
-        if (S.view === 'cockpit') return { x: S.x + Math.sin(S.h) * 1.4, y: S.y + 2.6, z: S.z + Math.cos(S.h) * 1.4, lx: S.x + Math.sin(S.h) * 40, ly: S.y - 6, lz: S.z + Math.cos(S.h) * 40, lookK: 6, px: S.x, pz: S.z };
+        // Beta v1.01.24: the cockpit view puts you in the pilot's seat inside the cabin, with the instruments in front
+        if (!S.cab && bb.CABIN) { S.cab = bb.CABIN.build('heli'); S.cab.g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } if (o.userData && o.userData.isPilot) o.visible = false; }); S.cab.g.visible = false; bb.scene.add(S.cab.g); }
+        const ck = S.view === 'cockpit'; if (S.cab) { S.cab.g.visible = ck; for (const c of g.children) if (c !== g.userData.rotor && c !== g.userData.tail) c.visible = !ck; if (ck) { S.cab.g.position.set(S.x, S.y + 1.05, S.z); S.cab.g.rotation.set(S.v / 32 * .18, S.h, S.bank * .6, 'YXZ'); } }
+        if (ck) { const ch = Math.cos(S.h), sh = Math.sin(S.h); const ex = S.x + .5 * ch + .32 * sh, ez = S.z - .5 * sh + .32 * ch; return { x: ex, y: S.y + 1.05 + 1.3, z: ez, lx: ex + sh * 40, ly: S.y - 4, lz: ez + ch * 40, lookK: 8, hard: true, px: S.x, pz: S.z }; }
         return { x: S.x - Math.sin(S.h) * 17, y: S.y + 7, z: S.z - Math.cos(S.h) * 17, lx: S.x + Math.sin(S.h) * 8, ly: S.y + 1.5, lz: S.z + Math.cos(S.h) * 8, lookK: 5, px: S.x, pz: S.z }; },
+      onStop: () => { if (S.cab) bb.scene.remove(S.cab.g); },
       onDone: () => { // get out
         let ox = S.x + Math.cos(S.h) * 4, oz = S.z - Math.sin(S.h) * 4; if (S.y > 3 || bb.isWater(S.x, S.z)) { const pd = pads.slice().sort((a, b) => Math.hypot(a.x - S.x, a.z - S.z) - Math.hypot(b.x - S.x, b.z - S.z))[0]; bb.toast(`You can only get out after landing on ground · the autopilot lands you at ${pd.name}`, '#ff9f1c'); S.x = pd.x; S.z = pd.z; S.y = .2; ox = pd.x; oz = pd.z + 12; }
         bb.teleport(ox, oz, S.h); bb.scene.remove(g); hx().flights++; bb.emit('heli', { kind: 'fly' });
