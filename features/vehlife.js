@@ -7,7 +7,7 @@
 //    buyer, hand over the keys and get paid.
 window.BBFeatures.push(function (bb) {
   const T = bb.THREE, esc = bb.esc, P = () => bb.P;
-  const LUX = new Set(['sedan', 'suv', 'mpv', 'sports', 'coupe', 'convertible', 'limo', 'camper', 'sportsbike']);
+  const LUX = new Set(['sedan', 'suv', 'mpv', 'sports', 'coupe', 'convertible', 'limo', 'camper', 'sportsbike', 'skycar']);
   const NOLOCK = new Set(['cycle', 'rickshaw']);
   const carOf = v => v && v.owned ? P().cars[v.ownedIdx] : null;
   const autoLock = v => { const c = carOf(v); return !!c && (LUX.has(v.type) || !!c.autolock); };

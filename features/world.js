@@ -32,9 +32,7 @@ window.BBFeatures.push(function (bb) {
       for (let k = 0; k < 4; k++) { const b = person('#c0392b', false); b.position.set(-1.8 + k * 1.2, 0, 2.4); g.add(b); m(new T.CylinderGeometry(.25, .25, .3, 10), LM('#d9b26f'), -1.8 + k * 1.2, 1.1, 2.75); }
       const groom = person('#f4e3b0', false); groom.position.set(0, .9, 5); g.add(groom); m(new T.BoxGeometry(.6, 1.2, 1.8), LM('#f4f1ea'), 0, .6, 5); m(new T.ConeGeometry(.22, .35, 8), G(0xff3d6e), 0, 2.85, 5);
       const lamps = []; for (let k = 0; k < 6; k++) { const l = m(new T.SphereGeometry(.18, 6, 5), G(0xffe08a), -2.6 + (k % 2) * 5.2, 2.2, -5 + Math.floor(k / 2) * 4); lamps.push(l); } anim.push(t => lamps.forEach((l, i) => l.visible = Math.sin(t * 4 + i) > -.5)); I.moves = true; }
-    if (I.kind === 'cricket') { m(new T.BoxGeometry(.15, .7, .05), LM('#d9b26f'), 3.5, .35, -6); m(new T.BoxGeometry(.15, .7, .05), LM('#d9b26f'), 3.5, .35, 6); const ball = m(new T.SphereGeometry(.09, 6, 5), LM('#c0392b'), 3.5, .5, 0);
-      const kids = []; for (let k = 0; k < 5; k++) { const p = person(['#2f7fc1', '#f4f1ea', '#ffc93c', '#1f8a4c', '#e4572e'][k], k === 2); p.scale.setScalar(.7); p.position.set(3.5 + (k > 1 ? (k - 3) * 2.4 : 0), 0, k === 0 ? -6.5 : k === 1 ? 6.5 : (k - 3) * 3); g.add(p); kids.push(p); }
-      anim.push(t => { const u = (t * .5) % 1; ball.position.z = 6 - u * 12; ball.position.y = .1 + Math.abs(Math.sin(u * Math.PI * 2)) * .6; }); }
+    if (I.kind === 'cricket') { if (bb.GULLY) anim.push(bb.GULLY.build(g, I)); }
     bb.scene.add(g); return { g, anim }; }
   let tk = 0;
   bb.onUpdate(dt => { if (!bb.started) return; tk -= dt; const t = performance.now() / 1000;

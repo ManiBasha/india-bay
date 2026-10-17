@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D engine could not load. Check your connection and reload.</div>');return;}
 const W=window.WORLD,LM=window.LANDMARKS;
 try{await Promise.race([document.fonts.load('800 48px "Baloo 2"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
-const VERSION='Beta v1.01.27';
+const VERSION='Beta v1.01.28';
 
 /* ================= storage + config ================= */
 const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
@@ -171,14 +171,14 @@ function tree(x,z,s=1,mat){const t=new THREE.CylinderGeometry(.25*s,.35*s,3*s,5)
 const flags=[];const flagGeo=new THREE.BufferGeometry();flagGeo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,0,-1.6,0,3,-.8,0],3));flagGeo.computeVertexNormals();const flagMat=new THREE.MeshLambertMaterial({color:0xff8a1c,side:THREE.DoubleSide});
 function addFlag(x,y,z,big){const f=new THREE.Mesh(flagGeo,flagMat);f.position.set(x,y,z);if(big)f.scale.setScalar(2.2);scene.add(f);flags.push(f);box(.08,big?6:3.5,.08,x,y-(big?2.5:1.7),z,M.pole);}
 const signTexCache=[];
-// the India Bay logo for boards in the world (Beta v1.01.27): drawn when the image has loaded
+// the India Bay logo for boards in the world (Beta v1.01.28): drawn when the image has loaded
 const LOGO_IMG=new Image();LOGO_IMG.src='assets/logo-board.jpg';const logoWait=[];LOGO_IMG.onload=()=>{for(const f of logoWait.splice(0))try{f();}catch(e){}};
 function logoTex(w,h,line){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');const t=new THREE.CanvasTexture(c);
   const draw=()=>{const g=x.createLinearGradient(0,0,w,0);g.addColorStop(0,'#123d4c');g.addColorStop(1,'#1d5f73');x.fillStyle=g;x.fillRect(0,0,w,h);const sq=Math.min(h*.92,w*.45);if(LOGO_IMG.complete&&LOGO_IMG.naturalWidth)x.drawImage(LOGO_IMG,(h-sq)/2,(h-sq)/2,sq,sq);
     const tx=(h-sq)/2*2+sq,tw=w-tx-h*.06;if(tw>w*.25){x.fillStyle='#ffc93c';x.textAlign='left';x.textBaseline='middle';let f=Math.round(h*.24);x.font=`900 ${f}px "Baloo 2",sans-serif`;while(x.measureText('INDIA BAY').width>tw&&f>10){f--;x.font=`900 ${f}px "Baloo 2",sans-serif`;}x.fillText('INDIA BAY',tx,h*.38);x.fillStyle='#fff6d8';let f2=Math.round(h*.11);x.font=`700 ${f2}px "Baloo 2",sans-serif`;while(x.measureText(line).width>tw&&f2>8){f2--;x.font=`700 ${f2}px "Baloo 2",sans-serif`;}x.fillText(line,tx,h*.62);}t.needsUpdate=true;};
   draw();if(!(LOGO_IMG.complete&&LOGO_IMG.naturalWidth))logoWait.push(draw);return t;}
 function signTex(t,fg,bg,w=512,h=128){return canvasTex(w,h,x=>{x.fillStyle=bg;x.fillRect(0,0,w,h);x.strokeStyle=fg;x.lineWidth=Math.max(4,h/20);x.strokeRect(h/14,h/14,w-h/7,h-h/7);x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';const L=String(t).split('|').map(q=>q.trim()).filter(Boolean).slice(0,2);if(L.length>1){const fit=(q,sz,wt)=>{x.font=`${wt} ${sz}px "Baloo 2", sans-serif`;while(x.measureText(q).width>w*.8&&sz>8){sz-=2;x.font=`${wt} ${sz}px "Baloo 2", sans-serif`;}return sz;};const f1=fit(L[0],Math.round(h*.34),800);x.fillText(L[0],w/2,h*.4);fit(L[1],Math.round(Math.max(Math.min(h*.2,f1*1.05),h*.14)),700);x.fillText(L[1],w/2,h*.71);return;}t=L[0]||'';let s=h*.55;x.font=`800 ${s}px "Baloo 2", sans-serif`;while(x.measureText(t).width>w*.86&&s>12){s-=4;x.font=`800 ${s}px "Baloo 2", sans-serif`;}x.fillText(t,w/2,h*.56);},false);}
-// a text board readable from both sides: the back gets its own copy, so it is never seen mirrored (Beta v1.01.27)
+// a text board readable from both sides: the back gets its own copy, so it is never seen mirrored (Beta v1.01.28)
 function twoSided(m){const mt=m.material;if(!mt||!mt.map)return m;mt.side=THREE.FrontSide;const b=new THREE.Mesh(m.geometry,mt.clone());b.material.side=THREE.FrontSide;b.rotation.y=Math.PI;b.position.z=-.012;b.userData=m.userData;m.add(b);return m;}
 function addSign(text,x,y,z,ry,w,h,fg,bg){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:signTex(text,fg,bg,512,Math.round(512*h/w))}));twoSided(m);m.position.set(x,y,z);m.rotation.y=ry;scene.add(m);return m;}
 const clockTex=canvasTex(128,128,x=>{x.fillStyle='#f6f1e3';x.beginPath();x.arc(64,64,60,0,6.29);x.fill();x.strokeStyle='#2a2420';x.lineWidth=6;x.stroke();x.lineWidth=5;x.beginPath();x.moveTo(64,64);x.lineTo(64,24);x.moveTo(64,64);x.lineTo(92,70);x.stroke();},false);
@@ -640,7 +640,9 @@ const SPEC={
   scooter:{max:24,acc:12,turn:2.4,len:1.8,wid:.7,two:true,fuel:'petrol',tank:5,range:30000,lic:'two',fp:[0,1.55,.1],cam:4,label:'Scooter',seat:[0,.82,-.2]},
   atv:{max:20,acc:12,turn:2.0,len:2.0,wid:1.2,fuel:'petrol',tank:10,range:15000,lic:null,fp:[0,1.6,-.1],cam:4.2,label:'ATV quad',seat:[0,.95,-.15]},
   golfcart:{max:10,acc:5,turn:1.9,len:2.5,wid:1.3,fuel:null,lic:null,fp:[-.3,1.45,0],cam:4.5,label:'Golf cart'},
-  erickshaw:{max:10,acc:5,turn:1.8,len:2.9,wid:1.3,fuel:null,lic:null,fp:[0,1.75,.7],cam:4.5,label:'E-rickshaw'}};
+  erickshaw:{max:10,acc:5,turn:1.8,len:2.9,wid:1.3,fuel:null,lic:null,fp:[0,1.75,.7],cam:4.5,label:'E-rickshaw'},
+  // Beta v1.01.28: an electric car that flies (features/skycar.js draws it and flies it)
+  skycar:{max:44,acc:24,turn:1.9,len:4.6,wid:2.1,fuel:null,lic:'lmv',fp:[-.38,1.25,.1],cam:5.4,label:'Aerion flying car',flies:true}};
 /* ---------- realistic vehicle parts ---------- */
 // Beta v1.01.23: vehicles reflect the sky (a small cube map), so paint, glass and chrome look glossy. ENVM keeps each
 // material's day strength; core-3 dims them at night.
@@ -1094,7 +1096,7 @@ function save(){if(!startedOnce){store.set(SAVEKEY,P);return;}if(player.mode==='
 /* owned vehicles */
 const ownedVeh=[];
 function spawnOwned(i,x,z,h){if(ownedVeh[i])removeVeh(ownedVeh[i]);const c=P.cars[i];c.garage=null;const v=makeVeh(c.type,x,z,h,'parked',{fuel:c.fuel,hp:c.hp,colorMat:c.color||undefined});v.owned=true;v.ownedIdx=i;ownedVeh[i]=v;v.locked=!!c.locked;if(P.extra&&P.extra.plate)setPlate(v,P.extra.plate);emit('ownedSpawn',v);
-  if(c.neon){const sp=SPEC[c.type];const g=new THREE.PlaneGeometry(sp.wid*1.15,sp.len*1.05);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c.neon,transparent:true,opacity:.55,depthWrite:false}));m.position.y=.06;v.m.add(m);}
+  if(false&&c.neon){const sp=SPEC[c.type];const g=new THREE.PlaneGeometry(sp.wid*1.15,sp.len*1.05);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c.neon,transparent:true,opacity:.55,depthWrite:false}));m.position.y=.06;v.m.add(m);}
   return v;}
 // Put an owned vehicle away in a home garage: it leaves the street and waits there.
 function storeOwned(i,homeId){const v=ownedVeh[i];const c=P.cars[i];if(!c)return;if(v){if(player.veh===v)exitVehicle(true);c.fuel=Math.round(v.fuel);c.hp=Math.round(v.hp);removeVeh(v);ownedVeh[i]=null;}c.x=null;c.z=null;c.garage=homeId;dirty=true;}
@@ -1568,7 +1570,7 @@ const GUNSHOP=[['bat','Cricket bat','Close-range swing',600],['pistol','Pistol',
 function gunSheet(poi){if(!CFG.weapons){toast('Weapons are switched off in this world','#d6c8e4');return;}openSheet(poi.name,`Cash ${inr(P.cash)}`,GUNSHOP.map(([id,nm,sub,p])=>rowHtml(id,nm,sub,['bat','pistol','shotgun'].includes(id)&&P.weapons.includes(id)?'Owned':inr(cost('gun.'+id,p)),P.weapons.includes(id)?'ghost':'')).join(''),
   s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;const it=GUNSHOP.find(i=>i[0]===id);if(['bat','pistol','shotgun'].includes(id)&&P.weapons.includes(id))return;if(!spend(cost('gun.'+id,it[3])))return;
     if(id==='ammoP')P.ammo.pistol+=24;else if(id==='ammoS')P.ammo.shotgun+=12;else{P.weapons.push(id);P.weapon=id;if(id==='pistol')P.ammo.pistol+=24;if(id==='shotgun')P.ammo.shotgun+=12;}updWeap();save();emit('buy',{kind:'weapon',id});toast(`Bought ${it[1]}`,'#3ddc97');gunSheet(poi);});}
-const SHOWROOM=[['auto','Auto rickshaw','CNG · no licence needed',12000],['car','Hatchback','Petrol · LMV licence',45000],['sedan','Sedan','Petrol · for cab jobs',85000],['suv','SUV','Diesel · big and tough',120000],['sports','Sports coupe','Top speed 110 km/h',250000],['mpv','MPV','7 seats · diesel · for families and cab jobs',150000],['van','Van','The everyday people mover',55000],['pickup','Pickup','Open bed for goods',110000],['coupe','Coupe','Two doors, quick',220000],['convertible','Convertible','Roof down by the sea',320000],['limo','Limousine','Long, black and grand',900000],['camper','Camper van','Sleep anywhere · road trips',400000],['tractor','Tractor','Slow and strong · farms and villages',350000],['lorry','Lorry','Open goods truck · heavy licence',650000],['tanker','Tanker','Fuel and water · heavy licence',800000],['towtruck','Tow truck','Pull broken cars to the mechanic · heavy licence',700000]];
+const SHOWROOM=[['auto','Auto rickshaw','CNG · no licence needed',12000],['car','Hatchback','Petrol · LMV licence',45000],['sedan','Sedan','Petrol · for cab jobs',85000],['suv','SUV','Diesel · big and tough',120000],['sports','Sports coupe','Top speed 110 km/h',250000],['mpv','MPV','7 seats · diesel · for families and cab jobs',150000],['van','Van','The everyday people mover',55000],['pickup','Pickup','Open bed for goods',110000],['coupe','Coupe','Two doors, quick',220000],['convertible','Convertible','Roof down by the sea',320000],['limo','Limousine','Long, black and grand',900000],['camper','Camper van','Sleep anywhere · road trips',400000],['tractor','Tractor','Slow and strong · farms and villages',350000],['lorry','Lorry','Open goods truck · heavy licence',650000],['tanker','Tanker','Fuel and water · heavy licence',800000],['towtruck','Tow truck','Pull broken cars to the mechanic · heavy licence',700000],['skycar','Aerion flying car','Electric · drives, then press F to fly · car licence',2500000]];
 function buyVehicle(type,cost,near){if(!spend(cost,true))return false;P.cars.push({type,fuel:100,hp:100});const i=P.cars.length-1;const [x,z,h]=roadSpotNear(near);spawnOwned(i,x,z,h);save();emit('buy',{kind:'vehicle',type});toast(`${SPEC[type].label} is yours · parked outside`,'#3ddc97');return true;}
 function carSheet(poi){openSheet(poi.name,`Cash ${inr(P.cash)} · bank money works too`,SHOWROOM.map(([id,nm,sub,p])=>rowHtml(id,nm,sub,inr(cost('veh.'+id,p)))).join('')+`<p class="note">Comes with a full tank.</p>`,
   s=>s.onclick=e=>{const id=e.target.dataset.id;if(!id)return;const it=SHOWROOM.find(i=>i[0]===id);if(buyVehicle(id,cost('veh.'+id,it[3]),{x:poi.x,z:poi.z}))closeSheet();});}
@@ -1643,7 +1645,7 @@ function dropCar(k){const v=ownedVeh[k];if(v){if(player.veh===v)exitVehicle(true
 function carValue(k){const c=P.cars[k],v=ownedVeh[k];return Math.round(cost('veh.'+c.type,VALUE[c.type]||10000)*.5*Math.max(.3,(v?v.hp:c.hp)/100)/5)*5;}
 function garageSheet(){const pp=ppos();const homeNear=P.homes.map(id=>pois.find(q=>q.type==='home'&&q.extra===id)).find(q=>q&&Math.hypot(q.x-pp.x,q.z-pp.z)<45);
   openSheet('🚗 Garage',`${P.cars.length} vehicle${P.cars.length===1?'':'s'} · valet ${inr(cost('svc.valet',200))} brings one to the nearest road`,rowHtml('addv','＋ Add a vehicle','Get in the driver seat of any vehicle, then tap Add · you can name it','Add')+P.cars.map((c,i)=>{const v=ownedVeh[i];const d=v?Math.round(v.pos.distanceTo(pp)*2.4/100)/10:null;const val=Math.round(cost('veh.'+c.type,VALUE[c.type]||10000)*.5*Math.max(.3,(v?v.hp:c.hp)/100)/5)*5;
-    const home=c.garage?homeById(c.garage):null;const here=home&&homeNear&&homeNear.extra===c.garage;const mods=[c.tune?'tuned':'',c.horn?'musical horn':'',c.neon?'underglow':''].filter(Boolean).join(', ');
+    const home=c.garage?homeById(c.garage):null;const here=home&&homeNear&&homeNear.extra===c.garage;const mods=[c.tune?'tuned':'',c.horn?'musical horn':''].filter(Boolean).join(', ');
     return `<div class="grow"><div class="gtop"><span class="gdot" style="background:${c.color||'#9aa'}"></span><div class="gname">${c.nick?'<b>'+esc(c.nick)+'</b> · ':''}${SPEC[c.type].label}${c.stolen?' · no papers':''}${c.locked?' · 🔒':''}</div><button class="gren" data-ren="${i}" title="Name it" aria-label="Name it">✏ Name</button></div><small class="ginfo">${home?'In your garage at '+esc(home.name):v?d+' km away':'Not on the street'} · fuel ${Math.round(v?v.fuel:c.fuel)}% · body ${Math.round(v?v.hp:c.hp)}%${mods?' · '+mods:''}</small><div class="gbtns">${here?`<button class="buy" data-out="${i}">Take out</button>`:`<button class="buy ghost" data-id="${i}">Deliver</button>`}${v&&!home&&P.homes.length?`<button class="buy ghost" data-ret="${i}" title="Return to your garage">🏠 Return to garage</button>`:''}${P.cars.length>1?`<button class="buy danger" data-sell="${i}">${api.VSALE&&api.VSALE.isFor(c)?'🤝 Buyer waiting':'💰 Sell ~'+inr(val)}</button>`:''}</div></div>`;}).join('')||'<p class="note">No vehicles yet. Visit Bay Motors or a two-wheeler dealer.</p>'+
     `<p class="note">Park in your own garage: drive up to a home you own and press E. A vehicle you take from the street can be kept too: park it in your garage, or get papers at a mechanic workshop.</p>`,
   s=>s.onclick=e=>{if(e.target.dataset.id==='addv'){return openApp('addgarage');}const rn=e.target.dataset.ren;if(rn!=null)return api.nameCar&&api.nameCar(+rn,garageSheet);const si=e.target.dataset.sell,out=e.target.dataset.out;if(out!=null){const k=+out;const c=P.cars[k];const hp=pois.find(q=>q.type==='home'&&q.extra===c.garage);const [x,z,h]=roadSpotNear(hp||player.pos);const v=spawnOwned(k,x,z,h);closeSheet();toast(`${SPEC[c.type].label} out of the garage`,'#3ddc97');return;}
@@ -2099,8 +2101,20 @@ function laneClear(c,l,k){const fx=Math.sin(c.h),fz=Math.cos(c.h);const shift=(k
     const along=dx*fx+dz*fz,lat=-dx*fz+dz*fx;if(along>-14&&along<18&&Math.abs(lat-shift)<2.2)return false;}return true;}
 function laneChange(c,l,dt,stuck,target){l.lcT=Math.max(0,(l.lcT||0)-dt);if(l.vmax0==null)l.vmax0=l.vmax;
   let want=l.k||0;if(!want&&!l.slow&&stuck&&target<l.vmax*.75)want=1;else if(want===1&&l.slow)want=0;else if(want===1&&l.pass&&(l.passT=(l.passT||0)+dt)>7&&!stuck)want=0;
-  if(want!==(l.k||0)&&l.lcT<=0&&laneClear(c,l,want)){l.k=want;l.lcT=2.5;l.passT=0;if(want===1&&!l.fast){l.pass=true;l.vmax=Math.min(c.spec.max*.68,l.vmax0*1.3);}else if(want===0){l.pass=false;l.vmax=l.vmax0;}}
-  const tgt=laneOff(l);if(l.oe!==l.e||l.off==null){l.oe=l.e;l.off=tgt;}else l.off+=clamp(tgt-l.off,-2.4*dt,2.4*dt);}
+  // Beta v1.01.28: indicate for a second, look again, then steer across smoothly (the car points into the new lane)
+  if(l.sigK!=null){l.sigT-=dt;if(l.sigT<=0){const k=l.sigK;l.sigK=null;if(k!==(l.k||0)&&laneClear(c,l,k)){l.k=k;l.lcT=3;l.passT=0;if(k===1&&!l.fast){l.pass=true;l.vmax=Math.min(c.spec.max*.68,l.vmax0*1.3);}else if(k===0){l.pass=false;l.vmax=l.vmax0;}}else l.lcT=1.5;}}
+  else if(want!==(l.k||0)&&l.lcT<=0&&laneClear(c,l,want)){l.sigK=want;l.sigT=1.1;}
+  const tgt=laneOff(l);if(l.oe!==l.e||l.off==null){l.oe=l.e;l.off=tgt;l.lv=0;}
+  else{const d=tgt-l.off,lim=Math.min(1.5,.55+Math.abs(c.v)*.07);l.lv=(l.lv||0)+clamp(clamp(d*1.1,-lim,lim)-(l.lv||0),-1.6*dt,1.6*dt);l.off+=l.lv*dt;if(Math.abs(d)<.03&&Math.abs(l.lv)<.08){l.off=tgt;l.lv=0;}}
+  const ks=l.sigK!=null?l.sigK:null;c.sigSide=ks!=null?Math.sign((ks?l.e.laneI:l.e.laneO)-l.off):Math.abs(tgt-l.off)>.2?Math.sign(tgt-l.off):0;}
+// indicator lamps (made the first time a vehicle signals): amber, front and back corners, blinking about 1.5 times a second
+const INDM=new THREE.MeshBasicMaterial({color:0xffa21a}),INDG=new THREE.BoxGeometry(.14,.09,.07);
+function indSet(c,side){if(!side&&!c.ind)return;if(!c.ind){const sp=c.spec,hw=sp.two?.2:sp.wid/2-.04,hl=sp.len/2-.03,y=sp.two?.95:sp.len>6?1.1:.78;c.ind={on:0,L:[],R:[]};
+    for(const sx of [-1,1])for(const sz of [-1,1]){const m=new THREE.Mesh(INDG,INDM);m.position.set(sx*hw,y,sz*hl);m.visible=false;c.m.add(m);c.ind[sx>0?'R':'L'].push(m);}}
+  const blink=side&&Math.sin(performance.now()*.0094)>0;if(c.ind.on===(blink?side:0))return;c.ind.on=blink?side:0;for(const m of c.ind.R)m.visible=blink&&side>0;for(const m of c.ind.L)m.visible=blink&&side<0;}
+// can a vehicle make a U-turn here? (no oncoming vehicle close by on the other side of the road)
+function uGapClear(c){const fx=Math.sin(c.h),fz=Math.cos(c.h);for(const o of vehicles){if(o===c||o.state==='parked')continue;const dx=o.pos.x-c.pos.x,dz=o.pos.z-c.pos.z;if(Math.abs(dx)>45||Math.abs(dz)>45||Math.abs(o.pos.y-c.pos.y)>2)continue;
+    const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz,along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);if(lat>9)continue;if(along>-4&&along<8&&lat<4.5&&o.state==='traffic')return false;if(dot<-.4&&along>0&&along<40&&(o.v||0)>.8)return false;if(dot>.4&&along<0&&along>-25&&(o.v||0)>1.5&&lat>2)return false;}return true;}
 // How high is whatever stands at x,z (Beta v1.01.25, for flying): buildings, hills and other solid things (landmarks count as 16 m).
 const OTH=new Map();let othN=-1;function othBuild(){OTH.clear();othN=BLDH.length;const put=(x0,z0,x1,z1,o)=>{for(let i=Math.floor(x0/40);i<=Math.floor(x1/40);i++)for(let j=Math.floor(z0/40);j<=Math.floor(z1/40);j++){const k=i+','+j;let a=OTH.get(k);if(!a)OTH.set(k,a=[]);a.push(o);}};
   for(const b of BLDH)put(b[0]-b[2],b[1]-b[3],b[0]+b[2],b[1]+b[3],{t:0,b});for(const h of HILLS_TRY)if(h.ok)put(h.x-h.rad,h.z-h.rad,h.x+h.rad,h.z+h.rad,{t:1,h});}
@@ -2114,15 +2128,15 @@ const _fr=new THREE.Frustum(),_fm=new THREE.Matrix4();let _frF=-1;function inVie
 function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos:null;let n=0;
   // another player nearby runs the traffic (features/nettraffic.js): show theirs, not ours
   if(hooks.netFollow){for(const c of vehicles.slice())if(c.state==='traffic')removeVeh(c);return;}
-  for(const c of vehicles.slice()){if(c.state!=='traffic')continue;n++;if(c.pos.distanceTo(pp)>390){removeVeh(c);n--;continue;}const l=c.lane;let target=c.stopT>0?0:l.vmax;c.stopT=Math.max(0,c.stopT-dt);let blocked=null;
+  for(const c of vehicles.slice()){if(c.state!=='traffic'){if(c.ind&&c.ind.on)indSet(c,0);continue;}n++;if(c.pos.distanceTo(pp)>390){removeVeh(c);n--;continue;}const l=c.lane;let target=c.stopT>0?0:l.vmax;c.stopT=Math.max(0,c.stopT-dt);let blocked=null;
     if(!c.tid)c.tid=++TIDN;const fx=Math.sin(c.h),fz=Math.cos(c.h);const look=c.spec.len/2+6+Math.abs(c.v)*.9;
     // cars ignore oncoming cars (lanes can touch where roads meet) and a car stuck behind traffic for 6 s squeezes through,
     // so junctions at the ends of highways never lock up
     c.ghostT=Math.max(0,(c.ghostT||0)-dt);let jam=false;
     if(!(c.ghostT>0))for(const o of vehicles){if(o===c)continue;const dx=o.pos.x-c.pos.x,dz=o.pos.z-c.pos.z;if(Math.abs(dx)>50||Math.abs(dz)>50||Math.abs(o.pos.y-c.pos.y)>2)continue;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);
-      const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz;const near=along>0&&along<c.spec.len/2+o.spec.len/2+2.5&&lat<(c.spec.wid+o.spec.wid)/2+.3;if(o.state==='traffic'&&dot<-.3&&!near)continue;
+      const dot=Math.sin(o.h)*fx+Math.cos(o.h)*fz;const near=along>0&&along<c.spec.len/2+o.spec.len/2+2.5&&lat<(c.spec.wid+o.spec.wid)/2+.3;const cross=!!(o.turn&&!o.turn.wait&&!c.turn&&along>0&&along<look+o.spec.len/2&&lat<(c.spec.wid+o.spec.wid)/2+.6);if(o.state==='traffic'&&dot<-.3&&!near&&!cross)continue;
       // crossing traffic: the vehicle that got there first (lower number) goes, the other waits its turn
-      if(o.state==='traffic'&&Math.abs(dot)<.6&&(o.tid||0)>c.tid&&!near)continue;
+      if(o.state==='traffic'&&Math.abs(dot)<.6&&(o.tid||0)>c.tid&&!near&&!cross)continue;
       if(along>0&&along<look+o.spec.len/2&&lat<2.4){target=Math.min(target,o.state==='traffic'?o.v*.8:0);if(o.state!=='traffic')blocked=o;else jam=true;}}
     if(jam&&c.v<.4){c.jamT=(c.jamT||0)+dt;if(c.jamT>7){c.jamT=0;if(c.pos.distanceTo(pp)>45||!inView(c.pos)){removeVeh(c);n--;continue;}else if((c.jamN=(c.jamN||0)+1)>4)c.ghostT=2;}}else{c.jamT=0;c.jamN=0;}
     for(const q of [fp,...cows.filter(k=>k.active)]){if(!q)continue;const dx=q.x-c.pos.x,dz=q.z-c.pos.z;const along=dx*fx+dz*fz,lat=Math.abs(-dx*fz+dz*fx);if(along>0&&along<look+2&&lat<2.4)target=0;}
@@ -2138,15 +2152,17 @@ function updTraffic(dt){const pp=ppos();const fp=player.mode==='foot'?player.pos
     else if(!c.turn){l.s+=l.dir*c.v*dt;const left=l.dir>0?(l.e.stopB!=null?l.e.stopB:l.e.len)-l.s:l.s-(l.e.stopA||0);/* v1.01.23: turn round before a pool or fort at the end of the road */const TR=Math.min(9,l.e.len*.4);
       if(left<=TR){const pk={e:l.e,s:l.s,dir:l.dir};nextLane(pk);
         if(pk.dead){// a road that ends: far from you the vehicle simply leaves; near you it makes a proper U-turn
-          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir,k:l.k},_lp);
-          c.turn={p0:[c.pos.x,c.pos.z],c:[c.pos.x+fx2*r*1.4,c.pos.z+fz2*r*1.4],c2:[_lp.x+fx2*r*1.4,_lp.z+fz2*r*1.4],p2:[_lp.x,_lp.z],t:0,len:r*3.4+2,key:'u'+(c.tid||(c.tid=++TIDN)),y0:c.pos.y,y2:c.pos.y};l.dir=-l.dir;}
+          if(c.pos.distanceTo(pp)>70){removeVeh(c);n--;continue;}
+          if(!uGapClear(c)&&(c.uWait=(c.uWait||0)+dt)<14){l.s-=l.dir*c.v*dt;c.v=0;const h0=c.h;lanePos({e:l.e,s:l.s,dir:-l.dir,k:l.k},_lp);c.sigSide=Math.sign((_lp.x-c.pos.x)*Math.cos(h0)-(_lp.z-c.pos.z)*Math.sin(h0))||1;}
+          else{c.uWait=0;const h0=c.h,fx2=Math.sin(h0),fz2=Math.cos(h0),r=Math.max(2.4,l.e.lane*1.2+1.2);lanePos({e:l.e,s:l.s,dir:-l.dir,k:l.k},_lp);
+          c.turn={p0:[c.pos.x,c.pos.z],c:[c.pos.x+fx2*r*1.4,c.pos.z+fz2*r*1.4],c2:[_lp.x+fx2*r*1.4,_lp.z+fz2*r*1.4],p2:[_lp.x,_lp.z],t:0,len:r*3.4+2,key:'u'+(c.tid||(c.tid=++TIDN)),y0:c.pos.y,y2:c.pos.y,side:Math.sign((_lp.x-c.pos.x)*fz2-(_lp.z-c.pos.z)*fx2)||1};l.dir=-l.dir;}}
         else{const s1=pk.dir>0?Math.min(Math.min(9,pk.e.len*.4),pk.e.len):Math.max(0,pk.e.len-Math.min(9,pk.e.len*.4));const p0=[c.pos.x,c.pos.z],h0=c.h;lanePos({e:pk.e,s:s1,dir:pk.dir,k:l.k},_lp);const p2=[_lp.x,_lp.z],h2=_lp.h;
           const d=Math.hypot(p2[0]-p0[0],p2[1]-p0[1]);let dh=h2-h0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));const k=d*.45;const cc=Math.abs(dh)<.15?[(p0[0]+p2[0])/2,(p0[1]+p2[1])/2]:null;
           const ex=l.dir>0?l.e.bx:l.e.ax,ez=l.dir>0?l.e.bz:l.e.az;const key=Math.round(ex/10)+','+Math.round(ez/10);const busy=pk.e.road!==l.e.road||Math.abs(dh)>.5;
-          c.turn=cc?{p0,c:cc,p2,t:0,len:Math.max(1,d)}:{p0,c:[p0[0]+Math.sin(h0)*k,p0[1]+Math.cos(h0)*k],c2:[p2[0]-Math.sin(h2)*k,p2[1]-Math.cos(h2)*k],p2,t:0,len:Math.max(1,d*(1+Math.abs(dh)*.25))};c.turn.key=busy?key:'s'+(c.tid||(c.tid=++TIDN));c.turn.y0=c.pos.y;c.turn.y2=pk.e.fly?flyY(pk.e,s1):0;
+          c.turn=cc?{p0,c:cc,p2,t:0,len:Math.max(1,d)}:{p0,c:[p0[0]+Math.sin(h0)*k,p0[1]+Math.cos(h0)*k],c2:[p2[0]-Math.sin(h2)*k,p2[1]-Math.cos(h2)*k],p2,t:0,len:Math.max(1,d*(1+Math.abs(dh)*.25))};c.turn.key=busy?key:'s'+(c.tid||(c.tid=++TIDN));c.turn.side=Math.abs(dh)>.5?Math.sign(dh):0;c.turn.y0=c.pos.y;c.turn.y2=pk.e.fly?flyY(pk.e,s1):0;
           if(busy){const o=JCL.get(key);if(o&&o!==c&&vehicles.includes(o)&&o.turn&&o.turn.key===key){c.turn.wait=true;}else JCL.set(key,c);}
           l.e=pk.e;l.dir=pk.dir;l.s=s1;}}
-      if(!c.turn)placeLane(c);}c.m.visible=Math.abs(c.pos.x-pp.x)+Math.abs(c.pos.z-pp.z)<Math.max(240,scene.fog.far*.6);for(const w of c.m.userData.wheels)w.rotation.x+=c.v*dt/.4;const Dr=c.m.userData.driver;if(Dr&&Dr.userData.pedal&&c.m.visible){Dr.userData.pph=(Dr.userData.pph||0)+c.v*dt*1.3;const a=Math.sin(Dr.userData.pph)*.5;Dr.userData.legs[0].rotation.x=-1.15+a;Dr.userData.legs[1].rotation.x=-1.15-a;}}
+      if(!c.turn){placeLane(c);if(l.lv&&c.v>.5){c.h+=clamp(Math.atan2(l.lv,c.v),-.22,.22);c.m.rotation.y=c.h;}}}c.m.visible=Math.abs(c.pos.x-pp.x)+Math.abs(c.pos.z-pp.z)<Math.max(240,scene.fog.far*.6);for(const w of c.m.userData.wheels)w.rotation.x+=c.v*dt/.4;if(c.m.visible&&!c.spec.pedal)indSet(c,c.turn?(c.turn.side||0):l.e.multi?(c.sigSide||0):(c.uWait?c.sigSide||0:0));const Dr=c.m.userData.driver;if(Dr&&Dr.userData.pedal&&c.m.visible){Dr.userData.pph=(Dr.userData.pph||0)+c.v*dt*1.3;const a=Math.sin(Dr.userData.pph)*.5;Dr.userData.legs[0].rotation.x=-1.15+a;Dr.userData.legs[1].rotation.x=-1.15-a;}}
   let spawns=0;while(n<Math.round(CFG.traffic*botScale)&&spawns<3){spawns++;const v=spawnTraffic(started);if(v&&vehicles.some(o=>o!==v&&Math.abs(o.pos.x-v.pos.x)<(o.spec.len+v.spec.len)/2+3&&Math.abs(o.pos.z-v.pos.z)<(o.spec.len+v.spec.len)/2+3&&Math.abs(o.pos.y-v.pos.y)<2&&segDist(v.pos.x,v.pos.z,o).d<(o.spec.wid+v.spec.wid)/2+1.5)){removeVeh(v);continue;}if(v){const c=CONG[v.lane.e.id];if(Math.random()>.35+c){removeVeh(v);continue;}v.lane.vmax*=1-.55*c;const hw=v.lane.e.kind!=='city'&&v.lane.e.kind!=='service';if(hw&&v.spec.max>=20)v.lane.vmax=Math.max(v.lane.vmax,25.2);v.lane.vmax=botAdmin(v.lane.vmax,v.type,hw);n++;}}}
 // Admin → Settings → Vehicle speeds (Beta v1.01.25): a top speed per vehicle type, one for street traffic and one for players,
 // plus an overall percentage for each. Empty means the game's own speed.

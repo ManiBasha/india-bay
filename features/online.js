@@ -1,7 +1,7 @@
 // Online play: Supabase sign-in (Google or guest), unique usernames, cloud saves, shared admin settings,
 // and the live West region on the Cloudflare server (other players, proximity chat, mute and report).
 // Does nothing until js/online-config.js is filled in.
-window.__ibOnlineV = '1.01.27';
+window.__ibOnlineV = '1.01.28';
 window.BBFeatures.push(function (bb) {
   window.__ibOnlineStage = 'started';
   const C = window.ONLINE || {};
@@ -370,7 +370,7 @@ window.BBFeatures.push(function (bb) {
 
 
   /* ---------- sharing vehicles: ride along with a driver, or take a parked vehicle ---------- */
-  const CAP = { cycle: 1, rickshaw: 3, bike: 2, sportsbike: 2, auto: 4, taxi: 5, car: 5, sedan: 5, suv: 7, sports: 2, police: 5, bus: 30, truck: 3, mpv: 7, van: 8, coupe: 2, convertible: 4, limo: 6, ambulance: 3, camper: 4, pickup: 3, lorry: 3, tanker: 2, towtruck: 2, firetruck: 4, tractor: 1, scooter: 2, atv: 2, golfcart: 4, erickshaw: 4 };
+  const CAP = { cycle: 1, skycar: 2, rickshaw: 3, bike: 2, sportsbike: 2, auto: 4, taxi: 5, car: 5, sedan: 5, suv: 7, sports: 2, police: 5, bus: 30, truck: 3, mpv: 7, van: 8, coupe: 2, convertible: 4, limo: 6, ambulance: 3, camper: 4, pickup: 3, lorry: 3, tanker: 2, towtruck: 2, firetruck: 4, tractor: 1, scooter: 2, atv: 2, golfcart: 4, erickshaw: 4 };
   function seatOff(type, i) { const sp = bb.SPEC[type] || {};
     if (type === 'bike' || type === 'sportsbike') return [0, .95, -.62];
     if (sp.two || sp.pedal) { const st = sp.seat || [0, .95, -.2]; return [0, st[1] + .05, st[2] - .45]; }

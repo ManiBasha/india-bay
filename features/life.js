@@ -27,7 +27,9 @@ window.BBFeatures.push(function (bb) {
   /* mechanic garage */
   function repairCost(v) { return Math.ceil((100 - v.hp) * 40); }
   const PAINTS = [['#c8102e', 'Racing red'], ['#f2f2ee', 'Pearl white'], ['#1c1c20', 'Midnight black'], ['#2d5fb8', 'Royal blue'], ['#1f8a4c', 'Parrot green'], ['#f2b705', 'Haldi yellow'], ['#f07c1a', 'Kesariya orange'], ['#7b2a5e', 'Jamun purple'], ['#b9bec4', 'Silver'], ['#6d1a2a', 'Maroon'], ['#2fc4b2', 'Teal'], ['#ff6fa8', 'Rani pink']];
-  const NEONS = [['#3b8bff', 'Blue'], ['#ff2bd6', 'Pink'], ['#3ddc97', 'Green'], ['#ffd23a', 'Gold']];
+  // Beta v1.01.28: underglow lights are gone. Anyone who bought them gets the money back once.
+  const NEONS = [];
+  bb.onStart(() => { const p = P(); let n = 0; for (const c of p.cars || []) if (c && c.neon) { c.neon = null; n++; } if (n) { bb.earn(bb.cost('mod.neon', 5000) * n, 'refund'); bb.save(); setTimeout(() => bb.toast(`Underglow lights are no longer fitted · ${bb.inr(bb.cost('mod.neon', 5000) * n)} refunded`, '#3ddc97'), 4000); } });
   function refresh(i) { const v = bb.ownedVeh[i]; if (!v) return; const was = bb.player.veh === v; const x = v.pos.x, z = v.pos.z, h = v.h; if (was) bb.exitVehicle(true); const c = P().cars[i]; c.fuel = Math.round(v.fuel); c.hp = Math.round(v.hp); const nv = bb.spawnOwned(i, x, z, h); if (was) bb.enterVehicle(nv); return nv; }
   const refs = {};
   const carVeh = i => (i >= 0 ? bb.ownedVeh[i] : null);

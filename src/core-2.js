@@ -162,7 +162,9 @@ const SPEC={
   scooter:{max:24,acc:12,turn:2.4,len:1.8,wid:.7,two:true,fuel:'petrol',tank:5,range:30000,lic:'two',fp:[0,1.55,.1],cam:4,label:'Scooter',seat:[0,.82,-.2]},
   atv:{max:20,acc:12,turn:2.0,len:2.0,wid:1.2,fuel:'petrol',tank:10,range:15000,lic:null,fp:[0,1.6,-.1],cam:4.2,label:'ATV quad',seat:[0,.95,-.15]},
   golfcart:{max:10,acc:5,turn:1.9,len:2.5,wid:1.3,fuel:null,lic:null,fp:[-.3,1.45,0],cam:4.5,label:'Golf cart'},
-  erickshaw:{max:10,acc:5,turn:1.8,len:2.9,wid:1.3,fuel:null,lic:null,fp:[0,1.75,.7],cam:4.5,label:'E-rickshaw'}};
+  erickshaw:{max:10,acc:5,turn:1.8,len:2.9,wid:1.3,fuel:null,lic:null,fp:[0,1.75,.7],cam:4.5,label:'E-rickshaw'},
+  // Beta v1.01.28: an electric car that flies (features/skycar.js draws it and flies it)
+  skycar:{max:44,acc:24,turn:1.9,len:4.6,wid:2.1,fuel:null,lic:'lmv',fp:[-.38,1.25,.1],cam:5.4,label:'Aerion flying car',flies:true}};
 /* ---------- realistic vehicle parts ---------- */
 // Beta v1.01.23: vehicles reflect the sky (a small cube map), so paint, glass and chrome look glossy. ENVM keeps each
 // material's day strength; core-3 dims them at night.
@@ -616,7 +618,7 @@ function save(){if(!startedOnce){store.set(SAVEKEY,P);return;}if(player.mode==='
 /* owned vehicles */
 const ownedVeh=[];
 function spawnOwned(i,x,z,h){if(ownedVeh[i])removeVeh(ownedVeh[i]);const c=P.cars[i];c.garage=null;const v=makeVeh(c.type,x,z,h,'parked',{fuel:c.fuel,hp:c.hp,colorMat:c.color||undefined});v.owned=true;v.ownedIdx=i;ownedVeh[i]=v;v.locked=!!c.locked;if(P.extra&&P.extra.plate)setPlate(v,P.extra.plate);emit('ownedSpawn',v);
-  if(c.neon){const sp=SPEC[c.type];const g=new THREE.PlaneGeometry(sp.wid*1.15,sp.len*1.05);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c.neon,transparent:true,opacity:.55,depthWrite:false}));m.position.y=.06;v.m.add(m);}
+  if(false&&c.neon){const sp=SPEC[c.type];const g=new THREE.PlaneGeometry(sp.wid*1.15,sp.len*1.05);g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c.neon,transparent:true,opacity:.55,depthWrite:false}));m.position.y=.06;v.m.add(m);}
   return v;}
 // Put an owned vehicle away in a home garage: it leaves the street and waits there.
 function storeOwned(i,homeId){const v=ownedVeh[i];const c=P.cars[i];if(!c)return;if(v){if(player.veh===v)exitVehicle(true);c.fuel=Math.round(v.fuel);c.hp=Math.round(v.hp);removeVeh(v);ownedVeh[i]=null;}c.x=null;c.z=null;c.garage=homeId;dirty=true;}
